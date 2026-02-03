@@ -115,12 +115,9 @@ export class ReviewView extends ItemView {
 			return;
 		}
 
-		// Shuffle cards
-		const shuffled = [...dueCards].sort(() => Math.random() - 0.5);
-
 		this.session = {
 			deckPath,
-			cards: shuffled,
+			cards: dueCards,
 			currentIndex: 0,
 			currentSide: 0,
 			totalSides: 0,
@@ -349,15 +346,29 @@ export class ReviewView extends ItemView {
 			await this.plugin.cardService.updateReviewState(file, newState);
 		}
 
-		// Move to next card
-		this.session.currentIndex++;
+		const nextDueCards = this.plugin.deckService.getDueCards(
+			this.session.deckPath,
+		);
 
-		if (this.session.currentIndex >= this.session.cards.length) {
+		if (nextDueCards.length === 0) {
 			this.renderComplete();
-		} else {
-			await this.loadCurrentCard();
-			this.render();
+			return;
 		}
+
+		const currentPath = card.path;
+		const currentIndexInNext = nextDueCards.findIndex(
+			(nextCard) => nextCard.path === currentPath,
+		);
+
+		const nextIndex =
+			currentIndexInNext >= 0
+				? (currentIndexInNext + 1) % nextDueCards.length
+				: 0;
+
+		this.session.cards = nextDueCards;
+		this.session.currentIndex = nextIndex;
+		await this.loadCurrentCard();
+		this.render();
 	}
 
 	private async editCurrentCard() {

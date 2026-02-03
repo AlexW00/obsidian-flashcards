@@ -10,6 +10,7 @@ A spaced repetition flashcards plugin for Obsidian using the FSRS algorithm.
 - **Multi-side Cards** — Split card content with `---` separators for question/answer or multi-step reveals
 - **Deck Organization** — Organize cards into folders (decks) with hierarchical stats display
 - **Keyboard Shortcuts** — Review cards quickly with Space (reveal/Good) and 1-4 (rating keys)
+- **Anki-style due behavior** — All cards due today are reviewable, ordered by due time
 
 ## Installation
 
@@ -67,6 +68,8 @@ _{{ part_of_speech }}_
     - **3** — Good
     - **4** — Easy
     - **E** — Edit current card
+
+Note: Cards due later today are treated as due immediately (Anki-style). If a card’s next due time is still today, it can reappear during the same session.
 
 ## Commands
 

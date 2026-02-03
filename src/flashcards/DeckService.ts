@@ -18,6 +18,26 @@ export class DeckService {
 	}
 
 	/**
+	 * Cards are considered due if their due date is before the end of today.
+	 * This mirrors Anki's behavior where all cards due "today" are reviewable.
+	 */
+	private isDueToday(dueDate: Date): boolean {
+		const endOfToday = new Date();
+		endOfToday.setHours(23, 59, 59, 999);
+		return dueDate <= endOfToday;
+	}
+
+	/**
+	 * Get the due date for a card, used for sorting.
+	 * New cards (no review state) are treated as earliest due.
+	 */
+	private getCardDueDate(card: Flashcard): Date {
+		const review = card.frontmatter.review;
+		if (!review) return new Date(0);
+		return new Date(review.due);
+	}
+
+	/**
 	 * Check if a file is a flashcard based on its frontmatter.
 	 */
 	isFlashcard(file: TFile): boolean {
@@ -91,7 +111,6 @@ export class DeckService {
 	 * Calculate stats for a set of flashcards.
 	 */
 	calculateStats(flashcards: Flashcard[]): DeckStats {
-		const now = new Date();
 		let newCount = 0;
 		let learnCount = 0;
 		let relearnCount = 0;
@@ -113,7 +132,7 @@ export class DeckService {
 				relearnCount++;
 			} else if (state === State.Review) {
 				const dueDate = new Date(review.due);
-				if (dueDate <= now) {
+				if (this.isDueToday(dueDate)) {
 					reviewCount++;
 				}
 			}
@@ -180,15 +199,20 @@ export class DeckService {
 	 */
 	getDueCards(deckPath: string): Flashcard[] {
 		const flashcards = this.getFlashcardsInFolder(deckPath);
-		const now = new Date();
 
-		return flashcards.filter((card) => {
+		const dueCards = flashcards.filter((card) => {
 			const review = card.frontmatter.review;
 			if (!review) return true; // New cards are always due
 
 			const dueDate = new Date(review.due);
-			return dueDate <= now;
+			return this.isDueToday(dueDate);
 		});
+
+		return dueCards.sort(
+			(a, b) =>
+				this.getCardDueDate(a).getTime() -
+				this.getCardDueDate(b).getTime(),
+		);
 	}
 
 	/**

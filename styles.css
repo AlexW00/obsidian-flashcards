@@ -203,6 +203,10 @@
 	box-shadow: var(--shadow-s);
 }
 
+.theme-dark .flashcard-card {
+	border: 1px solid var(--background-modifier-border);
+}
+
 .flashcard-card-content {
 	font-size: var(--font-text-size);
 	line-height: var(--line-height-normal);
