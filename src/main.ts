@@ -337,7 +337,10 @@ export default class FlashcardsPlugin extends Plugin {
 				return;
 			}
 
-			console.debug("[Flashcards] body-change: detected unauthorized body edit", file.path);
+			console.debug(
+				"[Flashcards] body-change: detected unauthorized body edit",
+				file.path,
+			);
 
 			// Update cache immediately (will be updated again after regeneration)
 			this.bodyContentCache.set(file.path, body);
@@ -355,7 +358,9 @@ export default class FlashcardsPlugin extends Plugin {
 			// Set up debounced regeneration
 			const timer = setTimeout(() => {
 				const currentTimer = this.autoRegenerateTimers.get(file.path);
-				const currentVersion = this.autoRegenerateVersions.get(file.path);
+				const currentVersion = this.autoRegenerateVersions.get(
+					file.path,
+				);
 
 				// Skip if a newer change occurred or a newer timer exists
 				if (currentTimer !== timer || currentVersion !== nextVersion) {
@@ -405,7 +410,8 @@ export default class FlashcardsPlugin extends Plugin {
 		let body = content.slice(fmMatch[0].length);
 
 		// Remove protection comment if present
-		const protectionComment = "<!-- flashcard-content: DO NOT EDIT BELOW - Edit the frontmatter above instead! -->";
+		const protectionComment =
+			"<!-- flashcard-content: DO NOT EDIT BELOW - Edit the frontmatter above instead! -->";
 		body = body.replace(
 			new RegExp(
 				`^\\s*${protectionComment.replace(/[.*+?^${}()|[\]\\]/g, "\\$&")}\\s*`,
