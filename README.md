@@ -2,6 +2,8 @@
 
 A spaced repetition flashcards plugin for Obsidian using the FSRS algorithm.
 
+DISCLAIMER: Alpha! Planning to release it as a beta soon tho!
+
 ## Features
 
 - **FSRS Scheduling** — Uses the Free Spaced Repetition Scheduler algorithm via `ts-fsrs` for optimal review timing
@@ -16,9 +18,7 @@ A spaced repetition flashcards plugin for Obsidian using the FSRS algorithm.
 
 ### From Community Plugins (Recommended)
 
-1. Open **Settings → Community plugins**
-2. Select **Browse** and search for "Flashcards"
-3. Select **Install**, then **Enable**
+Not available yet!
 
 ### Manual Installation
 
@@ -33,7 +33,7 @@ A spaced repetition flashcards plugin for Obsidian using the FSRS algorithm.
 
 Templates define the structure of your flashcards. By default, templates are stored in `Templates/Flashcards/`.
 
-1. Run command **Flashcards: Create new template**
+1. Run command **Flashcards: Create new template** (or check the folder for an existing one)
 2. Enter a name (e.g., "Vocabulary")
 3. Edit the template using `{{ variable }}` placeholders:
 
