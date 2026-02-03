@@ -148,12 +148,15 @@ Follow Obsidian's **Developer Policies** and **Plugin Guidelines**. In particula
 - Provide defaults and validation in settings.
 - Write idempotent code paths so reload/unload doesn't leak listeners or intervals.
 - Use `this.register*` helpers for everything that needs cleanup.
+- Use Components provided by the Obsidian API for UI consistency.
+- After finishing implementation, test plugin installation run `npm run lint` and build the plugin via `npm run build` to ensure no errors are present.
 
 **Don't**
 
 - Introduce network calls without an obvious user-facing reason and documentation.
 - Ship features that require cloud services without clear disclosure and explicit opt-in.
 - Store or transmit vault contents unless essential and consented.
+- Add excessive custom comnponents / css that couldnt be done with existing Obsidian Components
 
 ## Common tasks
 

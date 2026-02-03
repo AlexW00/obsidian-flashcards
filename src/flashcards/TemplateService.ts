@@ -1,6 +1,7 @@
 import { App, TFile, TFolder } from "obsidian";
 import nunjucks from "nunjucks";
 import type { FlashcardTemplate, TemplateVariable } from "../types";
+import { DEFAULT_BASIC_TEMPLATE } from "../types";
 
 /**
  * Service for managing flashcard templates and Nunjucks rendering.
@@ -8,9 +9,11 @@ import type { FlashcardTemplate, TemplateVariable } from "../types";
 export class TemplateService {
 	private app: App;
 	private env: nunjucks.Environment;
+	private defaultTemplateContent: string;
 
-	constructor(app: App) {
+	constructor(app: App, defaultTemplateContent?: string) {
 		this.app = app;
+		this.defaultTemplateContent = defaultTemplateContent ?? DEFAULT_BASIC_TEMPLATE;
 		// Configure Nunjucks with autoescape disabled (we're generating Markdown, not HTML)
 		this.env = new nunjucks.Environment(null, {
 			autoescape: false,
@@ -20,16 +23,30 @@ export class TemplateService {
 	}
 
 	/**
+	 * Update the default template content (when settings change).
+	 */
+	setDefaultTemplateContent(content: string): void {
+		this.defaultTemplateContent = content;
+	}
+
+	/**
 	 * Extract variable names from a Nunjucks template using regex.
 	 * Matches {{ variable }} and {{ variable | filter }} patterns.
+	 * Ignores variables inside HTML comments.
 	 */
 	extractVariables(templateContent: string): TemplateVariable[] {
+		// Strip HTML comments before parsing to ignore commented-out examples
+		const contentWithoutComments = templateContent.replace(
+			/<!--[\s\S]*?-->/g,
+			"",
+		);
+
 		const variableRegex =
 			/\{\{\s*([a-zA-Z_][a-zA-Z0-9_]*)\s*(?:\|[^}]*)?\}\}/g;
 		const variables = new Map<string, TemplateVariable>();
 
 		let match;
-		while ((match = variableRegex.exec(templateContent)) !== null) {
+		while ((match = variableRegex.exec(contentWithoutComments)) !== null) {
 			const name = match[1];
 			if (!name) continue;
 			// Skip built-in Nunjucks variables and loop variables
@@ -177,54 +194,43 @@ export class TemplateService {
 	}
 
 	/**
+	 * Create a new template with the given name using the basic template as a starter.
+	 * Returns the path to the created template file.
+	 */
+	async createTemplate(
+		templateFolder: string,
+		name: string,
+	): Promise<string> {
+		// Ensure folder exists
+		let folder = this.app.vault.getAbstractFileByPath(templateFolder);
+		if (!folder) {
+			try {
+				await this.app.vault.createFolder(templateFolder);
+			} catch {
+				// Folder may already exist on disk but not indexed yet
+			}
+		}
+
+		const templatePath = `${templateFolder}/${name}.md`;
+
+		// Check if template already exists
+		const existing = this.app.vault.getAbstractFileByPath(templatePath);
+		if (existing) {
+			throw new Error(`A template named "${name}" already exists.`);
+		}
+
+		await this.app.vault.create(templatePath, this.defaultTemplateContent);
+		return templatePath;
+	}
+
+	/**
 	 * Create the default Basic template with usage tips.
 	 */
 	private async createBasicTemplate(templateFolder: string): Promise<void> {
 		const basicTemplatePath = `${templateFolder}/Basic.md`;
-		const basicTemplateContent = `# {{ front }}
-
----
-
-{{ back }}
-
-<!--
-## Template Tips
-
-This is a Basic flashcard template using Nunjucks syntax.
-
-### How templates work:
-- Variables are wrapped in {{ double_braces }}
-- When creating a card, you'll be prompted to fill in each variable
-- The content above the --- is shown as the question
-- The content below the --- is revealed as the answer
-
-### Creating your own templates:
-1. Create a new .md file in this folder
-2. Use {{ variable_name }} for any fields you want to fill in
-3. Use --- to separate the front (question) from the back (answer)
-
-### Example: Vocabulary Template
-# {{ word }}
-
-*{{ part_of_speech }}*
-
----
-
-**Definition:** {{ definition }}
-
-**Example:** {{ example_sentence }}
-
-### Example: Cloze Template
-{{ context_before }} [...] {{ context_after }}
-
----
-
-{{ context_before }} **{{ answer }}** {{ context_after }}
-
-For more information, see the plugin documentation.
--->
-`;
-
-		await this.app.vault.create(basicTemplatePath, basicTemplateContent);
+		await this.app.vault.create(
+			basicTemplatePath,
+			this.defaultTemplateContent,
+		);
 	}
 }

@@ -186,14 +186,11 @@ export class DashboardView extends ItemView {
 
 				// Step 2: Select template
 				void this.plugin.templateService
-					// eslint-disable-next-line @typescript-eslint/no-unsafe-argument, @typescript-eslint/no-unsafe-member-access
 					.getTemplates(this.plugin.settings.templateFolder)
 					.then((templates) => {
 						if (templates.length === 0) {
 							// No templates found - show error
-							// eslint-disable-next-line @typescript-eslint/no-unsafe-assignment
 							const templateFolder =
-								// eslint-disable-next-line @typescript-eslint/no-unsafe-member-access
 								this.plugin.settings.templateFolder;
 							new Notice(
 								`No templates found in "${templateFolder}". Please create a template first.`,
@@ -238,14 +235,12 @@ export class DashboardView extends ItemView {
 						deckPath,
 						template.path,
 						fields,
-						// eslint-disable-next-line @typescript-eslint/no-unsafe-argument, @typescript-eslint/no-unsafe-member-access
 						this.plugin.settings.noteNameTemplate,
 					)
 					.then(async () => {
 						new Notice("Card created!");
 
 						// Update last used deck
-						// eslint-disable-next-line @typescript-eslint/no-unsafe-member-access
 						this.plugin.settings.lastUsedDeck = deckPath;
 						await this.plugin.saveSettings();
 

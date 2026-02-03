@@ -1,9 +1,9 @@
 import { Notice, Plugin, TFile } from "obsidian";
+import { FlashcardsSettingTab } from "./settings";
 import {
 	DEFAULT_SETTINGS,
-	FlashcardsPluginSettings,
-	FlashcardsSettingTab,
-} from "./settings";
+	type FlashcardsPluginSettings,
+} from "./types";
 import { TemplateService } from "./flashcards/TemplateService";
 import { CardService } from "./flashcards/CardService";
 import { DeckService } from "./flashcards/DeckService";
@@ -13,6 +13,7 @@ import { ReviewView, REVIEW_VIEW_TYPE } from "./ui/ReviewView";
 import { DeckSelectorModal } from "./ui/DeckSelectorModal";
 import { TemplateSelectorModal } from "./ui/TemplateSelectorModal";
 import { CardCreationModal } from "./ui/CardCreationModal";
+import { TemplateNameModal } from "./ui/TemplateNameModal";
 
 export default class FlashcardsPlugin extends Plugin {
 	settings: FlashcardsPluginSettings;
@@ -25,7 +26,10 @@ export default class FlashcardsPlugin extends Plugin {
 		await this.loadSettings();
 
 		// Initialize services
-		this.templateService = new TemplateService(this.app);
+		this.templateService = new TemplateService(
+			this.app,
+			this.settings.defaultTemplateContent,
+		);
 		this.cardService = new CardService(this.app, this.templateService);
 		this.deckService = new DeckService(this.app);
 		this.scheduler = new Scheduler();
@@ -84,6 +88,12 @@ export default class FlashcardsPlugin extends Plugin {
 				}
 				return false;
 			},
+		});
+
+		this.addCommand({
+			id: "create-template",
+			name: "Create new template",
+			callback: () => this.createTemplate(),
 		});
 
 		// Add settings tab
@@ -246,5 +256,27 @@ export default class FlashcardsPlugin extends Plugin {
 		} catch (error) {
 			new Notice(`Failed to regenerate: ${(error as Error).message}`);
 		}
+	}
+
+	/**
+	 * Create a new template with a user-provided name.
+	 */
+	private createTemplate() {
+		new TemplateNameModal(this.app, (name) => {
+			void this.templateService
+				.createTemplate(this.settings.templateFolder, name)
+				.then((templatePath) => {
+					new Notice(`Template "${name}" created!`);
+					// Open the new template for editing
+					const file =
+						this.app.vault.getAbstractFileByPath(templatePath);
+					if (file instanceof TFile) {
+						void this.app.workspace.getLeaf().openFile(file);
+					}
+				})
+				.catch((error: Error) => {
+					new Notice(`Failed to create template: ${error.message}`);
+				});
+		}).open();
 	}
 }

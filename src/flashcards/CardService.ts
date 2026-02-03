@@ -27,8 +27,8 @@ export class CardService {
 			due: card.due.toISOString(),
 			stability: card.stability,
 			difficulty: card.difficulty,
-			// eslint-disable-next-line @typescript-eslint/no-deprecated
-			elapsed_days: card.elapsed_days,
+			// TODO: Remove when ts-fsrs 6.0 is released
+			elapsed_days: card.elapsed_days, // eslint-disable-line @typescript-eslint/no-deprecated
 			scheduled_days: card.scheduled_days,
 			reps: card.reps,
 			lapses: card.lapses,

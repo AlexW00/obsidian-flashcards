@@ -73,3 +73,78 @@ export interface FlashcardTemplate {
 	variables: TemplateVariable[];
 	content: string;
 }
+
+/**
+ * Plugin settings interface.
+ */
+export interface FlashcardsPluginSettings {
+	/** Path to folder containing template files */
+	templateFolder: string;
+	/** Template for flashcard note names. Supports {{date}}, {{time}}, {{timestamp}} */
+	noteNameTemplate: string;
+	/** Last used deck path for quick access */
+	lastUsedDeck: string;
+	/** Default template content used when creating new templates */
+	defaultTemplateContent: string;
+}
+
+/** Default basic template content */
+export const DEFAULT_BASIC_TEMPLATE = `# {{ front }}
+
+---
+
+{{ back }}
+
+<!--
+## Template Tips
+
+This is a Basic flashcard template using Nunjucks syntax.
+
+### How templates work:
+- Variables are wrapped in {{ double_braces }}
+- When creating a card, you'll be prompted to fill in each variable
+- The content above the --- is shown as the question
+- The content below the --- is revealed as the answer
+
+### Creating your own templates:
+1. Create a new .md file in this folder
+2. Use {{ variable_name }} for any fields you want to fill in
+3. Use --- to separate the front (question) from the back (answer)
+
+### Example: Vocabulary Template
+# {{ word }}
+
+*{{ part_of_speech }}*
+
+---
+
+**Definition:** {{ definition }}
+
+**Example:** {{ example_sentence }}
+
+### Example: Cloze Template
+{{ context_before }} [...] {{ context_after }}
+
+---
+
+{{ context_before }} **{{ answer }}** {{ context_after }}
+
+For more information, see the plugin documentation.
+-->
+`;
+
+export const DEFAULT_SETTINGS: FlashcardsPluginSettings = {
+	templateFolder: "Templates/Flashcards",
+	noteNameTemplate: "{{timestamp}}",
+	lastUsedDeck: "",
+	defaultTemplateContent: DEFAULT_BASIC_TEMPLATE,
+};
+
+/**
+ * Interface for plugin functionality needed by settings tab.
+ * Avoids circular dependency between main.ts and settings.ts.
+ */
+export interface PluginWithSettings {
+	settings: FlashcardsPluginSettings;
+	saveSettings(): Promise<void>;
+}
