@@ -1,6 +1,6 @@
-import { App, TFile, TFolder } from 'obsidian';
-import nunjucks from 'nunjucks';
-import type { FlashcardTemplate, TemplateVariable } from '../types';
+import { App, TFile, TFolder } from "obsidian";
+import nunjucks from "nunjucks";
+import type { FlashcardTemplate, TemplateVariable } from "../types";
 
 /**
  * Service for managing flashcard templates and Nunjucks rendering.
@@ -24,7 +24,8 @@ export class TemplateService {
 	 * Matches {{ variable }} and {{ variable | filter }} patterns.
 	 */
 	extractVariables(templateContent: string): TemplateVariable[] {
-		const variableRegex = /\{\{\s*([a-zA-Z_][a-zA-Z0-9_]*)\s*(?:\|[^}]*)?\}\}/g;
+		const variableRegex =
+			/\{\{\s*([a-zA-Z_][a-zA-Z0-9_]*)\s*(?:\|[^}]*)?\}\}/g;
 		const variables = new Map<string, TemplateVariable>();
 
 		let match;
@@ -32,7 +33,11 @@ export class TemplateService {
 			const name = match[1];
 			if (!name) continue;
 			// Skip built-in Nunjucks variables and loop variables
-			if (!['loop', 'super', 'self', 'true', 'false', 'none'].includes(name)) {
+			if (
+				!["loop", "super", "self", "true", "false", "none"].includes(
+					name,
+				)
+			) {
 				if (!variables.has(name)) {
 					variables.set(name, { name });
 				}
@@ -61,7 +66,7 @@ export class TemplateService {
 		}
 
 		for (const file of folder.children) {
-			if (file instanceof TFile && file.extension === 'md') {
+			if (file instanceof TFile && file.extension === "md") {
 				const content = await this.app.vault.read(file);
 				templates.push({
 					path: file.path,
@@ -78,14 +83,18 @@ export class TemplateService {
 	/**
 	 * Load a template by path.
 	 */
-	async loadTemplate(templatePath: string): Promise<FlashcardTemplate | null> {
+	async loadTemplate(
+		templatePath: string,
+	): Promise<FlashcardTemplate | null> {
 		// Handle WikiLink format: [[path]] or [[path|alias]]
 		const cleanPath = this.resolveWikiLink(templatePath);
-		
+
 		const file = this.app.vault.getAbstractFileByPath(cleanPath);
 		if (!(file instanceof TFile)) {
 			// Try adding .md extension
-			const fileWithExt = this.app.vault.getAbstractFileByPath(cleanPath + '.md');
+			const fileWithExt = this.app.vault.getAbstractFileByPath(
+				cleanPath + ".md",
+			);
 			if (!(fileWithExt instanceof TFile)) {
 				return null;
 			}
@@ -113,9 +122,9 @@ export class TemplateService {
 	 */
 	private resolveWikiLink(link: string): string {
 		// Remove [[ and ]] if present
-		const path = link.replace(/^\[\[|\]\]$/g, '');
+		const path = link.replace(/^\[\[|\]\]$/g, "");
 		// Remove alias if present (everything after |)
-		const parts = path.split('|');
+		const parts = path.split("|");
 		return (parts[0] ?? path).trim();
 	}
 
@@ -124,9 +133,9 @@ export class TemplateService {
 	 */
 	generateNoteName(template: string): string {
 		const now = new Date();
-		const date = now.toISOString().split('T')[0] ?? 'unknown'; // YYYY-MM-DD
-		const timeParts = now.toTimeString().split(' ');
-		const time = (timeParts[0] ?? '00-00-00').replace(/:/g, '-'); // HH-MM-SS
+		const date = now.toISOString().split("T")[0] ?? "unknown"; // YYYY-MM-DD
+		const timeParts = now.toTimeString().split(" ");
+		const time = (timeParts[0] ?? "00-00-00").replace(/:/g, "-"); // HH-MM-SS
 		const timestamp = now.getTime().toString();
 
 		return template

@@ -1,14 +1,18 @@
-import { Notice, Plugin, TFile } from 'obsidian';
-import { DEFAULT_SETTINGS, FlashcardsPluginSettings, FlashcardsSettingTab } from './settings';
-import { TemplateService } from './flashcards/TemplateService';
-import { CardService } from './flashcards/CardService';
-import { DeckService } from './flashcards/DeckService';
-import { Scheduler } from './srs/Scheduler';
-import { DashboardView, DASHBOARD_VIEW_TYPE } from './ui/DashboardView';
-import { ReviewView, REVIEW_VIEW_TYPE } from './ui/ReviewView';
-import { DeckSelectorModal } from './ui/DeckSelectorModal';
-import { TemplateSelectorModal } from './ui/TemplateSelectorModal';
-import { CardCreationModal } from './ui/CardCreationModal';
+import { Notice, Plugin, TFile } from "obsidian";
+import {
+	DEFAULT_SETTINGS,
+	FlashcardsPluginSettings,
+	FlashcardsSettingTab,
+} from "./settings";
+import { TemplateService } from "./flashcards/TemplateService";
+import { CardService } from "./flashcards/CardService";
+import { DeckService } from "./flashcards/DeckService";
+import { Scheduler } from "./srs/Scheduler";
+import { DashboardView, DASHBOARD_VIEW_TYPE } from "./ui/DashboardView";
+import { ReviewView, REVIEW_VIEW_TYPE } from "./ui/ReviewView";
+import { DeckSelectorModal } from "./ui/DeckSelectorModal";
+import { TemplateSelectorModal } from "./ui/TemplateSelectorModal";
+import { CardCreationModal } from "./ui/CardCreationModal";
 
 export default class FlashcardsPlugin extends Plugin {
 	settings: FlashcardsPluginSettings;
@@ -29,40 +33,40 @@ export default class FlashcardsPlugin extends Plugin {
 		// Register views
 		this.registerView(
 			DASHBOARD_VIEW_TYPE,
-			(leaf) => new DashboardView(leaf, this)
+			(leaf) => new DashboardView(leaf, this),
 		);
 		this.registerView(
 			REVIEW_VIEW_TYPE,
-			(leaf) => new ReviewView(leaf, this)
+			(leaf) => new ReviewView(leaf, this),
 		);
 
 		// Add ribbon icon
-		this.addRibbonIcon('layers', 'Flashcards', () => {
+		this.addRibbonIcon("layers", "Flashcards", () => {
 			void this.openDashboard();
 		});
 
 		// Register commands
 		this.addCommand({
-			id: 'open-dashboard',
-			name: 'Open dashboard',
+			id: "open-dashboard",
+			name: "Open dashboard",
 			callback: () => this.openDashboard(),
 		});
 
 		this.addCommand({
-			id: 'create-card',
-			name: 'Create new card',
+			id: "create-card",
+			name: "Create new card",
 			callback: () => this.createCard(),
 		});
 
 		this.addCommand({
-			id: 'start-review',
-			name: 'Start review',
+			id: "start-review",
+			name: "Start review",
 			callback: () => this.selectDeckForReview(),
 		});
 
 		this.addCommand({
-			id: 'regenerate-card',
-			name: 'Regenerate current card',
+			id: "regenerate-card",
+			name: "Regenerate current card",
 			checkCallback: (checking: boolean) => {
 				const file = this.app.workspace.getActiveFile();
 				if (file && this.isFlashcard(file)) {
@@ -84,7 +88,11 @@ export default class FlashcardsPlugin extends Plugin {
 	}
 
 	async loadSettings() {
-		this.settings = Object.assign({}, DEFAULT_SETTINGS, await this.loadData() as Partial<FlashcardsPluginSettings> | null);
+		this.settings = Object.assign(
+			{},
+			DEFAULT_SETTINGS,
+			(await this.loadData()) as Partial<FlashcardsPluginSettings> | null,
+		);
 	}
 
 	async saveSettings() {
@@ -95,13 +103,14 @@ export default class FlashcardsPlugin extends Plugin {
 	 * Open the flashcards dashboard view.
 	 */
 	async openDashboard() {
-		const existing = this.app.workspace.getLeavesOfType(DASHBOARD_VIEW_TYPE);
+		const existing =
+			this.app.workspace.getLeavesOfType(DASHBOARD_VIEW_TYPE);
 		const existingLeaf = existing[0];
-		
+
 		if (existingLeaf) {
 			void this.app.workspace.revealLeaf(existingLeaf);
 		} else {
-			const leaf = this.app.workspace.getLeaf('tab');
+			const leaf = this.app.workspace.getLeaf("tab");
 			await leaf.setViewState({
 				type: DASHBOARD_VIEW_TYPE,
 				active: true,
@@ -114,9 +123,9 @@ export default class FlashcardsPlugin extends Plugin {
 	 */
 	async startReview(deckPath: string) {
 		let leaf = this.app.workspace.getLeavesOfType(REVIEW_VIEW_TYPE)[0];
-		
+
 		if (!leaf) {
-			leaf = this.app.workspace.getLeaf('tab');
+			leaf = this.app.workspace.getLeaf("tab");
 			await leaf.setViewState({
 				type: REVIEW_VIEW_TYPE,
 				active: true,
@@ -124,7 +133,7 @@ export default class FlashcardsPlugin extends Plugin {
 		}
 
 		void this.app.workspace.revealLeaf(leaf);
-		
+
 		const view = leaf.view as ReviewView;
 		await view.startSession(deckPath);
 	}
@@ -134,36 +143,31 @@ export default class FlashcardsPlugin extends Plugin {
 	 */
 	private selectDeckForReview() {
 		const decks = this.deckService.discoverDecks();
-		
+
 		if (decks.length === 0) {
-			new Notice('No flashcard decks found. Create some cards first!');
+			new Notice("No flashcard decks found. Create some cards first!");
 			return;
 		}
 
-		new DeckSelectorModal(
-			this.app,
-			this.deckService,
-			(result) => {
-				void this.startReview(result.path);
-			}
-		).open();
+		new DeckSelectorModal(this.app, this.deckService, (result) => {
+			void this.startReview(result.path);
+		}).open();
 	}
 
 	/**
 	 * Start the card creation flow.
 	 */
 	private createCard() {
-		new DeckSelectorModal(
-			this.app,
-			this.deckService,
-			(deckResult) => {
-				const deckPath = deckResult.path;
+		new DeckSelectorModal(this.app, this.deckService, (deckResult) => {
+			const deckPath = deckResult.path;
 
-				void this.templateService.getTemplates(
-					this.settings.templateFolder
-				).then((templates) => {
+			void this.templateService
+				.getTemplates(this.settings.templateFolder)
+				.then((templates) => {
 					if (templates.length === 0) {
-						new Notice(`No templates found in "${this.settings.templateFolder}". Please create a template first.`);
+						new Notice(
+							`No templates found in "${this.settings.templateFolder}". Please create a template first.`,
+						);
 						return;
 					}
 
@@ -178,41 +182,43 @@ export default class FlashcardsPlugin extends Plugin {
 							templates,
 							(template) => {
 								this.showCardCreationModal(template, deckPath);
-							}
+							},
 						).open();
 					}
 				});
-			}
-		).open();
+		}).open();
 	}
 
 	private showCardCreationModal(
-		template: import('./types').FlashcardTemplate,
-		deckPath: string
+		template: import("./types").FlashcardTemplate,
+		deckPath: string,
 	) {
 		new CardCreationModal(
 			this.app,
 			template,
 			deckPath,
 			(fields, createAnother) => {
-				void this.cardService.createCard(
-					deckPath,
-					template.path,
-					fields,
-					this.settings.noteNameTemplate
-				).then(() => {
-					new Notice('Card created!');
-					
-					this.settings.lastUsedDeck = deckPath;
-					void this.saveSettings();
+				void this.cardService
+					.createCard(
+						deckPath,
+						template.path,
+						fields,
+						this.settings.noteNameTemplate,
+					)
+					.then(() => {
+						new Notice("Card created!");
 
-					if (createAnother) {
-						this.showCardCreationModal(template, deckPath);
-					}
-				}).catch((error: Error) => {
-					new Notice(`Failed to create card: ${error.message}`);
-				});
-			}
+						this.settings.lastUsedDeck = deckPath;
+						void this.saveSettings();
+
+						if (createAnother) {
+							this.showCardCreationModal(template, deckPath);
+						}
+					})
+					.catch((error: Error) => {
+						new Notice(`Failed to create card: ${error.message}`);
+					});
+			},
 		).open();
 	}
 
@@ -229,7 +235,7 @@ export default class FlashcardsPlugin extends Plugin {
 	private async regenerateCard(file: TFile) {
 		try {
 			await this.cardService.regenerateCard(file);
-			new Notice('Card regenerated!');
+			new Notice("Card regenerated!");
 		} catch (error) {
 			new Notice(`Failed to regenerate: ${(error as Error).message}`);
 		}

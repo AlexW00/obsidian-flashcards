@@ -1,5 +1,5 @@
-import { App, PluginSettingTab, Setting } from 'obsidian';
-import type FlashcardsPlugin from './main';
+import { App, PluginSettingTab, Setting } from "obsidian";
+import type FlashcardsPlugin from "./main";
 
 export interface FlashcardsPluginSettings {
 	/** Path to folder containing template files */
@@ -11,9 +11,9 @@ export interface FlashcardsPluginSettings {
 }
 
 export const DEFAULT_SETTINGS: FlashcardsPluginSettings = {
-	templateFolder: 'Templates/Flashcards',
-	noteNameTemplate: '{{timestamp}}',
-	lastUsedDeck: '',
+	templateFolder: "Templates/Flashcards",
+	noteNameTemplate: "{{timestamp}}",
+	lastUsedDeck: "",
 };
 
 export class FlashcardsSettingTab extends PluginSettingTab {
@@ -28,28 +28,34 @@ export class FlashcardsSettingTab extends PluginSettingTab {
 		const { containerEl } = this;
 		containerEl.empty();
 
-		new Setting(containerEl).setName('Flashcards').setHeading();
+		new Setting(containerEl).setName("Flashcards").setHeading();
 
 		new Setting(containerEl)
-			.setName('Template folder')
-			.setDesc('Folder containing your flashcard templates')
-			.addText(text => text
-				.setPlaceholder('Path/to/templates')
-				.setValue(this.plugin.settings.templateFolder)
-				.onChange(async (value) => {
-					this.plugin.settings.templateFolder = value;
-					await this.plugin.saveSettings();
-				}));
+			.setName("Template folder")
+			.setDesc("Folder containing your flashcard templates")
+			.addText((text) =>
+				text
+					.setPlaceholder("Path/to/templates")
+					.setValue(this.plugin.settings.templateFolder)
+					.onChange(async (value) => {
+						this.plugin.settings.templateFolder = value;
+						await this.plugin.saveSettings();
+					}),
+			);
 
 		new Setting(containerEl)
-			.setName('Note name template')
-			.setDesc('Template for new flashcard file names. Available: {{date}}, {{time}}, {{timestamp}}')
-			.addText(text => text
-				.setPlaceholder('{{timestamp}}')
-				.setValue(this.plugin.settings.noteNameTemplate)
-				.onChange(async (value) => {
-					this.plugin.settings.noteNameTemplate = value;
-					await this.plugin.saveSettings();
-				}));
+			.setName("Note name template")
+			.setDesc(
+				"Template for new flashcard file names. Available: {{date}}, {{time}}, {{timestamp}}",
+			)
+			.addText((text) =>
+				text
+					.setPlaceholder("{{timestamp}}")
+					.setValue(this.plugin.settings.noteNameTemplate)
+					.onChange(async (value) => {
+						this.plugin.settings.noteNameTemplate = value;
+						await this.plugin.saveSettings();
+					}),
+			);
 	}
 }

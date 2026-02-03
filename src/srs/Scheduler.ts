@@ -1,5 +1,5 @@
-import { fsrs, FSRS, Rating, Card } from 'ts-fsrs';
-import type { ReviewState } from '../types';
+import { fsrs, FSRS, Rating, Card } from "ts-fsrs";
+import type { ReviewState } from "../types";
 
 /**
  * FSRS scheduler wrapper for flashcard reviews.
@@ -25,7 +25,9 @@ export class Scheduler {
 			reps: state.reps,
 			lapses: state.lapses,
 			state: state.state,
-			last_review: state.last_review ? new Date(state.last_review) : undefined,
+			last_review: state.last_review
+				? new Date(state.last_review)
+				: undefined,
 			learning_steps: 0,
 		};
 	}
@@ -65,19 +67,31 @@ export class Scheduler {
 		return {
 			again: {
 				state: this.toReviewState(scheduling[Rating.Again].card),
-				interval: this.formatInterval(scheduling[Rating.Again].card.due, now),
+				interval: this.formatInterval(
+					scheduling[Rating.Again].card.due,
+					now,
+				),
 			},
 			hard: {
 				state: this.toReviewState(scheduling[Rating.Hard].card),
-				interval: this.formatInterval(scheduling[Rating.Hard].card.due, now),
+				interval: this.formatInterval(
+					scheduling[Rating.Hard].card.due,
+					now,
+				),
 			},
 			good: {
 				state: this.toReviewState(scheduling[Rating.Good].card),
-				interval: this.formatInterval(scheduling[Rating.Good].card.due, now),
+				interval: this.formatInterval(
+					scheduling[Rating.Good].card.due,
+					now,
+				),
 			},
 			easy: {
 				state: this.toReviewState(scheduling[Rating.Easy].card),
-				interval: this.formatInterval(scheduling[Rating.Easy].card.due, now),
+				interval: this.formatInterval(
+					scheduling[Rating.Easy].card.due,
+					now,
+				),
 			},
 		};
 	}
@@ -89,7 +103,7 @@ export class Scheduler {
 		const card = this.toFsrsCard(currentState);
 		const now = new Date();
 		const scheduling = this.fsrs.repeat(card, now);
-		
+
 		// Access the scheduling result based on rating
 		let result;
 		switch (rating) {
@@ -108,7 +122,7 @@ export class Scheduler {
 			default:
 				throw new Error(`Invalid rating: ${rating}`);
 		}
-		
+
 		return this.toReviewState(result.card);
 	}
 
@@ -123,7 +137,7 @@ export class Scheduler {
 		const diffMonths = Math.round(diffDays / 30);
 		const diffYears = Math.round(diffDays / 365);
 
-		if (diffMins < 1) return '<1m';
+		if (diffMins < 1) return "<1m";
 		if (diffMins < 60) return `${diffMins}m`;
 		if (diffHours < 24) return `${diffHours}h`;
 		if (diffDays < 30) return `${diffDays}d`;

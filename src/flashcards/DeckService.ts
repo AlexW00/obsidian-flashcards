@@ -1,6 +1,11 @@
-import { App, TFile, TFolder } from 'obsidian';
-import type { Deck, DeckStats, Flashcard, FlashcardFrontmatter } from '../types';
-import { State } from 'ts-fsrs';
+import { App, TFile, TFolder } from "obsidian";
+import type {
+	Deck,
+	DeckStats,
+	Flashcard,
+	FlashcardFrontmatter,
+} from "../types";
+import { State } from "ts-fsrs";
 
 /**
  * Service for managing decks (folders containing flashcards).
@@ -17,7 +22,7 @@ export class DeckService {
 	 */
 	isFlashcard(file: TFile): boolean {
 		const cache = this.app.metadataCache.getFileCache(file);
-		return cache?.frontmatter?.type === 'flashcard';
+		return cache?.frontmatter?.type === "flashcard";
 	}
 
 	/**
@@ -27,7 +32,7 @@ export class DeckService {
 		const cache = this.app.metadataCache.getFileCache(file);
 		const fm = cache?.frontmatter;
 
-		if (fm?.type !== 'flashcard') {
+		if (fm?.type !== "flashcard") {
 			return null;
 		}
 
@@ -50,7 +55,7 @@ export class DeckService {
 
 		const processFolder = (f: TFolder) => {
 			for (const child of f.children) {
-				if (child instanceof TFile && child.extension === 'md') {
+				if (child instanceof TFile && child.extension === "md") {
 					const card = this.parseFlashcard(child);
 					if (card) {
 						flashcards.push(card);
@@ -130,11 +135,11 @@ export class DeckService {
 
 		// Collect all folder paths that contain flashcards
 		for (const card of flashcards) {
-			const parts = card.path.split('/');
+			const parts = card.path.split("/");
 			parts.pop(); // Remove filename
-			
+
 			// Add all parent paths as potential decks
-			let currentPath = '';
+			let currentPath = "";
 			for (const part of parts) {
 				currentPath = currentPath ? `${currentPath}/${part}` : part;
 				deckPaths.add(currentPath);
@@ -148,8 +153,8 @@ export class DeckService {
 			if (!(folder instanceof TFolder)) continue;
 
 			const cardsInDeck = this.getFlashcardsInFolder(path);
-			const directCards = cardsInDeck.filter(c => {
-				const cardFolder = c.path.split('/').slice(0, -1).join('/');
+			const directCards = cardsInDeck.filter((c) => {
+				const cardFolder = c.path.split("/").slice(0, -1).join("/");
 				return cardFolder === path;
 			});
 
@@ -173,10 +178,10 @@ export class DeckService {
 		const flashcards = this.getFlashcardsInFolder(deckPath);
 		const now = new Date();
 
-		return flashcards.filter(card => {
+		return flashcards.filter((card) => {
 			const review = card.frontmatter.review;
 			if (!review) return true; // New cards are always due
-			
+
 			const dueDate = new Date(review.due);
 			return dueDate <= now;
 		});
@@ -187,7 +192,7 @@ export class DeckService {
 	 */
 	getAllFolders(): TFolder[] {
 		const folders: TFolder[] = [];
-		
+
 		const processFolder = (folder: TFolder) => {
 			folders.push(folder);
 			for (const child of folder.children) {

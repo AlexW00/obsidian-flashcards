@@ -1,9 +1,10 @@
-import { App, TFile, stringifyYaml } from 'obsidian';
-import type { Flashcard, FlashcardFrontmatter, ReviewState } from '../types';
-import { TemplateService } from './TemplateService';
-import { createEmptyCard } from 'ts-fsrs';
+import { App, TFile, stringifyYaml } from "obsidian";
+import type { Flashcard, FlashcardFrontmatter, ReviewState } from "../types";
+import { TemplateService } from "./TemplateService";
+import { createEmptyCard } from "ts-fsrs";
 
-const PROTECTION_COMMENT = '<!-- flashcard-content: DO NOT EDIT BELOW - Generated from template -->';
+const PROTECTION_COMMENT =
+	"<!-- flashcard-content: DO NOT EDIT BELOW - Generated from template -->";
 
 /**
  * Service for creating and managing flashcard files.
@@ -42,7 +43,7 @@ export class CardService {
 		deckPath: string,
 		templatePath: string,
 		fields: Record<string, string>,
-		noteNameTemplate: string
+		noteNameTemplate: string,
 	): Promise<TFile> {
 		// Load template
 		const template = await this.templateService.loadTemplate(templatePath);
@@ -51,7 +52,8 @@ export class CardService {
 		}
 
 		// Generate note name
-		const noteName = this.templateService.generateNoteName(noteNameTemplate);
+		const noteName =
+			this.templateService.generateNoteName(noteNameTemplate);
 		const filePath = `${deckPath}/${noteName}.md`;
 
 		// Render template content
@@ -59,7 +61,7 @@ export class CardService {
 
 		// Create frontmatter
 		const frontmatter: FlashcardFrontmatter = {
-			type: 'flashcard',
+			type: "flashcard",
 			template: `[[${template.path}]]`,
 			fields,
 			review: this.createInitialReviewState(),
@@ -81,8 +83,8 @@ export class CardService {
 		const cache = this.app.metadataCache.getFileCache(file);
 		const fm = cache?.frontmatter as FlashcardFrontmatter | undefined;
 
-		if (fm?.type !== 'flashcard') {
-			throw new Error('Not a flashcard');
+		if (fm?.type !== "flashcard") {
+			throw new Error("Not a flashcard");
 		}
 
 		// Load template
@@ -97,20 +99,23 @@ export class CardService {
 		// Update file content (preserve frontmatter, replace body)
 		const content = await this.app.vault.read(file);
 		const newContent = this.replaceBody(content, body);
-		
+
 		await this.app.vault.modify(file, newContent);
 	}
 
 	/**
 	 * Update the review state of a flashcard.
 	 */
-	async updateReviewState(file: TFile, reviewState: ReviewState): Promise<void> {
+	async updateReviewState(
+		file: TFile,
+		reviewState: ReviewState,
+	): Promise<void> {
 		const content = await this.app.vault.read(file);
 		const cache = this.app.metadataCache.getFileCache(file);
 		const fm = cache?.frontmatter as FlashcardFrontmatter | undefined;
 
-		if (fm?.type !== 'flashcard') {
-			throw new Error('Not a flashcard');
+		if (fm?.type !== "flashcard") {
+			throw new Error("Not a flashcard");
 		}
 
 		// Update frontmatter with new review state
@@ -130,7 +135,10 @@ export class CardService {
 	/**
 	 * Build file content from frontmatter and body.
 	 */
-	private buildFileContent(frontmatter: FlashcardFrontmatter, body: string): string {
+	private buildFileContent(
+		frontmatter: FlashcardFrontmatter,
+		body: string,
+	): string {
 		const yamlContent = stringifyYaml(frontmatter);
 		return `---\n${yamlContent}---\n\n${PROTECTION_COMMENT}\n\n${body}`;
 	}
@@ -142,7 +150,7 @@ export class CardService {
 		// Find the end of frontmatter
 		const fmMatch = content.match(/^---\n[\s\S]*?\n---\n/);
 		if (!fmMatch) {
-			throw new Error('Invalid flashcard format: missing frontmatter');
+			throw new Error("Invalid flashcard format: missing frontmatter");
 		}
 
 		return `${fmMatch[0]}\n${PROTECTION_COMMENT}\n\n${newBody}`;
@@ -159,10 +167,15 @@ export class CardService {
 		}
 
 		let body = content.slice(fmMatch[0].length);
-		
+
 		// Remove protection comment if present
-		body = body.replace(new RegExp(`^\\s*${PROTECTION_COMMENT.replace(/[.*+?^${}()|[\]\\]/g, '\\$&')}\\s*`), '');
-		
+		body = body.replace(
+			new RegExp(
+				`^\\s*${PROTECTION_COMMENT.replace(/[.*+?^${}()|[\]\\]/g, "\\$&")}\\s*`,
+			),
+			"",
+		);
+
 		return body.trim();
 	}
 
@@ -173,7 +186,7 @@ export class CardService {
 		const body = this.extractBody(content);
 		// Split by horizontal rule (---)
 		const sides = body.split(/\n---\n/);
-		return sides.map(s => s.trim()).filter(s => s.length > 0);
+		return sides.map((s) => s.trim()).filter((s) => s.length > 0);
 	}
 
 	/**
@@ -183,7 +196,7 @@ export class CardService {
 		const cache = this.app.metadataCache.getFileCache(file);
 		const fm = cache?.frontmatter;
 
-		if (fm?.type !== 'flashcard') {
+		if (fm?.type !== "flashcard") {
 			return null;
 		}
 

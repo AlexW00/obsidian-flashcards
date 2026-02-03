@@ -1,9 +1,11 @@
 # Obsidian Flashcards - MVP Implementation Plan
 
 ## Overview
+
 Transform Obsidian notes into a spaced repetition system using Nunjucks templating for card creation and FSRS for intelligent scheduling.
 
 ## Design Decisions
+
 - **Template variables**: Discovered via regex scan of `{{ variable }}` patterns
 - **Deck model**: A deck is a folder containing ≥1 flashcard; parent folders inherit deck status
 - **Card creation flow**: Deck selector (existing decks + new folder option) → Template selector → Field form
@@ -15,18 +17,21 @@ Transform Obsidian notes into a spaced repetition system using Nunjucks templati
 ## Implementation Phases
 
 ### Phase 1: Foundation ✅
+
 - [x] Create mvp.plan.md
 - [x] Install dependencies (`ts-fsrs`, `nunjucks`)
 - [x] Create `src/types.ts` - Core interfaces (FlashcardFrontmatter, ReviewState, etc.)
 - [x] Rewrite `src/settings.ts` - Plugin settings interface
 
 ### Phase 2: Core Services ✅
+
 - [x] Create `src/flashcards/TemplateService.ts` - Nunjucks integration, variable extraction
 - [x] Create `src/flashcards/CardService.ts` - Card CRUD, frontmatter parsing, hydration
 - [x] Create `src/flashcards/DeckService.ts` - Deck discovery, stats calculation
 - [x] Create `src/srs/Scheduler.ts` - FSRS wrapper, review queue management
 
 ### Phase 3: UI Components ✅
+
 - [x] Create `src/ui/SettingsTab.ts` (in settings.ts) - Settings tab component
 - [x] Create `src/ui/DeckSelectorModal.ts` - Deck/folder selection modal
 - [x] Create `src/ui/TemplateSelectorModal.ts` - Template picker
@@ -35,10 +40,12 @@ Transform Obsidian notes into a spaced repetition system using Nunjucks templati
 - [x] Create `src/ui/ReviewView.ts` - Card review with rating buttons
 
 ### Phase 4: Integration ✅
+
 - [x] Rewrite `src/main.ts` - Register commands, views, clean up sample code
 - [x] Implement `styles.css` - Styling for review UI and dashboard
 
 ### Phase 5: Polish (In Progress)
+
 - [ ] Test full card lifecycle (create → review → regenerate)
 - [ ] Keyboard shortcuts (Space to reveal, rating hotkeys) ✅ (implemented)
 - [ ] Error handling and edge cases
@@ -46,6 +53,7 @@ Transform Obsidian notes into a spaced repetition system using Nunjucks templati
 ---
 
 ## File Structure (Implemented)
+
 ```
 src/
   main.ts                    # Plugin entry, lifecycle, command registration
@@ -68,6 +76,7 @@ src/
 ---
 
 ## Commands Registered
+
 - `Flashcards: Open dashboard` - Opens the main dashboard view
 - `Flashcards: Create new card` - Quick card creation flow
 - `Flashcards: Start review` - Select deck and start reviewing
@@ -78,6 +87,7 @@ src/
 ## Progress Log
 
 ### Session 1 - Foundation & Core Implementation
+
 - Created implementation plan
 - Installed ts-fsrs and nunjucks dependencies
 - Implemented all core types (FlashcardFrontmatter, ReviewState, Deck, etc.)
@@ -90,6 +100,7 @@ src/
 - All TypeScript compiles successfully
 
 ### Next Steps
+
 1. Create a sample template in the vault to test
 2. Test the full flow: create deck → create card → review → rate
 3. Fix any runtime issues discovered during testing
