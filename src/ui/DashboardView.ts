@@ -10,7 +10,7 @@ import type FlashcardsPlugin from "../main";
 import type { Deck } from "../types";
 import { DeckSelectorModal } from "./DeckSelectorModal";
 import { TemplateSelectorModal } from "./TemplateSelectorModal";
-import { CardCreationModal } from "./CardCreationModal";
+import { showCardCreationModal } from "./CardCreationFlow";
 import { DeckBaseViewService, type StateFilter } from "./DeckBaseViewService";
 
 export const DASHBOARD_VIEW_TYPE = "flashcards-dashboard";
@@ -276,59 +276,33 @@ export class DashboardView extends ItemView {
 							// Only one template, use it directly
 							const template = templates[0];
 							if (template) {
-								this.showCardCreationModal(template, deckPath);
+								showCardCreationModal(
+									this.app,
+									this.plugin.cardService,
+									this.plugin.settings,
+									() => this.plugin.saveSettings(),
+									template,
+									deckPath,
+									{ onRefresh: () => this.render() },
+								);
 							}
 						} else {
 							new TemplateSelectorModal(
 								this.app,
 								templates,
 								(template) => {
-									this.showCardCreationModal(
+									showCardCreationModal(
+										this.app,
+										this.plugin.cardService,
+										this.plugin.settings,
+										() => this.plugin.saveSettings(),
 										template,
 										deckPath,
+										{ onRefresh: () => this.render() },
 									);
 								},
 							).open();
 						}
-					});
-			},
-		).open();
-	}
-
-	private showCardCreationModal(
-		template: import("../types").FlashcardTemplate,
-		deckPath: string,
-	) {
-		new CardCreationModal(
-			this.app,
-			template,
-			deckPath,
-			(fields, createAnother) => {
-				void this.plugin.cardService
-					.createCard(
-						deckPath,
-						template.path,
-						fields,
-						this.plugin.settings.noteNameTemplate,
-					)
-					.then(async (file) => {
-						new Notice("Card created!");
-
-						// Update last used deck
-						this.plugin.settings.lastUsedDeck = deckPath;
-						await this.plugin.saveSettings();
-
-						// Refresh dashboard
-						await this.render();
-
-						if (createAnother) {
-							this.showCardCreationModal(template, deckPath);
-						} else if (this.plugin.settings.openCardAfterCreation) {
-							await this.app.workspace.getLeaf().openFile(file);
-						}
-					})
-					.catch((error: Error) => {
-						new Notice(`Failed to create card: ${error.message}`);
 					});
 			},
 		).open();

@@ -11,6 +11,7 @@ import {
 import type FlashcardsPlugin from "../main";
 import type { Flashcard } from "../types";
 import { Rating } from "../srs/Scheduler";
+import { registerReviewHotkeys } from "./ReviewHotkeys";
 
 export const REVIEW_VIEW_TYPE = "flashcards-review";
 
@@ -43,7 +44,18 @@ export class ReviewView extends ItemView {
 
 		// Set up keyboard shortcuts for review view
 		this.scope = new Scope(this.app.scope);
-		this.registerHotkeys();
+		registerReviewHotkeys(this.scope, {
+			getSession: () =>
+				this.session
+					? {
+							currentSide: this.session.currentSide,
+							totalSides: this.session.totalSides,
+						}
+					: null,
+			revealNext: () => this.revealNext(),
+			rateCard: (rating) => this.rateCard(rating),
+			editCurrentCard: () => this.editCurrentCard(),
+		});
 	}
 
 	getViewType(): string {
@@ -56,78 +68,6 @@ export class ReviewView extends ItemView {
 
 	getIcon(): string {
 		return "brain";
-	}
-
-	/**
-	 * Register keyboard shortcuts for the review view.
-	 * These are scoped to this view and only active when it's focused.
-	 */
-	private registerHotkeys() {
-		const scope = this.scope;
-		if (!scope) return;
-
-		// Space - reveal next side or rate as "Good"
-		scope.register([], " ", () => {
-			if (!this.session) return;
-			const isLastSide =
-				this.session.currentSide >= this.session.totalSides - 1;
-			if (!isLastSide) {
-				this.revealNext();
-			} else {
-				void this.rateCard(Rating.Good);
-			}
-			return false;
-		});
-
-		// E - edit current card
-		scope.register([], "e", () => {
-			void this.editCurrentCard();
-			return false;
-		});
-
-		// 1 - rate as Again
-		scope.register([], "1", () => {
-			if (!this.session) return;
-			const isLastSide =
-				this.session.currentSide >= this.session.totalSides - 1;
-			if (isLastSide) {
-				void this.rateCard(Rating.Again);
-			}
-			return false;
-		});
-
-		// 2 - rate as Hard
-		scope.register([], "2", () => {
-			if (!this.session) return;
-			const isLastSide =
-				this.session.currentSide >= this.session.totalSides - 1;
-			if (isLastSide) {
-				void this.rateCard(Rating.Hard);
-			}
-			return false;
-		});
-
-		// 3 - rate as Good
-		scope.register([], "3", () => {
-			if (!this.session) return;
-			const isLastSide =
-				this.session.currentSide >= this.session.totalSides - 1;
-			if (isLastSide) {
-				void this.rateCard(Rating.Good);
-			}
-			return false;
-		});
-
-		// 4 - rate as Easy
-		scope.register([], "4", () => {
-			if (!this.session) return;
-			const isLastSide =
-				this.session.currentSide >= this.session.totalSides - 1;
-			if (isLastSide) {
-				void this.rateCard(Rating.Easy);
-			}
-			return false;
-		});
 	}
 
 	async onOpen() {

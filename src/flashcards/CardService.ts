@@ -1,10 +1,8 @@
 import { App, TFile, stringifyYaml } from "obsidian";
 import type { Flashcard, FlashcardFrontmatter, ReviewState } from "../types";
+import { debugLog, PROTECTION_COMMENT } from "../types";
 import { TemplateService } from "./TemplateService";
 import { createEmptyCard } from "ts-fsrs";
-
-const PROTECTION_COMMENT =
-	"<!-- flashcard-content: DO NOT EDIT BELOW - Edit the frontmatter above instead! -->";
 
 /**
  * Service for creating and managing flashcard files.
@@ -50,7 +48,7 @@ export class CardService {
 		if (!template) {
 			throw new Error(`Template not found: ${templatePath}`);
 		}
-		console.debug("[Flashcards] create-card: template loaded", {
+		debugLog("create-card: template loaded", {
 			path: template.path,
 			frontmatterKeys: template.frontmatter
 				? Object.keys(template.frontmatter)
@@ -80,7 +78,7 @@ export class CardService {
 			template.frontmatter,
 			systemFrontmatter,
 		);
-		console.debug("[Flashcards] create-card: merged frontmatter keys", {
+		debugLog("create-card: merged frontmatter keys", {
 			keys: Object.keys(mergedFrontmatter),
 		});
 
@@ -107,7 +105,7 @@ export class CardService {
 			...systemFrontmatter,
 		};
 
-		console.debug("[Flashcards] merge-frontmatter: result keys", {
+		debugLog("merge-frontmatter: result keys", {
 			keys: Object.keys(merged),
 		});
 
@@ -130,7 +128,7 @@ export class CardService {
 		if (!template) {
 			throw new Error(`Template not found: ${fm.template}`);
 		}
-		console.debug("[Flashcards] regenerate-card: template loaded", {
+		debugLog("regenerate-card: template loaded", {
 			path: template.path,
 			frontmatterKeys: template.frontmatter
 				? Object.keys(template.frontmatter)
@@ -155,7 +153,7 @@ export class CardService {
 			systemFrontmatter,
 			fm as unknown as Record<string, unknown>,
 		);
-		console.debug("[Flashcards] regenerate-card: merged frontmatter keys", {
+		debugLog("regenerate-card: merged frontmatter keys", {
 			keys: Object.keys(mergedFrontmatter),
 		});
 
@@ -203,19 +201,6 @@ export class CardService {
 	): string {
 		const yamlContent = stringifyYaml(frontmatter);
 		return `---\n${yamlContent}---\n\n${PROTECTION_COMMENT}\n\n${body}`;
-	}
-
-	/**
-	 * Replace the body of a flashcard file while preserving frontmatter.
-	 */
-	private replaceBody(content: string, newBody: string): string {
-		// Find the end of frontmatter
-		const fmMatch = content.match(/^---\n[\s\S]*?\n---\n/);
-		if (!fmMatch) {
-			throw new Error("Invalid flashcard format: missing frontmatter");
-		}
-
-		return `${fmMatch[0]}\n${PROTECTION_COMMENT}\n\n${newBody}`;
 	}
 
 	/**

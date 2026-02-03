@@ -1,104 +1,183 @@
 # Obsidian Flashcards
 
-# Obsidian Flashcard Plugin: Architectural Plan
+A spaced repetition flashcards plugin for Obsidian using the FSRS algorithm.
 
-## 1. Core Data Structure
+## Features
 
-- **Flashcard Note:** A standard Markdown file.
-- **Separators:** Content sides split by `---` (standard horizontal rules).
-- **Frontmatter (The Source of Truth):**
-    - `type`: `flashcard` (identifier).
-    - `template`: `[[Templates/Vocab Card]]` (WikiLink to the template file).
-    - `fields`: Object containing the raw data variables (e.g., `{ word: "Cat", meaning: "Gato" }`).
-    - `review`: Object containing the persisted scheduler state (source of truth for scheduling).
-        - Uses the `Card` shape from [`ts-fsrs`](https://www.npmjs.com/package/ts-fsrs) (stored as JSON-friendly primitives):
-            - `due`: ISO timestamp for next review
-            - `stability`: number
-            - `difficulty`: number
-            - `elapsed_days`: number
-            - `scheduled_days`: number
-            - `learning_steps`: number
-            - `reps`: number
-            - `lapses`: number
-            - `state`: `New` | `Learning` | `Review` | `Relearning` (string or numeric enum)
-            - `last_review` (optional): ISO timestamp
-    - _Note:_ The body content is considered a "Hydration Artifact"—it can be overwritten by the plugin based on the fields and template.
+- **FSRS Scheduling** — Uses the Free Spaced Repetition Scheduler algorithm via `ts-fsrs` for optimal review timing
+- **Template-based Cards** — Create flashcard templates with Nunjucks syntax (`{{ variable }}`) for consistent card formats
+- **Hydration Model** — Card content is generated from templates; edit the frontmatter fields, and the body regenerates automatically
+- **Multi-side Cards** — Split card content with `---` separators for question/answer or multi-step reveals
+- **Deck Organization** — Organize cards into folders (decks) with hierarchical stats display
+- **Keyboard Shortcuts** — Review cards quickly with Space (reveal/Good) and 1-4 (rating keys)
 
-## 2. Templating Engine (Nunjucks)
+## Installation
 
-- **Engine:** [Nunjucks](https://mozilla.github.io/nunjucks/) (Mozilla).
-- **Why:** Familiar syntax (`{{ variable }}`), safe defaults, and a powerful filter system.
-- **Field Types:**
-    - Defined implicitly by usage in the template, or explicitly via a "Template Config" block in the template file (optional future feature).
+### From Community Plugins (Recommended)
 
-## 3. Card Lifecycle (Hydration Model)
+1. Open **Settings → Community plugins**
+2. Select **Browse** and search for "Flashcards"
+3. Select **Install**, then **Enable**
 
-- **Creation:**
-    1.  User fills out a form (Modal).
-    2.  Plugin saves `fields` to Frontmatter.
-    3.  Plugin runs `render(template, fields)` to generate the Markdown body.
-- **Updates (Regeneration):**
-    - **Trigger:** User edits the _Template file_ or modifies the _Fields_ in the card's frontmatter.
-    - **Action:** "Regenerate Card" command/button.
-    - **Process:**
-        1.  Read `frontmatter.template` (resolve WikiLink).
-        2.  Read `frontmatter.fields`.
-        3.  Re-render the Nunjucks template.
-        4.  **Overwrite** the Markdown body (everything below the frontmatter) with the new result.
-- **Protection:** The plugin should insert a comment at the top of the body: ``.
+### Manual Installation
 
-## 4. Settings
+1. Download `main.js`, `manifest.json`, and `styles.css` from the latest release
+2. Create a folder `<YourVault>/.obsidian/plugins/obsidian-flashcards/`
+3. Copy the downloaded files into that folder
+4. Restart Obsidian and enable the plugin in **Settings → Community plugins**
 
-- **General:**
-    - **Flashcard Note Name:** Template string (default: `{{date}}-{{time}}` or Unix timestamp).
-    - **Template Folder:** Path to folder containing `.md` template files.
+## Getting Started
 
-## 5. Dashboard View
+### 1. Create a Template
 
-- **Toolbar:**
-    - **Add Card:**
-        - Dropdown: Select Template (scans Template Folder).
-        - Modal: Dynamic form generation based on variables found in the Nunjucks template (regex scan of variables) OR a defined schema.
-        - Folder Picker: Defaults to current deck or last used.
-        - "Create & Add Another": Keeps modal open for rapid entry.
-    - **Browse:** Switches view to a standard Obsidian search/table view filtered by `type: flashcard`.
-- **Main Body (Deck View):**
-    - Hierarchical list of folders containing flashcards.
-    - Stats per deck: New (Blue), Learning (Red), To Review (Green).
-- **Deck Details:**
-    - "Study Now" button -> Launches Review Mode.
-    - "Regenerate All" button -> Batch hydrates all cards in deck (useful after template edits).
+Templates define the structure of your flashcards. By default, templates are stored in `Templates/Flashcards/`.
 
-## 6. Review View (The "Study" Mode)
+1. Run command **Flashcards: Create new template**
+2. Enter a name (e.g., "Vocabulary")
+3. Edit the template using `{{ variable }}` placeholders:
 
-- **Rendering:**
-    - Standard `MarkdownRenderer.render()` (supports images, math, standard Obsidian plugins).
-    - Splits content by `---`.
-    - Shows Side 1 -> User interaction -> Shows Side 2 -> ... -> Rating.
-- **Rating System:**
-    - Standard buttons: Again, Hard, Good, Easy.
-    - Engine: FSRS (Free Spaced Repetition Scheduler) via `ts-fsrs`.
-    - Parameters: use `ts-fsrs` defaults for MVP (future: expose FSRS parameters in plugin settings).
-- **Interactions:**
-    - `Space`: Reveal / Next.
-    - `Cmd+E` / Edit Button: Opens the underlying Markdown file for manual fixes (user should edit Frontmatter `fields`, not body).
+```markdown
+# {{ word }}
 
-## 7. Commands (Palette)
+*{{ part_of_speech }}*
 
-- `Flashcards: Open Dashboard`
-- `Flashcards: Create new card` (Quick add)
-- `Flashcards: Start Review` (Selector for deck)
-- `Flashcards: Regenerate current card` (For use when editing a single note)
+---
 
-## 8. Future (Post-MVP)
+**Definition:** {{ definition }}
 
-- **AI-assisted templating (optional):**
-    - **Custom Nunjucks Filters:** Implement an async filter `| aiGenerate`.
-        - _Usage:_ `{{ "Translate this to french" | aiGenerate }}`
-        - _Implementation:_ Plugin registers an async Nunjucks filter that calls the configured AI provider API.
-- **AI Integration Settings:**
-    - **Provider:** (OpenAI, Anthropic, Local, etc.)
-    - **API Key:** Secure storage.
-    - **Model:** Select model (e.g., GPT-4o, Claude 3.5).
-- Update Dashboard so that:
-    - folders can be collapsed/expanded when clicking on the folder icon (also changes icon); clicking on the text still opens the deck
+**Example:** {{ example }}
+```
+
+### 2. Create Cards
+
+1. Run command **Flashcards: Create new card** (or click the ribbon icon)
+2. Select a deck (folder) for the card
+3. Select a template
+4. Fill in the field values
+5. Click **Create** or **Create & add another**
+
+### 3. Study Cards
+
+1. Open the **Flashcards dashboard** from the ribbon icon or command palette
+2. Click **Study** on any deck with due cards
+3. Use keyboard shortcuts to review:
+   - **Space** — Reveal next side / Rate as Good
+   - **1** — Again (forgot)
+   - **2** — Hard
+   - **3** — Good
+   - **4** — Easy
+   - **E** — Edit current card
+
+## Commands
+
+| Command | Description |
+|---------|-------------|
+| **Open dashboard** | Show the main flashcards dashboard |
+| **Create new card** | Start the card creation flow |
+| **Start review** | Select a deck and begin studying |
+| **Regenerate current card** | Re-render the current card from its template |
+| **Create new template** | Create a new flashcard template |
+| **Regenerate all cards from template** | Batch regenerate all cards using a template |
+
+## Settings
+
+| Setting | Description | Default |
+|---------|-------------|---------|
+| **Template folder** | Folder containing template files | `Templates/Flashcards` |
+| **Note name template** | Filename pattern for new cards (`{{date}}`, `{{time}}`, `{{timestamp}}`) | `{{timestamp}}` |
+| **Auto-regenerate debounce** | Seconds to wait before auto-regenerating after edits | `1` |
+| **Show only current side** | Show only the current card side during review (vs. cumulative) | `false` |
+| **Open card after creation** | Open new cards in edit view after creation | `true` |
+| **Deck view columns** | Columns displayed in deck base views | Various |
+
+## Card Structure
+
+Cards are Markdown files with YAML frontmatter:
+
+```yaml
+---
+type: flashcard
+template: "[[Templates/Flashcards/Basic]]"
+fields:
+  front: "What is the capital of France?"
+  back: "Paris"
+review:
+  due: "2024-01-15T10:00:00.000Z"
+  state: 0
+  stability: 4.93
+  difficulty: 5.0
+  reps: 0
+  lapses: 0
+---
+
+<!-- flashcard-content: DO NOT EDIT BELOW - Edit the frontmatter above instead! -->
+
+# What is the capital of France?
+
+---
+
+Paris
+```
+
+**Important:** Edit the `fields` in frontmatter, not the body content. The body is regenerated from the template.
+
+## Template Syntax
+
+Templates use [Nunjucks](https://mozilla.github.io/nunjucks/) syntax:
+
+- `{{ variable }}` — Insert a field value
+- `---` — Separate card sides (question/answer)
+
+### Example Templates
+
+**Basic (Front/Back):**
+```markdown
+# {{ front }}
+
+---
+
+{{ back }}
+```
+
+**Cloze-style:**
+```markdown
+{{ context_before }} [...] {{ context_after }}
+
+---
+
+{{ context_before }} **{{ answer }}** {{ context_after }}
+```
+
+**Vocabulary:**
+```markdown
+# {{ word }}
+
+*{{ pronunciation }}*
+
+---
+
+**Definition:** {{ definition }}
+
+**Examples:**
+{{ examples }}
+```
+
+## Development
+
+```bash
+# Install dependencies
+npm install
+
+# Build for production
+npm run build
+
+# Watch mode for development
+npm run dev
+
+# Lint
+npm run lint
+```
+
+## License
+
+MIT License. See [LICENSE](LICENSE) for details.

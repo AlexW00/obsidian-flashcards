@@ -1,6 +1,29 @@
 import { State } from "ts-fsrs";
 
 /**
+ * Enable debug logging throughout the plugin.
+ * Set to true for development, false for production.
+ */
+export const DEBUG = false;
+
+/**
+ * Log a debug message if DEBUG is enabled.
+ * Use this instead of console.debug for togglable logging.
+ */
+export function debugLog(message: string, ...args: unknown[]): void {
+	if (DEBUG) {
+		console.debug(`[Flashcards] ${message}`, ...args);
+	}
+}
+
+/**
+ * Protection comment inserted at the top of flashcard body content.
+ * Warns users not to edit the generated content directly.
+ */
+export const PROTECTION_COMMENT =
+	"<!-- flashcard-content: DO NOT EDIT BELOW - Edit the frontmatter above instead! -->";
+
+/**
  * Review state stored in flashcard frontmatter.
  * Matches the ts-fsrs Card shape but uses JSON-friendly primitives.
  */
