@@ -225,16 +225,36 @@ export class ReviewView extends ItemView {
 		};
 
 		// Again button
-		createRatingButton("Again", nextStates.again.interval, Rating.Again, "flashcard-btn-again");
+		createRatingButton(
+			"Again",
+			nextStates.again.interval,
+			Rating.Again,
+			"flashcard-btn-again",
+		);
 
 		// Hard button
-		createRatingButton("Hard", nextStates.hard.interval, Rating.Hard, "flashcard-btn-hard");
+		createRatingButton(
+			"Hard",
+			nextStates.hard.interval,
+			Rating.Hard,
+			"flashcard-btn-hard",
+		);
 
 		// Good button
-		createRatingButton("Good", nextStates.good.interval, Rating.Good, "flashcard-btn-good");
+		createRatingButton(
+			"Good",
+			nextStates.good.interval,
+			Rating.Good,
+			"flashcard-btn-good",
+		);
 
 		// Easy button
-		createRatingButton("Easy", nextStates.easy.interval, Rating.Easy, "flashcard-btn-easy");
+		createRatingButton(
+			"Easy",
+			nextStates.easy.interval,
+			Rating.Easy,
+			"flashcard-btn-easy",
+		);
 
 		// Keyboard hints
 		const hintsEl = container.createDiv({ cls: "flashcard-rating-hints" });

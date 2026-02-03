@@ -1,7 +1,7 @@
 {
-	"name": "obsidian-sample-plugin",
+	"name": "obsidian-flashcards",
 	"version": "1.0.0",
-	"description": "This is a sample plugin for Obsidian (https://obsidian.md)",
+	"description": "Spaced repetition flashcards plugin for Obsidian with advanced scheduling algorithms",
 	"main": "main.js",
 	"type": "module",
 	"scripts": {
