@@ -5,8 +5,14 @@
 /* Dashboard */
 .flashcard-dashboard {
 	padding: var(--size-4-4);
+	background-color: var(--background-primary);
+	min-height: 100%;
+}
+
+.flashcard-dashboard > * {
 	max-width: 800px;
-	margin: 0 auto;
+	margin-left: auto;
+	margin-right: auto;
 }
 
 .flashcard-dashboard-header {
@@ -35,13 +41,12 @@
 	justify-content: space-between;
 	align-items: center;
 	padding: var(--size-4-2) var(--size-4-3);
-	background: var(--background-secondary);
 	border-radius: var(--radius-s);
 	transition: background 0.1s ease;
 }
 
 .flashcard-deck-item:hover {
-	background: var(--background-secondary-alt);
+	background: var(--background-modifier-hover);
 }
 
 .flashcard-deck-info {
@@ -125,8 +130,7 @@
 	flex-direction: column;
 	height: 100%;
 	padding: var(--size-4-4);
-	max-width: 700px;
-	margin: 0 auto;
+	background-color: var(--background-primary);
 }
 
 .flashcard-review-progress {
@@ -134,6 +138,10 @@
 	align-items: center;
 	gap: var(--size-4-3);
 	margin-bottom: var(--size-4-4);
+	max-width: 700px;
+	width: 100%;
+	margin-left: auto;
+	margin-right: auto;
 }
 
 .flashcard-progress-bar {
@@ -168,6 +176,7 @@
 
 .flashcard-card {
 	width: 100%;
+	max-width: 700px;
 	background: var(--background-secondary);
 	border-radius: var(--radius-m);
 	padding: var(--size-4-6);
@@ -191,6 +200,9 @@
 .flashcard-side-separator {
 	margin: var(--size-4-4) 0;
 	border: none;
+	max-width: 700px;
+	margin-left: auto;
+	margin-right: auto;
 	border-top: 2px dashed var(--background-modifier-border);
 }
 
@@ -342,4 +354,38 @@
 	min-height: 200px;
 	font-family: var(--font-monospace);
 	font-size: var(--font-ui-smaller);
+}
+
+/* Template change notice */
+.flashcard-notice-container {
+	display: flex;
+	flex-direction: column;
+	gap: var(--size-4-2);
+}
+
+.flashcard-notice-buttons {
+	display: flex;
+	gap: var(--size-4-2);
+}
+
+/* Flashcard Notice Styling Override */
+.flashcard-template-notice {
+    /* Override Obsidian's default black background for notices if needed, 
+       though usually Notice uses a theme variable. 
+       If it is explicitly black, we can try to force it to a neutral color 
+       or let it handle itself but style the content better. */
+    padding: var(--size-4-2) !important;
+}
+
+.flashcard-notice-row {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    gap: var(--size-4-4);
+    width: 100%;
+}
+
+.flashcard-notice-actions {
+    display: flex;
+    align-items: center;
 }

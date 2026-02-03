@@ -9,7 +9,7 @@
 ### Service Layer (`src/flashcards/`, `src/srs/`)
 
 - **CardService** - Creates/regenerates flashcard files, manages frontmatter ↔ body hydration
-- **DeckService** - Discovers folders containing flashcards, calculates deck statistics  
+- **DeckService** - Discovers folders containing flashcards, calculates deck statistics
 - **TemplateService** - Nunjucks rendering, variable extraction from `{{ var }}` syntax
 - **Scheduler** - Wraps `ts-fsrs` for FSRS algorithm; converts between plugin's `ReviewState` and ts-fsrs `Card`
 
@@ -22,21 +22,22 @@
 ### Data Flow
 
 1. User fills form → `CardService.createCard()` saves fields to frontmatter + renders body
-2. Template/field changes → `CardService.regenerateCard()` re-renders body from frontmatter  
+2. Template/field changes → `CardService.regenerateCard()` re-renders body from frontmatter
 3. Review rating → `Scheduler.review()` → `CardService.updateReviewState()` updates frontmatter
 
 ### Key Conventions
 
 **Flashcard Frontmatter Structure:**
+
 ```yaml
 type: flashcard
 template: "[[Templates/Flashcards/Basic]]"
 fields:
-  front: "Question" 
-  back: "Answer"
+    front: "Question"
+    back: "Answer"
 review:
-  due: "2024-01-15T10:00:00.000Z"
-  state: 0  # 0=New, 1=Learning, 2=Review, 3=Relearning
+    due: "2024-01-15T10:00:00.000Z"
+    state: 0 # 0=New, 1=Learning, 2=Review, 3=Relearning
 ```
 
 **Templates**: Use Nunjucks syntax (`{{ variable }}`). Variables extracted via regex (ignoring HTML comments).
@@ -49,6 +50,7 @@ review:
 - **nunjucks** - Template rendering (configured with `autoescape: false` for Markdown)
 
 **Technical Details:**
+
 - Entry point: `main.ts` compiled to `main.js` and loaded by Obsidian
 - Required release artifacts: `main.js`, `manifest.json`, and optional `styles.css`
 - Plugin folder symlinked into Obsidian vault for testing

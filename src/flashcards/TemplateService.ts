@@ -1,7 +1,15 @@
-import { App, TFile, TFolder } from "obsidian";
+import { App, TFile, TFolder, parseYaml } from "obsidian";
 import nunjucks from "nunjucks";
 import type { FlashcardTemplate, TemplateVariable } from "../types";
 import { DEFAULT_BASIC_TEMPLATE } from "../types";
+
+/**
+ * Parsed template content with optional frontmatter.
+ */
+export interface ParsedTemplate {
+	frontmatter: Record<string, unknown> | null;
+	body: string;
+}
 
 /**
  * Service for managing flashcard templates and Nunjucks rendering.
@@ -24,6 +32,34 @@ export class TemplateService {
 	}
 
 	/**
+	 * Parse template content to separate frontmatter from body.
+	 * Returns both the frontmatter (as object) and the body (template content).
+	 */
+	parseTemplateContent(content: string): ParsedTemplate {
+		// Match frontmatter: starts with ---, ends with --- (with optional trailing newline)
+		// Handles cases where body may be empty or start immediately after ---
+		const fmMatch = content.match(/^---\r?\n([\s\S]*?)\r?\n---(?:\r?\n([\s\S]*))?$/);
+		if (!fmMatch) {
+			// No frontmatter, entire content is the body
+			return { frontmatter: null, body: content };
+		}
+
+		const yamlContent = fmMatch[1] ?? "";
+		const body = (fmMatch[2] ?? "").trim();
+
+		try {
+			const frontmatter = parseYaml(yamlContent) as Record<
+				string,
+				unknown
+			>;
+			return { frontmatter, body };
+		} catch {
+			// Invalid YAML, treat as no frontmatter
+			return { frontmatter: null, body: content };
+		}
+	}
+
+	/**
 	 * Update the default template content (when settings change).
 	 */
 	setDefaultTemplateContent(content: string): void {
@@ -34,13 +70,14 @@ export class TemplateService {
 	 * Extract variable names from a Nunjucks template using regex.
 	 * Matches {{ variable }} and {{ variable | filter }} patterns.
 	 * Ignores variables inside HTML comments.
+	 * Automatically strips frontmatter before extracting variables.
 	 */
 	extractVariables(templateContent: string): TemplateVariable[] {
+		// Strip frontmatter before extracting variables
+		const { body } = this.parseTemplateContent(templateContent);
+
 		// Strip HTML comments before parsing to ignore commented-out examples
-		const contentWithoutComments = templateContent.replace(
-			/<!--[\s\S]*?-->/g,
-			"",
-		);
+		const contentWithoutComments = body.replace(/<!--[\s\S]*?-->/g, "");
 
 		const variableRegex =
 			/\{\{\s*([a-zA-Z_][a-zA-Z0-9_]*)\s*(?:\|[^}]*)?\}\}/g;
@@ -86,11 +123,15 @@ export class TemplateService {
 		for (const file of folder.children) {
 			if (file instanceof TFile && file.extension === "md") {
 				const content = await this.app.vault.read(file);
+				const { frontmatter, body } =
+					this.parseTemplateContent(content);
 				templates.push({
 					path: file.path,
 					name: file.basename,
 					variables: this.extractVariables(content),
 					content,
+					body,
+					frontmatter,
 				});
 			}
 		}
@@ -117,20 +158,26 @@ export class TemplateService {
 				return null;
 			}
 			const content = await this.app.vault.read(fileWithExt);
+			const { frontmatter, body } = this.parseTemplateContent(content);
 			return {
 				path: fileWithExt.path,
 				name: fileWithExt.basename,
 				variables: this.extractVariables(content),
 				content,
+				body,
+				frontmatter,
 			};
 		}
 
 		const content = await this.app.vault.read(file);
+		const { frontmatter, body } = this.parseTemplateContent(content);
 		return {
 			path: file.path,
 			name: file.basename,
 			variables: this.extractVariables(content),
 			content,
+			body,
+			frontmatter,
 		};
 	}
 

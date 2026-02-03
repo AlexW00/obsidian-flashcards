@@ -4,7 +4,7 @@ import { TemplateService } from "./TemplateService";
 import { createEmptyCard } from "ts-fsrs";
 
 const PROTECTION_COMMENT =
-	"<!-- flashcard-content: DO NOT EDIT BELOW - Generated from template -->";
+	"<!-- flashcard-content: DO NOT EDIT BELOW - Edit the frontmatter above instead! -->";
 
 /**
  * Service for creating and managing flashcard files.
@@ -56,23 +56,54 @@ export class CardService {
 			this.templateService.generateNoteName(noteNameTemplate);
 		const filePath = `${deckPath}/${noteName}.md`;
 
-		// Render template content
-		const body = this.templateService.render(template.content, fields);
+		// Render template body (without frontmatter)
+		const body = this.templateService.render(template.body, fields);
 
-		// Create frontmatter
-		const frontmatter: FlashcardFrontmatter = {
+		// Create system frontmatter (these always take precedence)
+		const systemFrontmatter: FlashcardFrontmatter = {
 			type: "flashcard",
 			template: `[[${template.path}]]`,
 			fields,
 			review: this.createInitialReviewState(),
 		};
 
+		// Merge template frontmatter with system frontmatter
+		// Template frontmatter is the base, system props always overwrite
+		const mergedFrontmatter = this.mergeTemplateFrontmatter(
+			template.frontmatter,
+			systemFrontmatter,
+		);
+
 		// Build file content
-		const content = this.buildFileContent(frontmatter, body);
+		const content = this.buildFileContent(mergedFrontmatter, body);
 
 		// Create file
 		const file = await this.app.vault.create(filePath, content);
 		return file;
+	}
+
+	/**
+	 * Merge template frontmatter with system frontmatter.
+	 * Template frontmatter provides the base, system props always overwrite.
+	 */
+	private mergeTemplateFrontmatter(
+		templateFrontmatter: Record<string, unknown> | null,
+		systemFrontmatter: FlashcardFrontmatter,
+	): Record<string, unknown> {
+		if (!templateFrontmatter) {
+			return { ...systemFrontmatter };
+		}
+
+		// Start with template frontmatter as base
+		const merged: Record<string, unknown> = { ...templateFrontmatter };
+
+		// System properties always overwrite template properties
+		merged.type = systemFrontmatter.type;
+		merged.template = systemFrontmatter.template;
+		merged.fields = systemFrontmatter.fields;
+		merged.review = systemFrontmatter.review;
+
+		return merged;
 	}
 
 	/**
@@ -92,8 +123,8 @@ export class CardService {
 			throw new Error(`Template not found: ${fm.template}`);
 		}
 
-		// Render new body
-		const body = this.templateService.render(template.content, fm.fields);
+		// Render new body (use template.body which excludes template frontmatter)
+		const body = this.templateService.render(template.body, fm.fields);
 
 		// Update file content (preserve frontmatter, replace body)
 		const content = await this.app.vault.read(file);
@@ -125,16 +156,17 @@ export class CardService {
 
 		// Extract body (everything after frontmatter)
 		const body = this.extractBody(content);
-		const newContent = this.buildFileContent(updatedFm, body);
+		const newContent = this.buildFileContent({ ...updatedFm }, body);
 
 		await this.app.vault.modify(file, newContent);
 	}
 
 	/**
 	 * Build file content from frontmatter and body.
+	 * Accepts Record<string, unknown> to support merged template frontmatter.
 	 */
 	private buildFileContent(
-		frontmatter: FlashcardFrontmatter,
+		frontmatter: Record<string, unknown>,
 		body: string,
 	): string {
 		const yamlContent = stringifyYaml(frontmatter);

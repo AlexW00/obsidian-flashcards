@@ -211,4 +211,39 @@ export class DeckService {
 
 		return folders.sort((a, b) => a.path.localeCompare(b.path));
 	}
+
+	/**
+	 * Get all flashcards using a specific template.
+	 * @param templatePath The template path to match (can be in wikilink format)
+	 */
+	getFlashcardsByTemplate(templatePath: string): Flashcard[] {
+		const allCards = this.getAllFlashcards();
+
+		// Normalize template path for comparison
+		const normalizedTemplatePath = this.normalizeTemplatePath(templatePath);
+
+		return allCards.filter((card) => {
+			const cardTemplatePath = this.normalizeTemplatePath(
+				card.frontmatter.template,
+			);
+			return cardTemplatePath === normalizedTemplatePath;
+		});
+	}
+
+	/**
+	 * Normalize a template path for comparison.
+	 * Removes wikilink syntax and .md extension.
+	 */
+	private normalizeTemplatePath(templatePath: string): string {
+		// Remove [[ and ]] if present
+		let path = templatePath.replace(/^\[\[|\]\]$/g, "");
+		// Remove alias if present (everything after |)
+		const parts = path.split("|");
+		path = (parts[0] ?? path).trim();
+		// Remove .md extension for comparison
+		if (path.endsWith(".md")) {
+			path = path.slice(0, -3);
+		}
+		return path;
+	}
 }

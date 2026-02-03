@@ -102,7 +102,7 @@ export class FlashcardsSettingTab extends PluginSettingTab {
 		new Setting(containerEl)
 			.setName("Auto-regenerate debounce")
 			.setDesc(
-				"Seconds to wait before auto-regenerating a card after its frontmatter is edited. Set to 0 to disable auto-regeneration.",
+				"Seconds to wait before auto-regenerating cards after edits (frontmatter or template changes). Set to 0 to disable auto-regeneration.",
 			)
 			.addText((text) =>
 				text

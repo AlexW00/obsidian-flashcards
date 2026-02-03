@@ -70,7 +70,9 @@ export interface FlashcardTemplate {
 	path: string;
 	name: string;
 	variables: TemplateVariable[];
-	content: string;
+	content: string; // Full raw content including any frontmatter
+	body: string; // Template body (Nunjucks content without frontmatter)
+	frontmatter: Record<string, unknown> | null; // Parsed frontmatter from template (if any)
 }
 
 /**
@@ -131,7 +133,7 @@ export interface FlashcardsPluginSettings {
 	lastUsedDeck: string;
 	/** Default template content used when creating new templates */
 	defaultTemplateContent: string;
-	/** Seconds to wait before auto-regenerating after frontmatter edits */
+	/** Seconds to wait before auto-regenerating after edits (cards or templates). Set to 0 to disable. */
 	autoRegenerateDebounce: number;
 	/** If true, only show the current side during review. If false, show all sides up to the current one. */
 	showOnlyCurrentSide: boolean;

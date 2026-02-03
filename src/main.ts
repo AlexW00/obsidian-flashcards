@@ -1,4 +1,11 @@
-import { Notice, Plugin, TFile } from "obsidian";
+import {
+	ButtonComponent,
+	Editor,
+	MarkdownView,
+	Notice,
+	Plugin,
+	TFile,
+} from "obsidian";
 import { FlashcardsSettingTab } from "./settings";
 import { DEFAULT_SETTINGS, type FlashcardsPluginSettings } from "./types";
 import { TemplateService } from "./flashcards/TemplateService";
@@ -28,6 +35,16 @@ export default class FlashcardsPlugin extends Plugin {
 	private autoRegenerateVersions: Map<string, number> = new Map();
 	/** Status bar item for showing regeneration status */
 	private statusBarItem: HTMLElement | null = null;
+	/** Track if a bulk regeneration is currently in progress */
+	private isRegeneratingAll = false;
+	/** Debounce timer for template change notifications */
+	private templateChangeTimer: ReturnType<typeof setTimeout> | null = null;
+	/** Cache of template content to detect changes */
+	private templateContentCache: Map<string, string> = new Map();
+	/** Active template change notice (to prevent duplicates) */
+	private activeTemplateNotice: Notice | null = null;
+	/** Track recent editor changes to avoid duplicate vault modify handling */
+	private recentTemplateEditorChangeAt: Map<string, number> = new Map();
 
 	async onload() {
 		await this.loadSettings();
@@ -65,6 +82,34 @@ export default class FlashcardsPlugin extends Plugin {
 		this.registerEvent(
 			this.app.metadataCache.on("changed", (file) => {
 				this.handleMetadataChange(file);
+			}),
+		);
+
+		// Register fast template change listener while editing
+		this.registerEvent(
+			this.app.workspace.on(
+				"editor-change",
+				(_editor: Editor, view: MarkdownView) => {
+					const file = view?.file;
+					if (file instanceof TFile) {
+						this.recentTemplateEditorChangeAt.set(
+							file.path,
+							Date.now(),
+						);
+						console.debug("[Flashcards] editor-change", file.path);
+						this.handleTemplateFileChange(file, "editor");
+					}
+				},
+			),
+		);
+
+		// Register listener for template file changes
+		this.registerEvent(
+			this.app.vault.on("modify", (file) => {
+				if (file instanceof TFile) {
+					console.debug("[Flashcards] vault-modify", file.path);
+					this.handleTemplateFileChange(file, "vault");
+				}
 			}),
 		);
 
@@ -113,6 +158,12 @@ export default class FlashcardsPlugin extends Plugin {
 			callback: () => this.createTemplate(),
 		});
 
+		this.addCommand({
+			id: "regenerate-all-from-template",
+			name: "Regenerate all cards from template",
+			callback: () => this.selectTemplateForRegeneration(),
+		});
+
 		// Add settings tab
 		this.addSettingTab(new FlashcardsSettingTab(this.app, this));
 	}
@@ -125,6 +176,15 @@ export default class FlashcardsPlugin extends Plugin {
 		this.autoRegenerateTimers.clear();
 		this.frontmatterCache.clear();
 		this.autoRegenerateVersions.clear();
+		this.templateContentCache.clear();
+		if (this.templateChangeTimer) {
+			clearTimeout(this.templateChangeTimer);
+			this.templateChangeTimer = null;
+		}
+		if (this.activeTemplateNotice) {
+			this.activeTemplateNotice.hide();
+			this.activeTemplateNotice = null;
+		}
 		// Views are automatically cleaned up
 	}
 
@@ -390,5 +450,302 @@ export default class FlashcardsPlugin extends Plugin {
 					new Notice(`Failed to create template: ${error.message}`);
 				});
 		}).open();
+	}
+
+	/**
+	 * Check if a file is a template file (in the template folder).
+	 */
+	private isTemplateFile(file: TFile): boolean {
+		const templateFolder = this.settings.templateFolder;
+		return (
+			file.path.startsWith(templateFolder + "/") ||
+			file.path === templateFolder
+		);
+	}
+
+	/**
+	 * Handle template file changes with debounced regeneration offer.
+	 * Debouncing happens immediately on the event, content comparison happens when timer fires.
+	 */
+	private handleTemplateFileChange(
+		file: TFile,
+		source: "editor" | "vault",
+	): void {
+		console.debug("[Flashcards] template-change: start", file.path, source);
+		// Skip if auto-regenerate is disabled
+		if (this.settings.autoRegenerateDebounce <= 0) {
+			console.debug(
+				"[Flashcards] template-change: skipped (autoRegenerateDebounce <= 0)",
+			);
+			return;
+		}
+
+		// If this is a vault modify shortly after an editor change, skip it
+		if (source === "vault") {
+			const lastEditorChange =
+				this.recentTemplateEditorChangeAt.get(file.path) ?? 0;
+			const sinceEditorChange = Date.now() - lastEditorChange;
+			const coalesceWindowMs =
+				this.settings.autoRegenerateDebounce * 1000 + 250;
+			if (
+				sinceEditorChange >= 0 &&
+				sinceEditorChange <= coalesceWindowMs
+			) {
+				console.debug(
+					"[Flashcards] template-change: skipped (coalesced vault modify)",
+					file.path,
+					{ sinceEditorChange },
+				);
+				return;
+			}
+		}
+
+		// Check if this is a template file
+		if (!this.isTemplateFile(file)) {
+			console.debug(
+				"[Flashcards] template-change: skipped (not a template file)",
+				file.path,
+			);
+			return;
+		}
+
+		// Skip if a bulk regeneration is already running
+		if (this.isRegeneratingAll) {
+			console.debug(
+				"[Flashcards] template-change: skipped (bulk regeneration running)",
+			);
+			return;
+		}
+
+		// Clear existing timer immediately (debounce starts here, not after async read)
+		if (this.templateChangeTimer) {
+			clearTimeout(this.templateChangeTimer);
+			console.debug("[Flashcards] template-change: cleared timer");
+		}
+
+		// Capture file path for the closure
+		const filePath = file.path;
+		const fileBasename = file.basename;
+
+		// Set up debounced notification - timer starts immediately on modify event
+		this.templateChangeTimer = setTimeout(() => {
+			this.templateChangeTimer = null;
+			console.debug(
+				"[Flashcards] template-change: timer fired",
+				filePath,
+			);
+
+			// Double-check that regeneration isn't running
+			if (this.isRegeneratingAll) {
+				console.debug(
+					"[Flashcards] template-change: skipped (bulk regeneration running)",
+				);
+				return;
+			}
+
+			// If a template notice is already visible, don't show another
+			if (this.activeTemplateNotice) {
+				console.debug(
+					"[Flashcards] template-change: skipped (notice already visible)",
+				);
+				return;
+			}
+
+			// Now read the file and check for actual changes (only when timer fires)
+			const templateFile = this.app.vault.getAbstractFileByPath(filePath);
+			if (!(templateFile instanceof TFile)) {
+				console.debug(
+					"[Flashcards] template-change: skipped (file missing)",
+					filePath,
+				);
+				return;
+			}
+
+			void this.app.vault.read(templateFile).then((content) => {
+				const cachedContent = this.templateContentCache.get(filePath);
+				console.debug(
+					"[Flashcards] template-change: content read",
+					filePath,
+					{ hasCache: cachedContent !== undefined },
+				);
+
+				// Skip if content hasn't changed
+				if (content === cachedContent) {
+					console.debug(
+						"[Flashcards] template-change: skipped (content unchanged)",
+						filePath,
+					);
+					return;
+				}
+
+				// Update cache
+				this.templateContentCache.set(filePath, content);
+
+				// Skip if this is the first time we're seeing this file (initial cache population)
+				if (cachedContent === undefined) {
+					console.debug(
+						"[Flashcards] template-change: skipped (initial cache population)",
+						filePath,
+					);
+					return;
+				}
+
+				// Check if any cards use this template
+				const cards =
+					this.deckService.getFlashcardsByTemplate(filePath);
+				if (cards.length === 0) {
+					console.debug(
+						"[Flashcards] template-change: skipped (no cards for template)",
+						filePath,
+					);
+					return;
+				}
+				console.debug(
+					"[Flashcards] template-change: showing notice",
+					filePath,
+					{ cards: cards.length },
+				);
+
+				// Show notice with action button (auto-dismiss after 6s)
+				const cardLabel = cards.length === 1 ? "card" : "cards";
+				const notice = new Notice("", 6000);
+
+				// Build the notice content
+				notice.messageEl.empty();
+				const container = notice.messageEl.createDiv({
+					cls: "flashcard-notice-container",
+				});
+
+				// Text
+				container.createSpan({
+					text: `Template "${fileBasename}" changed.`,
+					cls: "flashcard-notice-text",
+				});
+
+				// Buttons container
+				const buttons = container.createDiv({
+					cls: "flashcard-notice-buttons",
+				});
+
+				// Regenerate button
+				new ButtonComponent(buttons)
+					.setButtonText(`Regenerate ${cards.length} ${cardLabel}`)
+					.setCta()
+					.onClick(() => {
+						notice.hide();
+						this.activeTemplateNotice = null;
+						void this.regenerateAllCardsFromTemplate(filePath);
+					});
+
+				this.activeTemplateNotice = notice;
+				// Clear active notice after auto-dismiss
+				window.setTimeout(() => {
+					if (this.activeTemplateNotice === notice) {
+						this.activeTemplateNotice = null;
+						console.debug(
+							"[Flashcards] template-change: notice auto-dismissed",
+							filePath,
+						);
+					}
+				}, 6000);
+			});
+		}, this.settings.autoRegenerateDebounce * 1000);
+	}
+
+	/**
+	 * Show template selector for regeneration.
+	 */
+	private selectTemplateForRegeneration() {
+		void this.templateService
+			.getTemplates(this.settings.templateFolder)
+			.then((templates) => {
+				if (templates.length === 0) {
+					new Notice(
+						`No templates found in "${this.settings.templateFolder}".`,
+					);
+					return;
+				}
+
+				new TemplateSelectorModal(this.app, templates, (template) => {
+					void this.regenerateAllCardsFromTemplate(template.path);
+				}).open();
+			});
+	}
+
+	/**
+	 * Regenerate all cards that use a specific template.
+	 */
+	async regenerateAllCardsFromTemplate(templatePath: string): Promise<void> {
+		// Prevent concurrent regenerations
+		if (this.isRegeneratingAll) {
+			new Notice("A regeneration is already in progress.");
+			return;
+		}
+
+		const cards = this.deckService.getFlashcardsByTemplate(templatePath);
+
+		if (cards.length === 0) {
+			new Notice("No cards found using this template.");
+			return;
+		}
+
+		this.isRegeneratingAll = true;
+
+		// Get template name for display
+		const template = await this.templateService.loadTemplate(templatePath);
+		const templateName = template?.name ?? templatePath;
+
+		let successCount = 0;
+		let errorCount = 0;
+
+		// Show initial progress notice
+		const notice = new Notice(
+			`Regenerating 0/${cards.length} cards from "${templateName}"...`,
+			0,
+		);
+
+		try {
+			for (let i = 0; i < cards.length; i++) {
+				const card = cards[i];
+				if (!card) continue;
+
+				try {
+					const file = this.app.vault.getAbstractFileByPath(
+						card.path,
+					);
+					if (file instanceof TFile) {
+						await this.cardService.regenerateCard(file);
+						successCount++;
+					} else {
+						errorCount++;
+					}
+				} catch (error) {
+					console.error(
+						`Failed to regenerate card ${card.path}:`,
+						error,
+					);
+					errorCount++;
+				}
+
+				// Update progress notice
+				notice.setMessage(
+					`Regenerating ${i + 1}/${cards.length} cards from "${templateName}"...`,
+				);
+			}
+		} finally {
+			this.isRegeneratingAll = false;
+			notice.hide();
+
+			// Show completion notice
+			if (errorCount === 0) {
+				new Notice(
+					`Successfully regenerated ${successCount} card${successCount > 1 ? "s" : ""} from "${templateName}".`,
+				);
+			} else {
+				new Notice(
+					`Regenerated ${successCount} card${successCount > 1 ? "s" : ""}, ${errorCount} failed.`,
+				);
+			}
+		}
 	}
 }
