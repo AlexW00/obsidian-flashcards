@@ -1,90 +1,88 @@
-# Obsidian Sample Plugin
+# Obsidian Flashcards
 
-This is a sample plugin for Obsidian (https://obsidian.md).
+# Obsidian Flashcard Plugin: Architectural Plan
 
-This project uses TypeScript to provide type checking and documentation.
-The repo depends on the latest plugin API (obsidian.d.ts) in TypeScript Definition format, which contains TSDoc comments describing what it does.
+## 1. Core Data Structure
 
-This sample plugin demonstrates some of the basic functionality the plugin API can do.
-- Adds a ribbon icon, which shows a Notice when clicked.
-- Adds a command "Open modal (simple)" which opens a Modal.
-- Adds a plugin setting tab to the settings page.
-- Registers a global click event and output 'click' to the console.
-- Registers a global interval which logs 'setInterval' to the console.
+- **Flashcard Note:** A standard Markdown file.
+- **Separators:** Content sides split by `---` (standard horizontal rules).
+- **Frontmatter (The Source of Truth):**
+    - `type`: `flashcard` (identifier).
+    - `template`: `[[Templates/Vocab Card]]` (WikiLink to the template file).
+    - `fields`: Object containing the raw data variables (e.g., `{ word: "Cat", meaning: "Gato" }`).
+    - `review`: Object containing SRS data (e.g., ease factor, interval).
+    - `dueAt`: ISO timestamp for the next review.
+    - _Note:_ The body content is considered a "Hydration Artifact"—it can be overwritten by the plugin based on the fields and template.
 
-## First time developing plugins?
+## 2. Templating Engine (Nunjucks)
 
-Quick starting guide for new plugin devs:
+- **Engine:** [Nunjucks](https://mozilla.github.io/nunjucks/) (Mozilla).
+- **Why:** Familiar syntax (`{{ variable }}`), safe defaults, and powerful filter system for AI.
+- **Custom Filters:**
+    - **AI Generation:** Implement an async filter `| aiGenerate`.
+        - _Usage:_ `{{ "Translate this to french" | aiGenerate }}`
+        - _Implementation:_ Plugin registers an async Nunjucks filter that calls the configured AI provider API.
+- **Field Types:**
+    - Defined implicitly by usage in the template, or explicitly via a "Template Config" block in the template file (optional future feature).
 
-- Check if [someone already developed a plugin for what you want](https://obsidian.md/plugins)! There might be an existing plugin similar enough that you can partner up with.
-- Make a copy of this repo as a template with the "Use this template" button (login to GitHub if you don't see it).
-- Clone your repo to a local development folder. For convenience, you can place this folder in your `.obsidian/plugins/your-plugin-name` folder.
-- Install NodeJS, then run `npm i` in the command line under your repo folder.
-- Run `npm run dev` to compile your plugin from `main.ts` to `main.js`.
-- Make changes to `main.ts` (or create new `.ts` files). Those changes should be automatically compiled into `main.js`.
-- Reload Obsidian to load the new version of your plugin.
-- Enable plugin in settings window.
-- For updates to the Obsidian API run `npm update` in the command line under your repo folder.
+## 3. Card Lifecycle (Hydration Model)
 
-## Releasing new releases
+- **Creation:**
+    1.  User fills out a form (Modal).
+    2.  Plugin saves `fields` to Frontmatter.
+    3.  Plugin runs `render(template, fields)` to generate the Markdown body.
+- **Updates (Regeneration):**
+    - **Trigger:** User edits the _Template file_ or modifies the _Fields_ in the card's frontmatter.
+    - **Action:** "Regenerate Card" command/button.
+    - **Process:**
+        1.  Read `frontmatter.template` (resolve WikiLink).
+        2.  Read `frontmatter.fields`.
+        3.  Re-render the Nunjucks template.
+        4.  **Overwrite** the Markdown body (everything below the frontmatter) with the new result.
+- **Protection:** The plugin should insert a comment at the top of the body: ``.
 
-- Update your `manifest.json` with your new version number, such as `1.0.1`, and the minimum Obsidian version required for your latest release.
-- Update your `versions.json` file with `"new-plugin-version": "minimum-obsidian-version"` so older versions of Obsidian can download an older version of your plugin that's compatible.
-- Create new GitHub release using your new version number as the "Tag version". Use the exact version number, don't include a prefix `v`. See here for an example: https://github.com/obsidianmd/obsidian-sample-plugin/releases
-- Upload the files `manifest.json`, `main.js`, `styles.css` as binary attachments. Note: The manifest.json file must be in two places, first the root path of your repository and also in the release.
-- Publish the release.
+## 4. Settings
 
-> You can simplify the version bump process by running `npm version patch`, `npm version minor` or `npm version major` after updating `minAppVersion` manually in `manifest.json`.
-> The command will bump version in `manifest.json` and `package.json`, and add the entry for the new version to `versions.json`
+- **General:**
+    - **Flashcard Note Name:** Template string (default: `{{date}}-{{time}}` or Unix timestamp).
+    - **Template Folder:** Path to folder containing `.md` template files.
+- **AI Integration:**
+    - **Provider:** (OpenAI, Anthropic, Local, etc.)
+    - **API Key:** Secure storage.
+    - **Model:** Select model (e.g., GPT-4o, Claude 3.5).
 
-## Adding your plugin to the community plugin list
+## 5. Dashboard View
 
-- Check the [plugin guidelines](https://docs.obsidian.md/Plugins/Releasing/Plugin+guidelines).
-- Publish an initial version.
-- Make sure you have a `README.md` file in the root of your repo.
-- Make a pull request at https://github.com/obsidianmd/obsidian-releases to add your plugin.
+- **Toolbar:**
+    - **Add Card:**
+        - Dropdown: Select Template (scans Template Folder).
+        - Modal: Dynamic form generation based on variables found in the Nunjucks template (regex scan of variables) OR a defined schema.
+        - Folder Picker: Defaults to current deck or last used.
+        - "Create & Add Another": Keeps modal open for rapid entry.
+    - **Browse:** Switches view to a standard Obsidian search/table view filtered by `type: flashcard`.
+- **Main Body (Deck View):**
+    - Hierarchical list of folders containing flashcards.
+    - Stats per deck: New (Blue), Learning (Red), To Review (Green).
+- **Deck Details:**
+    - "Study Now" button -> Launches Review Mode.
+    - "Regenerate All" button -> Batch hydrates all cards in deck (useful after template edits).
 
-## How to use
+## 6. Review View (The "Study" Mode)
 
-- Clone this repo.
-- Make sure your NodeJS is at least v16 (`node --version`).
-- `npm i` or `yarn` to install dependencies.
-- `npm run dev` to start compilation in watch mode.
+- **Rendering:**
+    - Standard `MarkdownRenderer.render()` (supports images, math, standard Obsidian plugins).
+    - Splits content by `---`.
+    - Shows Side 1 -> User interaction -> Shows Side 2 -> ... -> Rating.
+- **Rating System:**
+    - Standard buttons: Again, Hard, Good, Easy.
+    - Engine: FSRS (Free Spaced Repetition Scheduler) or Anki-sm2 algorithm.
+- **Interactions:**
+    - `Space`: Reveal / Next.
+    - `Cmd+E` / Edit Button: Opens the underlying Markdown file for manual fixes (user should edit Frontmatter `fields`, not body).
 
-## Manually installing the plugin
+## 7. Commands (Palette)
 
-- Copy over `main.js`, `styles.css`, `manifest.json` to your vault `VaultFolder/.obsidian/plugins/your-plugin-id/`.
-
-## Improve code quality with eslint
-- [ESLint](https://eslint.org/) is a tool that analyzes your code to quickly find problems. You can run ESLint against your plugin to find common bugs and ways to improve your code. 
-- This project already has eslint preconfigured, you can invoke a check by running`npm run lint`
-- Together with a custom eslint [plugin](https://github.com/obsidianmd/eslint-plugin) for Obsidan specific code guidelines.
-- A GitHub action is preconfigured to automatically lint every commit on all branches.
-
-## Funding URL
-
-You can include funding URLs where people who use your plugin can financially support it.
-
-The simple way is to set the `fundingUrl` field to your link in your `manifest.json` file:
-
-```json
-{
-    "fundingUrl": "https://buymeacoffee.com"
-}
-```
-
-If you have multiple URLs, you can also do:
-
-```json
-{
-    "fundingUrl": {
-        "Buy Me a Coffee": "https://buymeacoffee.com",
-        "GitHub Sponsor": "https://github.com/sponsors",
-        "Patreon": "https://www.patreon.com/"
-    }
-}
-```
-
-## API Documentation
-
-See https://docs.obsidian.md
+- `Flashcards: Open Dashboard`
+- `Flashcards: Create new card` (Quick add)
+- `Flashcards: Start Review` (Selector for deck)
+- `Flashcards: Regenerate current card` (For use when editing a single note)
