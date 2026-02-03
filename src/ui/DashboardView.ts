@@ -128,11 +128,7 @@ export class DashboardView extends ItemView {
 			}
 		}
 
-		const renderDeck = (
-			deck: Deck,
-			depth: number,
-			parent: HTMLElement,
-		) => {
+		const renderDeck = (deck: Deck, depth: number, parent: HTMLElement) => {
 			const deckEl = parent.createDiv({ cls: "flashcard-deck-item" });
 			deckEl.style.paddingLeft = `${depth * 20}px`;
 

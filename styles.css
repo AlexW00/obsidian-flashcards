@@ -454,6 +454,23 @@
 	margin: 0 var(--size-2-1);
 }
 
+.flashcard-inline-search {
+	font-size: var(--font-ui-medium);
+	font-weight: var(--font-semibold);
+	color: var(--text-accent);
+	margin: 0 var(--size-2-1);
+	min-width: 220px;
+	padding: var(--size-2-1) var(--size-4-2);
+	border: 1px solid var(--background-modifier-border);
+	border-radius: var(--radius-s);
+	background: var(--background-primary);
+}
+
+.flashcard-deck-suggest-note {
+	font-size: var(--font-ui-small);
+	color: var(--text-muted);
+}
+
 /* Field row - horizontal layout */
 .flashcard-field-row {
 	display: flex;

@@ -1,9 +1,12 @@
 import {
+	AbstractInputSuggest,
 	App,
 	ButtonComponent,
 	DropdownComponent,
 	Modal,
 	Notice,
+	TextComponent,
+	prepareFuzzySearch,
 	setIcon,
 } from "obsidian";
 import type { Deck, FlashcardTemplate } from "../types";
@@ -50,6 +53,87 @@ export interface CardCreationModalOptions {
 	initialTemplate?: FlashcardTemplate;
 }
 
+type DeckSearchOption = {
+	path: string;
+	isDeck: boolean;
+	cardCount: number;
+};
+
+class DeckPathSuggest extends AbstractInputSuggest<DeckSearchOption> {
+	private getOptions: () => DeckSearchOption[];
+	private onSelect: (option: DeckSearchOption) => void;
+	private inputElement: HTMLInputElement;
+
+	constructor(
+		app: App,
+		inputEl: HTMLInputElement,
+		getOptions: () => DeckSearchOption[],
+		onSelect: (option: DeckSearchOption) => void,
+	) {
+		super(app, inputEl);
+		this.getOptions = getOptions;
+		this.onSelect = onSelect;
+		this.inputElement = inputEl;
+
+		this.inputElement.addEventListener("focus", () => {
+			this.inputElement.dispatchEvent(new Event("input"));
+		});
+	}
+
+	getSuggestions(query: string): DeckSearchOption[] {
+		const options = this.getOptions();
+		const trimmed = query.trim();
+
+		if (!trimmed) {
+			const decks = options.filter((opt) => opt.isDeck);
+			const folders = options.filter((opt) => !opt.isDeck);
+			return [...decks, ...folders];
+		}
+
+		const fuzzy = prepareFuzzySearch(trimmed);
+		return options
+			.map((option) => ({
+				option,
+				match: fuzzy(option.path),
+			}))
+			.filter((item) => item.match)
+			.sort((a, b) => {
+				const scoreDiff = (b.match?.score ?? 0) - (a.match?.score ?? 0);
+				if (scoreDiff !== 0) return scoreDiff;
+				if (a.option.isDeck !== b.option.isDeck) {
+					return a.option.isDeck ? -1 : 1;
+				}
+				return a.option.path.localeCompare(b.option.path);
+			})
+			.map((item) => item.option);
+	}
+
+	renderSuggestion(option: DeckSearchOption, el: HTMLElement): void {
+		el.addClass("flashcard-deck-suggest-item");
+		el.createEl("div", {
+			text: option.path,
+			cls: "suggestion-title",
+		});
+		const cardLabel = option.cardCount === 1
+			? "1 card"
+			: `${option.cardCount} cards`;
+		el.createEl("div", {
+			text: cardLabel,
+			cls: "suggestion-note flashcard-deck-suggest-note",
+		});
+	}
+
+	selectSuggestion(option: DeckSearchOption): void {
+		this.inputElement.value = option.path;
+		this.onSelect(option);
+		this.close();
+	}
+
+	destroy(): void {
+		this.close();
+	}
+}
+
 /**
  * Modal for creating a flashcard with a dynamic form based on template variables.
  * Includes inline deck/template switching, media toolbar, and paste handling.
@@ -66,10 +150,12 @@ export class CardCreationModal extends Modal {
 	private currentDeckPath: string;
 	private currentTemplate: FlashcardTemplate;
 	private availableDecks: Deck[] = [];
+	private availableFolders: string[] = [];
 	private availableTemplates: FlashcardTemplate[] = [];
 	private fields: Record<string, string> = {};
 	private activeTextarea: HTMLTextAreaElement | null = null;
 	private textareaSuggests: TextareaSuggest[] = [];
+	private deckSuggest: DeckPathSuggest | null = null;
 
 	constructor(options: CardCreationModalOptions) {
 		super(options.app);
@@ -98,9 +184,19 @@ export class CardCreationModal extends Modal {
 
 		// Load available decks and templates
 		this.availableDecks = this.deckService.discoverDecks();
+		this.availableFolders = this.deckService
+			.getAllFolders()
+			.map((folder) => folder.path)
+			.filter((path) => Boolean(path));
 		this.availableTemplates = await this.templateService.getTemplates(
 			this.templateFolder,
 		);
+
+		if (this.availableFolders.length === 0) {
+			new Notice("No folders found. Create a folder to use as a deck.");
+			this.close();
+			return;
+		}
 
 		// Handle no templates case
 		if (this.availableTemplates.length === 0) {
@@ -111,21 +207,25 @@ export class CardCreationModal extends Modal {
 			return;
 		}
 
-		// Determine initial deck path
+		// Determine initial deck path (must be a subfolder)
 		if (!this.currentDeckPath) {
-			// Priority: last used deck -> first available deck -> vault root
+			// Priority: last used deck -> first available deck -> first folder
 			if (
 				this.lastUsedDeck &&
-				this.availableDecks.some(
-					(d) => d.path === this.lastUsedDeck,
-				)
+				this.availableFolders.includes(this.lastUsedDeck)
 			) {
 				this.currentDeckPath = this.lastUsedDeck;
 			} else if (this.availableDecks.length > 0) {
-				this.currentDeckPath = this.availableDecks[0]?.path ?? "/";
-			} else {
-				this.currentDeckPath = "/";
+				this.currentDeckPath = this.availableDecks[0]?.path ?? "";
+			} else if (this.availableFolders.length > 0) {
+				this.currentDeckPath = this.availableFolders[0] ?? "";
 			}
+		}
+
+		if (!this.currentDeckPath) {
+			new Notice("Select a folder to use as a deck.");
+			this.close();
+			return;
 		}
 
 		// Determine initial template
@@ -162,7 +262,11 @@ export class CardCreationModal extends Modal {
 		const { contentEl } = this;
 		contentEl.empty();
 
-		// Header row: "New [Template] Card in Deck [Deck]"
+		// Clean up deck suggest when re-rendering
+		this.deckSuggest?.destroy();
+		this.deckSuggest = null;
+
+		// Header row: "New [Template] Card in [Deck]"
 		const headerRow = contentEl.createDiv({
 			cls: "flashcard-modal-header-row",
 		});
@@ -196,27 +300,26 @@ export class CardCreationModal extends Modal {
 		);
 
 		headerRow.createSpan({
-			text: " Card in Deck ",
+			text: " Card in ",
 			cls: "flashcard-modal-header-text",
 		});
 
-		// Deck selector
-		const deckOptions = this.availableDecks.map((d) => ({
-			label: this.getDeckDisplayLabel(d.path),
-			value: d.path,
-		}));
-		// Add vault root option only if there are no decks
-		if (deckOptions.length === 0) {
-			deckOptions.push({ label: "(Vault root)", value: "/" });
-		}
+		// Deck selector - search input with suggestions
+		const deckInput = new TextComponent(headerRow);
+		deckInput.inputEl.addClass("flashcard-inline-search");
+		deckInput.setPlaceholder("Search folders...");
+		deckInput.setValue(this.currentDeckPath);
+		deckInput.onChange((value) => {
+			this.currentDeckPath = value.trim();
+		});
 
-		this.createInlineDropdown(
-			headerRow,
-			deckOptions,
-			this.currentDeckPath,
-			(selectedPath) => {
-				this.currentDeckPath = selectedPath;
-				this.renderContent();
+		this.deckSuggest = new DeckPathSuggest(
+			this.app,
+			deckInput.inputEl,
+			() => this.getDeckSearchOptions(),
+			(option) => {
+				this.currentDeckPath = option.path;
+				deckInput.setValue(option.path);
 			},
 		);
 
@@ -320,6 +423,11 @@ export class CardCreationModal extends Modal {
 	}
 
 	private submitCard(createAnother: boolean) {
+		if (!this.isValidDeckPath(this.currentDeckPath)) {
+			new Notice("Select an existing folder for the deck.");
+			return;
+		}
+
 		if (createAnother) {
 			this.onSubmit(
 				{ ...this.fields },
@@ -343,21 +451,26 @@ export class CardCreationModal extends Modal {
 		}
 	}
 
-	private getDeckDisplayLabel(path: string): string {
-		if (path === "/" || path === "") return "(Vault root)";
-		const normalized = path
-			.split("/")
-			.filter(Boolean)
-			.map((segment) => this.stripFolderPrefix(segment));
-		const fullLabel = normalized.join(" / ");
-		if (fullLabel.length <= 40 || normalized.length <= 3) {
-			return fullLabel;
-		}
-		return `${normalized[0]} / … / ${normalized[normalized.length - 1]}`;
+	private isValidDeckPath(path: string): boolean {
+		return Boolean(path) && this.availableFolders.includes(path);
 	}
 
-	private stripFolderPrefix(segment: string): string {
-		return segment.replace(/^folder\s+/i, "");
+	private getDeckSearchOptions(): DeckSearchOption[] {
+		const deckPaths = new Set(this.availableDecks.map((deck) => deck.path));
+		const deckOptions = this.availableDecks
+			.map((deck) => ({
+				path: deck.path,
+				isDeck: true,
+				cardCount: deck.stats.total,
+			}))
+			.sort((a, b) => a.path.localeCompare(b.path));
+
+		const folderOptions = this.availableFolders
+			.filter((path) => !deckPaths.has(path))
+			.map((path) => ({ path, isDeck: false, cardCount: 0 }))
+			.sort((a, b) => a.path.localeCompare(b.path));
+
+		return [...deckOptions, ...folderOptions];
 	}
 
 	/**
@@ -382,6 +495,8 @@ export class CardCreationModal extends Modal {
 		// Clean up suggests
 		this.textareaSuggests.forEach((s) => s.destroy());
 		this.textareaSuggests = [];
+		this.deckSuggest?.destroy();
+		this.deckSuggest = null;
 
 		const { contentEl } = this;
 		contentEl.empty();

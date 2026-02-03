@@ -28,7 +28,7 @@ export class FlashcardsSettingTab extends PluginSettingTab {
 			.setDesc("Folder for flashcard templates")
 			.addText((text) =>
 				text
-					.setPlaceholder("Flashcards/Templates")
+					.setPlaceholder("Flashcards/templates")
 					.setValue(this.plugin.settings.templateFolder)
 					.onChange(async (value) => {
 						this.plugin.settings.templateFolder = value.trim();
@@ -41,7 +41,7 @@ export class FlashcardsSettingTab extends PluginSettingTab {
 			.setDesc("Folder for pasted images and media")
 			.addText((text) =>
 				text
-					.setPlaceholder("Flashcards/Attachments")
+					.setPlaceholder("Flashcards/attachments")
 					.setValue(this.plugin.settings.attachmentFolder)
 					.onChange(async (value) => {
 						this.plugin.settings.attachmentFolder = value.trim();

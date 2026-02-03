@@ -13,9 +13,7 @@ export class AttachmentCleanupService {
 	/**
 	 * Find attachments under the given folder that are not referenced by any markdown file.
 	 */
-	async findOrphanAttachments(
-		attachmentFolder: string,
-	): Promise<TFile[]> {
+	async findOrphanAttachments(attachmentFolder: string): Promise<TFile[]> {
 		const normalizedFolder = attachmentFolder.replace(/\/+$/, "");
 		const folder = this.app.vault.getAbstractFileByPath(normalizedFolder);
 		if (!(folder instanceof TFolder)) {

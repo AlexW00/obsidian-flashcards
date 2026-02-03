@@ -360,9 +360,10 @@ export default class FlashcardsPlugin extends Plugin {
 		const attachmentFolder = this.settings.attachmentFolder;
 		let orphans: TFile[] = [];
 		try {
-			orphans = await this.attachmentCleanupService.findOrphanAttachments(
-				attachmentFolder,
-			);
+			orphans =
+				await this.attachmentCleanupService.findOrphanAttachments(
+					attachmentFolder,
+				);
 		} catch (error) {
 			console.error("Failed to scan attachments", error);
 			new Notice("Failed to scan attachments");
@@ -380,7 +381,7 @@ export default class FlashcardsPlugin extends Plugin {
 			attachmentFolder,
 			async () => {
 				for (const file of orphans) {
-					await this.app.vault.delete(file);
+					await this.app.fileManager.trashFile(file);
 				}
 			},
 		).open();
