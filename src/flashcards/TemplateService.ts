@@ -38,7 +38,9 @@ export class TemplateService {
 	parseTemplateContent(content: string): ParsedTemplate {
 		// Match frontmatter: starts with ---, ends with --- (with optional trailing newline)
 		// Handles cases where body may be empty or start immediately after ---
-		const fmMatch = content.match(/^---\r?\n([\s\S]*?)\r?\n---(?:\r?\n([\s\S]*))?$/);
+		const fmMatch = content.match(
+			/^---\r?\n([\s\S]*?)\r?\n---(?:\r?\n([\s\S]*))?$/,
+		);
 		if (!fmMatch) {
 			// No frontmatter, entire content is the body
 			return { frontmatter: null, body: content };
