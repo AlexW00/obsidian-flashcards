@@ -633,9 +633,13 @@ export class AnkiImportService {
 
 		// Build note-to-deck mapping (use first card's deck for each note)
 		const noteToDeck = new Map<number, number>();
+		const noteToCardId = new Map<number, number>();
 		for (const card of data.cards) {
 			if (!noteToDeck.has(card.nid)) {
 				noteToDeck.set(card.nid, card.did);
+			}
+			if (!noteToCardId.has(card.nid)) {
+				noteToCardId.set(card.nid, card.id);
 			}
 		}
 
@@ -650,6 +654,7 @@ export class AnkiImportService {
 
 		// Step 1: Create templates from models
 		const templatePathMap = new Map<string, string>(); // modelId -> template path
+		const fieldNameMaps = new Map<string, Map<string, string>>();
 		const usedModels = new Set<string>();
 
 		// Find which models are used by selected notes
@@ -661,6 +666,9 @@ export class AnkiImportService {
 			const model = data.models.get(modelId);
 			if (!model) continue;
 
+			const fieldNameMap = this.buildFieldNameMap(model);
+			fieldNameMaps.set(modelId, fieldNameMap);
+
 			currentStep++;
 			onProgress?.(
 				currentStep,
@@ -669,7 +677,10 @@ export class AnkiImportService {
 			);
 
 			try {
-				const templates = this.templateConverter.convertModel(model);
+				const templates = this.templateConverter.convertModel(
+					model,
+					fieldNameMap,
+				);
 				// Use first template for this model
 				const template = templates[0];
 				if (template) {
@@ -738,8 +749,8 @@ export class AnkiImportService {
 					mediaBytes[3] === 0xfd
 				) {
 					const decompressed = zstdDecompress(mediaBytes);
-					mediaBytes = decompressed;
-					mediaBuffer = decompressed.slice().buffer;
+					mediaBytes = new Uint8Array(decompressed);
+					mediaBuffer = mediaBytes.buffer;
 				}
 				const mediaPath = `${this.settings.attachmentFolder}/${uuidFilename}`;
 
@@ -767,6 +778,8 @@ export class AnkiImportService {
 
 			const deckId = noteToDeck.get(note.id);
 			if (deckId === undefined) continue;
+			const cardId = noteToCardId.get(note.id);
+			if (cardId === undefined) continue;
 
 			const deck = data.decks.get(deckId);
 			if (!deck) continue;
@@ -776,16 +789,19 @@ export class AnkiImportService {
 
 			const templatePath = templatePathMap.get(String(note.mid));
 			if (!templatePath) continue;
+			const fieldNameMap = fieldNameMaps.get(String(note.mid));
 
 			try {
 				await this.createFlashcard(
 					note,
 					model,
 					deck,
+					cardId,
 					templatePath,
 					destinationFolder,
 					data.media,
 					mediaUuidMap,
+					fieldNameMap,
 				);
 				result.cardsImported++;
 			} catch (error) {
@@ -825,10 +841,12 @@ export class AnkiImportService {
 		note: AnkiNote,
 		model: AnkiModel,
 		deck: AnkiDeck,
+		cardId: number,
 		templatePath: string,
 		destinationFolder: string,
 		media: Map<string, string>,
 		mediaUuidMap: Map<string, string>,
+		fieldNameMap?: Map<string, string>,
 	): Promise<void> {
 		// Parse note fields
 		const fieldValues = note.flds.split("\x1f");
@@ -863,7 +881,8 @@ export class AnkiImportService {
 				allMediaFiles.add(originalName);
 			}
 
-			fields[fieldDef.name] = finalMarkdown;
+			const fieldName = this.mapFieldName(fieldDef.name, fieldNameMap);
+			fields[fieldName] = finalMarkdown;
 		}
 
 		// Build deck folder path (convert :: to /)
@@ -893,9 +912,9 @@ export class AnkiImportService {
 		const yamlContent = stringifyYaml(frontmatter);
 		const content = `---\n${yamlContent}---\n\n${PROTECTION_COMMENT}\n\n${body}`;
 
-		// Generate UUID filename
-		const uuid = this.generateUUID();
-		const filePath = `${fullDeckPath}/${uuid}.md`;
+		// Use Anki card ID as filename (fallback if it already exists)
+		const baseName = String(cardId);
+		const filePath = this.getAvailableFilePath(fullDeckPath, baseName);
 
 		await this.app.vault.create(filePath, content);
 	}
@@ -963,5 +982,94 @@ export class AnkiImportService {
 	 */
 	private escapeRegex(str: string): string {
 		return str.replace(/[.*+?^${}()|[\]\\]/g, "\\$&");
+	}
+
+	/**
+	 * Build a mapping of original Anki field names to normalized identifiers.
+	 */
+	private buildFieldNameMap(model: AnkiModel): Map<string, string> {
+		const map = new Map<string, string>();
+		const used = new Set<string>();
+		for (const field of model.flds) {
+			const original = field.name;
+			const normalized = this.normalizeFieldName(original, used);
+			map.set(original, normalized);
+			used.add(normalized);
+		}
+		return map;
+	}
+
+	/**
+	 * Normalize a field name to a safe frontmatter key and Nunjucks identifier.
+	 */
+	private normalizeFieldName(name: string, used: Set<string>): string {
+		let normalized = name
+			.trim()
+			.replace(/[^a-zA-Z0-9_]+/g, "_")
+			.replace(/_+/g, "_")
+			.replace(/^_+|_+$/g, "");
+
+		if (!normalized) {
+			normalized = "field";
+		}
+
+		if (/^\d/.test(normalized)) {
+			normalized = `field_${normalized}`;
+		}
+
+		if (normalized.startsWith("_")) {
+			normalized = `field${normalized}`;
+		}
+
+		const reserved = new Set([
+			"loop",
+			"super",
+			"self",
+			"true",
+			"false",
+			"none",
+			"FrontSide",
+		]);
+		if (reserved.has(normalized)) {
+			normalized = `field_${normalized}`;
+		}
+
+		let candidate = normalized;
+		let counter = 2;
+		while (used.has(candidate)) {
+			candidate = `${normalized}_${counter}`;
+			counter++;
+		}
+
+		return candidate;
+	}
+
+	/**
+	 * Map an original field name using an optional normalization map.
+	 */
+	private mapFieldName(
+		name: string,
+		fieldNameMap?: Map<string, string>,
+	): string {
+		return fieldNameMap?.get(name) ?? name;
+	}
+
+	/**
+	 * Get a non-conflicting file path for a card filename.
+	 */
+	private getAvailableFilePath(folderPath: string, baseName: string): string {
+		let candidate = `${folderPath}/${baseName}.md`;
+		if (!this.app.vault.getAbstractFileByPath(candidate)) {
+			return candidate;
+		}
+
+		let counter = 2;
+		while (true) {
+			candidate = `${folderPath}/${baseName}-${counter}.md`;
+			if (!this.app.vault.getAbstractFileByPath(candidate)) {
+				return candidate;
+			}
+			counter++;
+		}
 	}
 }

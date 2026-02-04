@@ -97,11 +97,14 @@ export class AnkiTemplateConverter {
 	 * Convert an Anki model to Nunjucks templates.
 	 * Creates one template per card template in the model.
 	 */
-	convertModel(model: AnkiModel): ConvertedTemplate[] {
+	convertModel(
+		model: AnkiModel,
+		fieldNameMap?: Map<string, string>,
+	): ConvertedTemplate[] {
 		const templates: ConvertedTemplate[] = [];
 
 		for (const tmpl of model.tmpls) {
-			const converted = this.convertTemplate(model, tmpl);
+			const converted = this.convertTemplate(model, tmpl, fieldNameMap);
 			templates.push(converted);
 		}
 
@@ -114,13 +117,22 @@ export class AnkiTemplateConverter {
 	convertTemplate(
 		model: AnkiModel,
 		tmpl: AnkiCardTemplate,
+		fieldNameMap?: Map<string, string>,
 	): ConvertedTemplate {
 		// Get field names for variable extraction
 		const fieldNames = model.flds.map((f) => f.name);
 
 		// Convert front and back templates
-		const frontMd = this.convertTemplateHtml(tmpl.qfmt, fieldNames);
-		const backMd = this.convertTemplateHtml(tmpl.afmt, fieldNames);
+		const frontMd = this.convertTemplateHtml(
+			tmpl.qfmt,
+			fieldNames,
+			fieldNameMap,
+		);
+		const backMd = this.convertTemplateHtml(
+			tmpl.afmt,
+			fieldNames,
+			fieldNameMap,
+		);
 
 		// Build combined template body
 		// Replace {{FrontSide}} in back with the front content
@@ -159,7 +171,11 @@ export class AnkiTemplateConverter {
 	/**
 	 * Convert Anki template HTML to Nunjucks Markdown.
 	 */
-	private convertTemplateHtml(html: string, fieldNames: string[]): string {
+	private convertTemplateHtml(
+		html: string,
+		fieldNames: string[],
+		fieldNameMap?: Map<string, string>,
+	): string {
 		// Step 1: Tokenize Anki placeholders with safe markers
 		const { tokenized, tokens } = this.tokenizePlaceholders(
 			html,
@@ -170,7 +186,7 @@ export class AnkiTemplateConverter {
 		let markdown = this.turndown.turndown(tokenized);
 
 		// Step 3: Restore and transpile placeholders
-		markdown = this.restorePlaceholders(markdown, tokens);
+		markdown = this.restorePlaceholders(markdown, tokens, fieldNameMap);
 
 		// Clean up
 		markdown = this.cleanupWhitespace(markdown);
@@ -215,11 +231,15 @@ export class AnkiTemplateConverter {
 	private restorePlaceholders(
 		markdown: string,
 		tokens: Map<string, string>,
+		fieldNameMap?: Map<string, string>,
 	): string {
 		let result = markdown;
 
 		for (const [token, original] of tokens) {
-			const transpiled = this.transpileToNunjucks(original);
+			const transpiled = this.transpileToNunjucks(
+				original,
+				fieldNameMap,
+			);
 			result = result.split(token).join(transpiled);
 		}
 
@@ -237,7 +257,10 @@ export class AnkiTemplateConverter {
 	 * - {{cloze:Field}} -> {{ Field }} (cloze handled in content converter)
 	 * - {{FrontSide}} -> {{ FrontSide }} (special, replaced later)
 	 */
-	private transpileToNunjucks(ankiSyntax: string): string {
+	private transpileToNunjucks(
+		ankiSyntax: string,
+		fieldNameMap?: Map<string, string>,
+	): string {
 		// Extract components
 		const match = ankiSyntax.match(/\{\{([#^/])?([^{}]+)\}\}/);
 		if (!match) return ankiSyntax;
@@ -248,10 +271,10 @@ export class AnkiTemplateConverter {
 		// Handle special prefixes
 		if (prefix === "#") {
 			// Conditional (if field exists/has content)
-			return `{% if ${this.formatFieldAccess(content)} %}`;
+			return `{% if ${this.mapFieldName(content, fieldNameMap)} %}`;
 		} else if (prefix === "^") {
 			// Negation (if field doesn't exist/empty)
-			return `{% if not ${this.formatFieldAccess(content)} %}`;
+			return `{% if not ${this.mapFieldName(content, fieldNameMap)} %}`;
 		} else if (prefix === "/") {
 			// End conditional
 			return "{% endif %}";
@@ -267,20 +290,22 @@ export class AnkiTemplateConverter {
 		if (content.includes(":")) {
 			const parts = content.split(":");
 			const fieldName = parts[parts.length - 1]?.trim() ?? content;
-			return `{{ ${this.formatFieldAccess(fieldName)} }}`;
+			return `{{ ${this.mapFieldName(fieldName, fieldNameMap)} }}`;
 		}
 
 		// Regular field reference
-		return `{{ ${this.formatFieldAccess(content)} }}`;
+		return `{{ ${this.mapFieldName(content, fieldNameMap)} }}`;
 	}
 
 	/**
-	 * Format field access for Nunjucks using a safe lookup.
+	 * Map a field name to its normalized identifier.
 	 */
-	private formatFieldAccess(fieldName: string): string {
+	private mapFieldName(
+		fieldName: string,
+		fieldNameMap?: Map<string, string>,
+	): string {
 		const trimmed = fieldName.trim();
-		const safeName = JSON.stringify(trimmed);
-		return `_fields[${safeName}]`;
+		return fieldNameMap?.get(trimmed) ?? trimmed;
 	}
 
 	/**
@@ -289,7 +314,6 @@ export class AnkiTemplateConverter {
 	private extractVariables(template: string): string[] {
 		const variableRegex =
 			/\{\{\s*([a-zA-Z_][a-zA-Z0-9_\s]*)\s*(?:\|[^}]*)?\}\}/g;
-		const fieldsAccessRegex = /_fields\s*\[\s*["']([^"']+)["']\s*\]/g;
 		const variables = new Set<string>();
 
 		let match;
@@ -310,12 +334,6 @@ export class AnkiTemplateConverter {
 			if (!skip.includes(name)) {
 				variables.add(name);
 			}
-		}
-
-		while ((match = fieldsAccessRegex.exec(template)) !== null) {
-			const name = match[1]?.trim();
-			if (!name) continue;
-			variables.add(name);
 		}
 
 		return Array.from(variables);
