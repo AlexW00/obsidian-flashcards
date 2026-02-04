@@ -197,8 +197,6 @@ export class AnkiContentConverter {
 	 * Unescape Obsidian embed wiki links like !\[\[file\]\] -> ![[file]].
 	 */
 	private unescapeWikiEmbeds(markdown: string): string {
-		return markdown
-			.replace(/!\\\[\\\[/g, "![[")
-			.replace(/\\\]\\\]/g, "]]");
+		return markdown.replace(/!\\\[\\\[/g, "![[").replace(/\\\]\\\]/g, "]]");
 	}
 }

@@ -87,7 +87,7 @@ export class TemplateService {
 
 		const variableRegex =
 			/\{\{\s*([a-zA-Z_][a-zA-Z0-9_]*)\s*(?:\|[^}]*)?\}\}/g;
-			const fieldsAccessRegex = /_fields\s*\[\s*["']([^"']+)["']\s*\]/g;
+		const fieldsAccessRegex = /_fields\s*\[\s*["']([^"']+)["']\s*\]/g;
 		const variables = new Map<string, TemplateVariable>();
 
 		let match;
@@ -105,7 +105,10 @@ export class TemplateService {
 				}
 			}
 
-			while ((match = fieldsAccessRegex.exec(contentWithoutComments)) !== null) {
+			while (
+				(match = fieldsAccessRegex.exec(contentWithoutComments)) !==
+				null
+			) {
 				const name = match[1];
 				if (!name) continue;
 				if (!variables.has(name)) {
