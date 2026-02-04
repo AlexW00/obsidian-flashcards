@@ -276,11 +276,7 @@ export default class AnkerPlugin extends Plugin {
 				};
 			}
 		).secretStorage;
-		debugLog(
-			"SecretStorage delete: %s available=%s",
-			key,
-			!!secretStorage,
-		);
+		debugLog("SecretStorage delete: %s available=%s", key, !!secretStorage);
 		if (!secretStorage) {
 			return;
 		}

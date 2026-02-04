@@ -106,11 +106,7 @@ export class AiService {
 	 */
 	private async createProvider(config: AiProviderConfig) {
 		const apiKey = await this.getApiKey(config.type);
-		debugLog(
-			"AI provider %s: apiKey present=%s",
-			config.type,
-			!!apiKey,
-		);
+		debugLog("AI provider %s: apiKey present=%s", config.type, !!apiKey);
 		if (!apiKey) {
 			throw new Error(
 				`No API key configured for provider: ${config.type}`,

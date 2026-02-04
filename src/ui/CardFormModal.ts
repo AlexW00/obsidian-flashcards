@@ -193,9 +193,7 @@ export class CardFormModal extends Modal {
 		this.onSubmit = options.onSubmit;
 		this.onUpdate = options.onUpdate;
 		this.mode = options.mode ?? "create";
-		this.fields = options.initialFields
-			? { ...options.initialFields }
-			: {};
+		this.fields = options.initialFields ? { ...options.initialFields } : {};
 
 		// Will be set in onOpen after loading available options
 		this.currentDeckPath = options.initialDeckPath ?? "";
@@ -223,9 +221,7 @@ export class CardFormModal extends Modal {
 		);
 
 		if (this.availableFolders.length === 0) {
-			new Notice(
-				"No folders found. Create a folder to use as a deck.",
-			);
+			new Notice("No folders found. Create a folder to use as a deck.");
 			this.close();
 			return;
 		}
@@ -476,7 +472,8 @@ export class CardFormModal extends Modal {
 			});
 			this.createAnotherCheckbox.checked = this.createAnother;
 			this.createAnotherCheckbox.addEventListener("change", () => {
-				this.createAnother = this.createAnotherCheckbox?.checked ?? false;
+				this.createAnother =
+					this.createAnotherCheckbox?.checked ?? false;
 			});
 			createAnotherLabel.createSpan({ text: "Create another" });
 		}

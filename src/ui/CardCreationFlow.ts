@@ -45,7 +45,13 @@ export function showCardCreationModal(
 		lastUsedTemplate: state.lastUsedTemplate,
 		initialDeckPath,
 		initialTemplate,
-		onSubmit: (fields, deckPath, templatePath, createAnother, statusCallback) => {
+		onSubmit: (
+			fields,
+			deckPath,
+			templatePath,
+			createAnother,
+			statusCallback,
+		) => {
 			return cardService
 				.createCard(
 					deckPath,
@@ -121,7 +127,12 @@ export async function showCardEditModal(
 		onSubmit: () => {
 			// Not used in edit mode
 		},
-		onUpdate: (fields, updatedDeckPath, updatedTemplatePath, statusCallback) => {
+		onUpdate: (
+			fields,
+			updatedDeckPath,
+			updatedTemplatePath,
+			statusCallback,
+		) => {
 			return cardService
 				.updateCardFields(file, fields, {
 					templatePath: updatedTemplatePath,

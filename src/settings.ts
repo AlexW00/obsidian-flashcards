@@ -565,8 +565,7 @@ export class AnkerSettingTab extends PluginSettingTab {
 					const trimmedTextModel = config.textModel?.trim();
 					const isDefaultModel =
 						!trimmedTextModel ||
-						trimmedTextModel ===
-							getDefaultTextModel(config.type);
+						trimmedTextModel === getDefaultTextModel(config.type);
 					const nextTextModel = isDefaultModel
 						? getDefaultTextModel(nextType)
 						: config.textModel;

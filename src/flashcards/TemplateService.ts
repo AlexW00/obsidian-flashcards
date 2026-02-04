@@ -130,7 +130,9 @@ export class TemplateService {
 				}
 
 				// Notify status update
-				this.currentRenderContext.onStatusUpdate?.("Generating image...");
+				this.currentRenderContext.onStatusUpdate?.(
+					"Generating image...",
+				);
 
 				this.aiService
 					.generateImagePipe(safePrompt, this.currentRenderContext)
@@ -170,7 +172,9 @@ export class TemplateService {
 				}
 
 				// Notify status update
-				this.currentRenderContext.onStatusUpdate?.("Generating speech...");
+				this.currentRenderContext.onStatusUpdate?.(
+					"Generating speech...",
+				);
 
 				this.aiService
 					.generateSpeechPipe(safeText, this.currentRenderContext)
