@@ -139,7 +139,10 @@ export class DeckService {
 			} else if (state === State.Learning) {
 				learnCount++;
 			} else if (state === State.Relearning) {
-				relearnCount++;
+				const dueDate = new Date(review.due);
+				if (this.isDueToday(dueDate)) {
+					relearnCount++;
+				}
 			} else if (state === State.Review) {
 				const dueDate = new Date(review.due);
 				if (this.isDueToday(dueDate)) {

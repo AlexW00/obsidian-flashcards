@@ -229,6 +229,10 @@ export class CardService {
 			systemFrontmatter,
 			fm as unknown as Record<string, unknown>,
 		);
+
+		// Clear any previous error since regeneration succeeded
+		delete mergedFrontmatter._error;
+
 		debugLog("regenerate-card: merged frontmatter keys", {
 			keys: Object.keys(mergedFrontmatter),
 		});
@@ -322,6 +326,9 @@ export class CardService {
 				systemFrontmatter,
 				fm as unknown as Record<string, unknown>,
 			);
+
+			// Clear any previous error since update succeeded
+			delete mergedFrontmatter._error;
 
 			const newContent = this.buildFileContent(mergedFrontmatter, body);
 			if (options.deckPath && options.deckPath !== file.parent?.path) {

@@ -635,13 +635,13 @@ export class AnkiImportService {
 
 		// Build note-to-deck mapping (use first card's deck for each note)
 		const noteToDeck = new Map<number, number>();
-		const noteToCardId = new Map<number, number>();
+		const noteToCard = new Map<number, AnkiCard>();
 		for (const card of data.cards) {
 			if (!noteToDeck.has(card.nid)) {
 				noteToDeck.set(card.nid, card.did);
 			}
-			if (!noteToCardId.has(card.nid)) {
-				noteToCardId.set(card.nid, card.id);
+			if (!noteToCard.has(card.nid)) {
+				noteToCard.set(card.nid, card);
 			}
 		}
 
@@ -792,8 +792,8 @@ export class AnkiImportService {
 
 			const deckId = noteToDeck.get(note.id);
 			if (deckId === undefined) continue;
-			const cardId = noteToCardId.get(note.id);
-			if (cardId === undefined) continue;
+			const ankiCard = noteToCard.get(note.id);
+			if (!ankiCard) continue;
 
 			const deck = data.decks.get(deckId);
 			if (!deck) continue;
@@ -810,7 +810,7 @@ export class AnkiImportService {
 					note,
 					model,
 					deck,
-					cardId,
+					ankiCard,
 					templatePath,
 					destinationFolder,
 					data.media,
@@ -923,7 +923,7 @@ export class AnkiImportService {
 		note: AnkiNote,
 		model: AnkiModel,
 		deck: AnkiDeck,
-		cardId: number,
+		ankiCard: AnkiCard,
 		templatePath: string,
 		destinationFolder: string,
 		media: Map<string, string>,
@@ -970,8 +970,8 @@ export class AnkiImportService {
 		// Render body
 		const body = await this.templateService.render(template.body, fields);
 
-		// Create frontmatter
-		const reviewState = this.createInitialReviewState();
+		// Create frontmatter with mapped review state from Anki
+		const reviewState = this.mapAnkiReviewState(ankiCard);
 		const frontmatter: FlashcardFrontmatter = {
 			_type: "flashcard",
 			_template: `[[${templatePath}]]`,
@@ -984,7 +984,7 @@ export class AnkiImportService {
 		const content = `---\n${yamlContent}---\n\n${PROTECTION_COMMENT}\n\n${body}`;
 
 		// Use Anki card ID as filename (overwrite if it already exists)
-		const baseName = String(cardId);
+		const baseName = String(ankiCard.id);
 		const filePath = `${fullDeckPath}/${baseName}.md`;
 		const existing = this.app.vault.getAbstractFileByPath(filePath);
 		if (existing) {
@@ -999,20 +999,88 @@ export class AnkiImportService {
 	}
 
 	/**
-	 * Create initial review state for imported cards.
+	 * Map Anki card review data to FSRS ReviewState.
+	 *
+	 * Anki card fields:
+	 * - type: 0=new, 1=learning, 2=review, 3=relearning
+	 * - due: For new cards: note id. For learning: seconds since epoch.
+	 *        For review: days since collection creation (integer).
+	 * - ivl: Interval in days (negative means seconds for learning cards)
+	 * - factor: Ease factor (2500 = 250%, default ease)
+	 * - reps: Number of reviews
+	 * - lapses: Number of lapses (times card went from review back to learning)
+	 *
+	 * FSRS fields:
+	 * - state: 0=New, 1=Learning, 2=Review, 3=Relearning
+	 * - stability: Represents memory stability (approximated from Anki interval)
+	 * - difficulty: 0-10 scale (derived from Anki ease factor)
 	 */
-	private createInitialReviewState(): ReviewState {
-		const card = createEmptyCard();
+	private mapAnkiReviewState(ankiCard: AnkiCard): ReviewState {
+		// Map Anki card type to FSRS state (they use the same values)
+		const state = ankiCard.type as 0 | 1 | 2 | 3;
+
+		// For new cards, return default state
+		if (state === 0) {
+			const card = createEmptyCard();
+			return {
+				due: card.due.toISOString(),
+				stability: card.stability,
+				difficulty: card.difficulty,
+				// TODO: Remove when ts-fsrs 6.0 is released
+				elapsed_days: card.elapsed_days, // eslint-disable-line @typescript-eslint/no-deprecated
+				scheduled_days: card.scheduled_days,
+				reps: card.reps,
+				lapses: card.lapses,
+				state: card.state,
+			};
+		}
+
+		// Calculate due date
+		let dueDate: Date;
+		if (ankiCard.ivl < 0) {
+			// Learning card: due is seconds since epoch
+			dueDate = new Date(ankiCard.due * 1000);
+		} else {
+			// Review card: due is days since collection creation
+			// Since we don't have collection creation date, approximate using
+			// current date + remaining days until due
+			// Anki stores due as days since collection creation, but we can
+			// use the interval to set a reasonable due date
+			const now = new Date();
+			// If ivl > 0, schedule for ivl days from now (preserves the interval)
+			dueDate = new Date(now.getTime() + ankiCard.ivl * 24 * 60 * 60 * 1000);
+		}
+
+		// Map Anki ease factor to FSRS difficulty (inverted scale)
+		// Anki: 1300-4000+ (lower = harder), typical default is 2500
+		// FSRS: 0-10 (higher = harder)
+		// Convert: difficulty = 10 - ((factor - 1300) / 270)
+		// This maps 1300 -> 10 (hardest), 4000 -> 0 (easiest)
+		const clampedFactor = Math.max(1300, Math.min(4000, ankiCard.factor));
+		const difficulty = Math.max(
+			0,
+			Math.min(10, 10 - (clampedFactor - 1300) / 270),
+		);
+
+		// Use interval as stability (FSRS stability roughly corresponds to interval)
+		// For learning cards with negative intervals (seconds), convert to days
+		const stability =
+			ankiCard.ivl < 0
+				? Math.abs(ankiCard.ivl) / (24 * 60 * 60) // seconds to days
+				: Math.max(0.1, ankiCard.ivl); // minimum stability of 0.1 days
+
+		// scheduled_days is the interval until next review
+		const scheduledDays = Math.max(0, ankiCard.ivl);
+
 		return {
-			due: card.due.toISOString(),
-			stability: card.stability,
-			difficulty: card.difficulty,
-			// TODO: Remove when ts-fsrs 6.0 is released
-			elapsed_days: card.elapsed_days, // eslint-disable-line @typescript-eslint/no-deprecated
-			scheduled_days: card.scheduled_days,
-			reps: card.reps,
-			lapses: card.lapses,
-			state: card.state,
+			due: dueDate.toISOString(),
+			stability,
+			difficulty: Math.round(difficulty * 100) / 100, // Round to 2 decimals
+			elapsed_days: 0, // Unknown from Anki data
+			scheduled_days: scheduledDays,
+			reps: ankiCard.reps,
+			lapses: ankiCard.lapses,
+			state,
 		};
 	}
 

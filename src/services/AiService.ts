@@ -1,14 +1,11 @@
-import { App, normalizePath } from "obsidian";
+import { App, normalizePath, requestUrl } from "obsidian";
 import { generateText, generateImage } from "ai";
 import { experimental_generateSpeech as generateSpeech } from "ai";
 import { createOpenAI } from "@ai-sdk/openai";
 import { createAnthropic } from "@ai-sdk/anthropic";
 import { createGoogleGenerativeAI } from "@ai-sdk/google";
 import { createOpenRouter } from "@openrouter/ai-sdk-provider";
-import type {
-	AiProviderConfig,
-	FlashcardsPluginSettings,
-} from "../types";
+import type { AiProviderConfig, FlashcardsPluginSettings } from "../types";
 import { debugLog } from "../types";
 import type { AiCacheService } from "./AiCacheService";
 import {
@@ -16,6 +13,85 @@ import {
 	getDefaultSpeechModel,
 	getDefaultTextModel,
 } from "./aiModelDefaults";
+
+/**
+ * Custom fetch wrapper using Obsidian's requestUrl to bypass CORS restrictions.
+ * This is necessary because Obsidian runs in an Electron environment where
+ * direct fetch calls to external APIs are blocked by CORS policy.
+ */
+async function obsidianFetch(
+	url: RequestInfo | URL,
+	options?: RequestInit,
+): Promise<Response> {
+	const isSharedArrayBuffer = (value: unknown): value is SharedArrayBuffer =>
+		typeof SharedArrayBuffer !== "undefined" &&
+		value instanceof SharedArrayBuffer;
+
+	const urlString =
+		typeof url === "string"
+			? url
+			: url instanceof URL
+				? url.toString()
+				: url.url;
+	const method = options?.method ?? "GET";
+
+	// Convert headers to Record<string, string> format
+	// Headers can be: Headers object, array of tuples, or plain object
+	let headers: Record<string, string> | undefined;
+	if (options?.headers) {
+		if (options.headers instanceof Headers) {
+			headers = {};
+			options.headers.forEach((value, key) => {
+				headers![key] = value;
+			});
+		} else if (Array.isArray(options.headers)) {
+			headers = {};
+			for (const [key, value] of options.headers) {
+				headers[key] = value;
+			}
+		} else {
+			headers = { ...options.headers };
+		}
+	}
+
+	// Parse body - handle string, ArrayBuffer, or other types
+	let body: string | ArrayBuffer | undefined;
+	if (options?.body) {
+		if (typeof options.body === "string") {
+			body = options.body;
+		} else if (options.body instanceof ArrayBuffer) {
+			body = options.body;
+		} else if (isSharedArrayBuffer(options.body)) {
+			const sharedBuffer = options.body as unknown as SharedArrayBuffer;
+			const copy = new Uint8Array(sharedBuffer.byteLength);
+			copy.set(new Uint8Array(sharedBuffer));
+			body = copy.buffer;
+		} else if (options.body instanceof Uint8Array) {
+			body = new Uint8Array(options.body).buffer;
+		} else if (options.body instanceof Blob) {
+			body = await options.body.arrayBuffer();
+		} else if (options.body instanceof URLSearchParams) {
+			body = options.body.toString();
+		} else {
+			throw new Error("Unsupported request body type in obsidianFetch");
+		}
+	}
+
+	const response = await requestUrl({
+		url: urlString,
+		method,
+		headers,
+		body,
+		throw: false, // Don't throw on non-2xx, let us handle it
+	});
+
+	// Convert Obsidian response to standard Response
+	// Use arrayBuffer for binary compatibility (works for both text and binary)
+	return new Response(response.arrayBuffer, {
+		status: response.status,
+		headers: new Headers(response.headers),
+	});
+}
 
 /**
  * Context passed to AI pipe filters during rendering.
@@ -108,7 +184,12 @@ export class AiService {
 	 */
 	private async createProvider(providerId: string, config: AiProviderConfig) {
 		const apiKey = await this.getApiKey(providerId);
-		debugLog("AI provider %s (id=%s): apiKey present=%s", config.type, providerId, !!apiKey);
+		debugLog(
+			"AI provider %s (id=%s): apiKey present=%s",
+			config.type,
+			providerId,
+			!!apiKey,
+		);
 		if (!apiKey) {
 			throw new Error(
 				`No API key configured for provider: ${config.type}`,
@@ -120,22 +201,26 @@ export class AiService {
 				return createOpenAI({
 					apiKey,
 					baseURL: config.baseUrl,
+					fetch: obsidianFetch,
 				});
 			case "anthropic":
 				return createAnthropic({
 					apiKey,
 					baseURL: config.baseUrl,
+					fetch: obsidianFetch,
 				});
 			case "google":
 				return createGoogleGenerativeAI({
 					apiKey,
 					baseURL: config.baseUrl,
+					fetch: obsidianFetch,
 				});
 			case "openrouter":
 				return createOpenRouter({
 					apiKey,
 					baseURL: config.baseUrl,
 					compatibility: "strict",
+					fetch: obsidianFetch,
 				});
 			default: {
 				const exhaustiveCheck: never = config.type;
@@ -223,8 +308,16 @@ export class AiService {
 			const modelId =
 				config.textModel ?? getDefaultTextModel(config.type);
 
+			// Use .chat() for OpenAI to avoid CORS issues with Responses API
+			const model =
+				config.type === "openai"
+					? (provider as ReturnType<typeof createOpenAI>).chat(
+							modelId,
+						)
+					: provider(modelId);
+
 			const response = await generateText({
-				model: provider(modelId),
+				model,
 				prompt,
 				system: config.systemPrompt?.trim() || undefined,
 			});
@@ -411,7 +504,14 @@ export class AiService {
 		const filePath = normalizePath(`${folderPath}/${filename}`);
 
 		// Save the file
-		await this.app.vault.createBinary(filePath, data);
+		const buffer =
+			data.buffer instanceof ArrayBuffer
+				? data.buffer.slice(
+					data.byteOffset,
+					data.byteOffset + data.byteLength,
+				)
+				: new Uint8Array(data).buffer;
+		await this.app.vault.createBinary(filePath, buffer);
 
 		return filename;
 	}
