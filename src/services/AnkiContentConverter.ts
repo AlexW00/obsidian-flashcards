@@ -24,7 +24,8 @@ export class AnkiContentConverter {
 			codeBlockStyle: "fenced",
 			emDelimiter: "*",
 			bulletListMarker: "-",
-		});
+			listIndentSize: 1,
+		} as TurndownService.Options);
 
 		// Add GFM support (tables, strikethrough, task lists)
 		this.turndown.use(gfm);
@@ -37,6 +38,14 @@ export class AnkiContentConverter {
 	 * Configure Turndown rules for Anki-specific handling.
 	 */
 	private configureRules(): void {
+		const listIndent = (content: string, indentLength: number): string => {
+			const indent = " ".repeat(Math.max(0, indentLength));
+			return content
+				.replace(/^\n+/, "")
+				.replace(/\n+$/, "\n")
+				.replace(/\n/gm, `\n${indent}`);
+		};
+
 		// Remove style tags completely
 		this.turndown.addRule("removeStyle", {
 			filter: ["style"],
@@ -78,6 +87,41 @@ export class AnkiContentConverter {
 					/\[sound:([^\]]+)\]/g,
 					(_match: string, filename: string) => `![[${filename}]]`,
 				);
+			},
+		});
+
+		// Customize list item indentation to avoid extra spaces after bullets
+		this.turndown.addRule("listItem", {
+			filter: "li",
+			replacement: (
+				content: string,
+				node: HTMLElement,
+				options: TurndownService.Options,
+			): string => {
+				const parent = node.parentNode as HTMLElement | null;
+				let marker = options.bulletListMarker ?? "-";
+				if (parent?.nodeName === "OL") {
+					const start = parent.getAttribute("start");
+					const index = Array.prototype.indexOf.call(
+						parent.children,
+						node,
+					);
+					marker = `${start ? Number(start) + index : index + 1}.`;
+				}
+
+				const listIndentSize =
+					typeof (options as { listIndentSize?: number }).listIndentSize ===
+						"number"
+						? (options as { listIndentSize?: number }).listIndentSize ?? 3
+						: 3;
+				const space = " ".repeat(
+					1 + Math.max(0, listIndentSize - marker.length),
+				);
+				const prefix = `${marker}${space}`;
+				const liContent = listIndent(content, prefix.length);
+				const trailNl =
+					node.nextSibling && !/\n$/.test(liContent) ? "\n" : "";
+				return `${prefix}${liContent}${trailNl}`;
 			},
 		});
 	}
@@ -197,6 +241,13 @@ export class AnkiContentConverter {
 	 * Unescape Obsidian embed wiki links like !\[\[file\]\] -> ![[file]].
 	 */
 	private unescapeWikiEmbeds(markdown: string): string {
-		return markdown.replace(/!\\\[\\\[/g, "![[").replace(/\\\]\\\]/g, "]]");
+		const unescaped = markdown
+			.replace(/!\\\[\\\[/g, "![[")
+			.replace(/\\\]\\\]/g, "]]");
+
+		return unescaped.replace(/!\[\[([^\]]+)\]\]/g, (match, target) => {
+			const cleanedTarget = String(target).replace(/\\_/g, "_");
+			return `![[${cleanedTarget}]]`;
+		});
 	}
 }

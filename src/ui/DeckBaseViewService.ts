@@ -143,8 +143,9 @@ export class DeckBaseViewService {
 		});
 
 		// Build filters based on state filter
+		const safeDeckPathLiteral = JSON.stringify(deckPath);
 		const baseFilters: string[] = [
-			`file.inFolder("${deckPath}")`,
+			`file.inFolder(${safeDeckPathLiteral})`,
 			'_type == "flashcard"',
 		];
 

@@ -17,6 +17,7 @@ export interface ReviewHotkeyCallbacks {
 	revealNext: () => void;
 	rateCard: (rating: Rating) => Promise<void>;
 	editCurrentCard: () => Promise<void>;
+	openCurrentCard: () => Promise<void>;
 }
 
 /**
@@ -26,6 +27,7 @@ export interface ReviewHotkeyCallbacks {
  * Hotkeys:
  * - Space: reveal next side or rate as "Good"
  * - E: edit current card
+ * - O: open current card note
  * - 1: rate as Again
  * - 2: rate as Hard
  * - 3: rate as Good
@@ -51,6 +53,12 @@ export function registerReviewHotkeys(
 	// E - edit current card
 	scope.register([], "e", () => {
 		void callbacks.editCurrentCard();
+		return false;
+	});
+
+	// O - open current card note
+	scope.register([], "o", () => {
+		void callbacks.openCurrentCard();
 		return false;
 	});
 

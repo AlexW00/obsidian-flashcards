@@ -195,6 +195,28 @@
 	margin-right: auto;
 }
 
+.flashcard-review-menu {
+	margin-left: auto;
+	display: inline-flex;
+	align-items: center;
+	justify-content: center;
+	width: 28px;
+	height: 28px;
+	border-radius: var(--radius-s);
+	color: var(--text-muted);
+	cursor: pointer;
+}
+
+.flashcard-review-menu:hover {
+	background: var(--background-modifier-hover);
+	color: var(--text-normal);
+}
+
+.flashcard-review-menu:focus-visible {
+	outline: 2px solid var(--background-modifier-border-focus);
+	outline-offset: 2px;
+}
+
 .flashcard-progress-bar {
 	flex: 1;
 	height: 6px;
@@ -379,8 +401,8 @@
 	height: 48px;
 }
 
-/* Card Creation Modal */
-.flashcard-creation-modal {
+/* Card Form Modal */
+.flashcard-card-modal {
 	min-width: 500px;
 }
 
@@ -431,7 +453,7 @@
 	display: flex;
 	align-items: center;
 	justify-content: center;
-	flex-wrap: wrap;
+	flex-wrap: nowrap;
 	gap: var(--size-2-1);
 	margin-bottom: var(--size-4-4);
 	font-size: var(--font-ui-medium);
@@ -459,7 +481,7 @@
 	font-weight: var(--font-semibold);
 	color: var(--text-accent);
 	margin: 0 var(--size-2-1);
-	min-width: 220px;
+	min-width: 150px;
 	padding: var(--size-2-1) var(--size-4-2);
 	border: 1px solid var(--background-modifier-border);
 	border-radius: var(--radius-s);
@@ -766,4 +788,49 @@
 
 .anki-import-progress-hidden {
 	display: none;
+}
+
+/* Sticky Modal Layout */
+.flashcard-card-modal {
+	display: flex;
+	flex-direction: column;
+	max-height: 55vh; /* Reasonable max height */
+	padding: 0 !important; /* Remove default padding to allow edge-to-edge sticky headers */
+	overflow: hidden;
+}
+
+.flashcard-modal-sticky-header {
+	flex: 0 0 auto;
+	padding: var(--size-4-4);
+	padding-right: 50px;
+	border-bottom: 1px solid var(--background-modifier-border);
+	background: var(--background-primary);
+}
+
+/* Remove margin from header row inside sticky header */
+.flashcard-modal-sticky-header .flashcard-modal-header-row {
+	margin-bottom: 0;
+}
+
+.flashcard-modal-scroll-content {
+	flex: 1 1 auto;
+	overflow-y: auto;
+	padding: var(--size-4-4);
+}
+
+.flashcard-modal-sticky-footer {
+	flex: 0 0 auto;
+	padding: var(--size-4-4);
+	border-top: 1px solid var(--background-modifier-border);
+	background: var(--background-secondary); /* Slightly different background for footer? Or primary. User said sticky. Primary is usually safer. */
+	background: var(--background-primary);
+	margin-top: 0;
+	z-index: 10;
+}
+
+/* Override existing button container styles for sticky footer context */
+.flashcard-modal-sticky-footer.flashcard-modal-buttons-v2 {
+	margin-top: 0;
+	padding-top: var(--size-4-4); /* matches padding */
+	border-top: 1px solid var(--background-modifier-border); /* redundant but safe */
 }

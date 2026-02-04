@@ -317,7 +317,7 @@ export class DashboardView extends ItemView {
 	}
 
 	private startCardCreation() {
-		// Open the CardCreationModal directly with embedded deck/template selectors
+		// Open the CardFormModal directly with embedded deck/template selectors
 		showCardCreationModal(
 			this.app,
 			this.plugin.cardService,

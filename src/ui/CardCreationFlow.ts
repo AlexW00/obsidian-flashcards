@@ -1,4 +1,4 @@
-import { App, Notice } from "obsidian";
+import { App, Notice, TFile } from "obsidian";
 import type {
 	FlashcardTemplate,
 	FlashcardsPluginSettings,
@@ -7,7 +7,7 @@ import type {
 import type { CardService } from "../flashcards/CardService";
 import type { DeckService } from "../flashcards/DeckService";
 import type { TemplateService } from "../flashcards/TemplateService";
-import { CardCreationModal } from "./CardCreationModal";
+import { CardFormModal } from "./CardFormModal";
 
 /**
  * Callback invoked after a card is created.
@@ -35,7 +35,7 @@ export function showCardCreationModal(
 	/** Optional initial template override */
 	initialTemplate?: FlashcardTemplate,
 ): void {
-	new CardCreationModal({
+	new CardFormModal({
 		app,
 		deckService,
 		templateService,
@@ -72,6 +72,64 @@ export function showCardCreationModal(
 				})
 				.catch((error: Error) => {
 					new Notice(`Failed to create card: ${error.message}`);
+				});
+		},
+	}).open();
+}
+
+/**
+ * Opens the card creation modal in edit mode for an existing flashcard file.
+ */
+export async function showCardEditModal(
+	app: App,
+	cardService: CardService,
+	deckService: DeckService,
+	templateService: TemplateService,
+	settings: FlashcardsPluginSettings,
+	file: TFile,
+	callbacks?: CardCreationCallbacks,
+): Promise<void> {
+	const card = cardService.getCard(file);
+	if (!card) {
+		new Notice("This file is not a flashcard.");
+		return;
+	}
+
+	const template = await templateService.loadTemplate(
+		card.frontmatter._template,
+	);
+	if (!template) {
+		new Notice("Template not found for this card.");
+		return;
+	}
+
+	const deckPath = file.parent?.path ?? "";
+	const initialFields = cardService.extractUserFields(card.frontmatter);
+
+	new CardFormModal({
+		app,
+		deckService,
+		templateService,
+		templateFolder: settings.templateFolder,
+		attachmentFolder: settings.attachmentFolder,
+		mode: "edit",
+		initialDeckPath: deckPath,
+		initialTemplate: template,
+		initialFields,
+		onSubmit: () => {
+			// Not used in edit mode
+		},
+		onUpdate: (fields, updatedDeckPath, updatedTemplatePath) => {
+			void cardService
+				.updateCardFields(file, fields, updatedTemplatePath, updatedDeckPath)
+				.then(async () => {
+					new Notice("Card updated!");
+					if (callbacks?.onRefresh) {
+						await callbacks.onRefresh();
+					}
+				})
+				.catch((error: Error) => {
+					new Notice(`Failed to update card: ${error.message}`);
 				});
 		},
 	}).open();

@@ -2,6 +2,7 @@ import {
 	ButtonComponent,
 	ItemView,
 	MarkdownRenderer,
+	Menu,
 	Scope,
 	TFile,
 	WorkspaceLeaf,
@@ -55,6 +56,7 @@ export class ReviewView extends ItemView {
 			revealNext: () => this.revealNext(),
 			rateCard: (rating) => this.rateCard(rating),
 			editCurrentCard: () => this.editCurrentCard(),
+			openCurrentCard: () => this.openCurrentCard(),
 		});
 	}
 
@@ -185,6 +187,31 @@ export class ReviewView extends ItemView {
 			text: `${this.session.currentIndex + 1} / ${this.session.cards.length}`,
 			cls: "flashcard-progress-text",
 		});
+		const menuButton = progressContainer.createDiv({
+			cls: "flashcard-review-menu",
+			attr: {
+				"aria-label": "More actions",
+				role: "button",
+				tabindex: "0",
+			},
+		});
+		setIcon(menuButton, "more-horizontal");
+		menuButton.addEventListener("click", (event) => {
+			const menu = new Menu();
+			menu.addItem((item) =>
+				item
+					.setTitle("Edit card")
+					.setIcon("pencil")
+					.onClick(() => void this.editCurrentCard()),
+			);
+			menu.addItem((item) =>
+				item
+					.setTitle("Open note")
+					.setIcon("file-text")
+					.onClick(() => void this.openCurrentCard()),
+			);
+			menu.showAtMouseEvent(event);
+		});
 
 		// Card container
 		const cardContainer = container.createDiv({
@@ -252,7 +279,7 @@ export class ReviewView extends ItemView {
 				.onClick(() => this.revealNext());
 			actionsContainer.createDiv({
 				cls: "flashcard-hint",
-				text: "Space to show answer • E to edit",
+				text: "Space to show answer • E to edit • O to open",
 			});
 		} else {
 			// Show rating buttons
@@ -379,6 +406,18 @@ export class ReviewView extends ItemView {
 
 		const file = this.app.vault.getAbstractFileByPath(card.path);
 
+		if (file instanceof TFile) {
+			await this.plugin.editCard(file);
+		}
+	}
+
+	private async openCurrentCard() {
+		if (!this.session) return;
+
+		const card = this.session.cards[this.session.currentIndex];
+		if (!card) return;
+
+		const file = this.app.vault.getAbstractFileByPath(card.path);
 		if (file instanceof TFile) {
 			await this.app.workspace.getLeaf("tab").openFile(file);
 		}

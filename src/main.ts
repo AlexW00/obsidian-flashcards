@@ -17,7 +17,7 @@ import { ReviewView, REVIEW_VIEW_TYPE } from "./ui/ReviewView";
 import { DeckSelectorModal } from "./ui/DeckSelectorModal";
 import { TemplateSelectorModal } from "./ui/TemplateSelectorModal";
 import { TemplateNameModal } from "./ui/TemplateNameModal";
-import { showCardCreationModal } from "./ui/CardCreationFlow";
+import { showCardCreationModal, showCardEditModal } from "./ui/CardCreationFlow";
 import { OrphanAttachmentsModal } from "./ui/OrphanAttachmentsModal";
 import { AnkiImportModal } from "./ui/AnkiImportModal";
 
@@ -184,6 +184,21 @@ export default class AnkerPlugin extends Plugin {
 		});
 
 		this.addCommand({
+			id: "edit-card",
+			name: "Edit current card",
+			checkCallback: (checking: boolean) => {
+				const file = this.app.workspace.getActiveFile();
+				if (file && this.deckService.isFlashcard(file)) {
+					if (!checking) {
+						void this.editCard(file);
+					}
+					return true;
+				}
+				return false;
+			},
+		});
+
+		this.addCommand({
 			id: "start-review",
 			name: "Start review",
 			callback: () => this.selectDeckForReview(),
@@ -269,6 +284,20 @@ export default class AnkerPlugin extends Plugin {
 	}
 
 	/**
+	 * Open the edit modal for an existing flashcard file.
+	 */
+	async editCard(file: TFile): Promise<void> {
+		await showCardEditModal(
+			this.app,
+			this.cardService,
+			this.deckService,
+			this.templateService,
+			this.settings,
+			file,
+		);
+	}
+
+	/**
 	 * Show deck selector and start review.
 	 */
 	private selectDeckForReview() {
@@ -286,7 +315,7 @@ export default class AnkerPlugin extends Plugin {
 
 	/**
 	 * Start the card creation flow.
-	 * Opens the CardCreationModal directly with deck/template selectors embedded.
+	 * Opens the CardFormModal directly with deck/template selectors embedded.
 	 */
 	private createCard() {
 		showCardCreationModal(

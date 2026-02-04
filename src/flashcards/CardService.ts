@@ -196,6 +196,58 @@ export class CardService {
 	}
 
 	/**
+	 * Update user fields for a flashcard and regenerate its body.
+	 */
+	async updateCardFields(
+		file: TFile,
+		fields: Record<string, string>,
+		templatePath?: string,
+		deckPath?: string,
+	): Promise<void> {
+		const cache = this.app.metadataCache.getFileCache(file);
+		const fm = cache?.frontmatter as FlashcardFrontmatter | undefined;
+
+		if (fm?._type !== "flashcard") {
+			throw new Error("Not a flashcard");
+		}
+
+		const resolvedTemplatePath = templatePath ?? fm._template;
+
+		// Load template
+		const template = await this.templateService.loadTemplate(
+			resolvedTemplatePath,
+		);
+		if (!template) {
+			throw new Error(`Template not found: ${resolvedTemplatePath}`);
+		}
+
+		// Build system frontmatter from current card (always takes precedence)
+		const systemFrontmatter: FlashcardFrontmatter = {
+			_type: "flashcard",
+			_template: `[[${template.path}]]`,
+			_review: fm._review,
+			...fields,
+		};
+
+		// Render new body with updated fields
+		const body = this.templateService.render(template.body, fields);
+
+		// Merge existing frontmatter + template frontmatter + system overrides
+		const mergedFrontmatter = this.mergeTemplateFrontmatter(
+			template.frontmatter,
+			systemFrontmatter,
+			fm as unknown as Record<string, unknown>,
+		);
+
+		const newContent = this.buildFileContent(mergedFrontmatter, body);
+		if (deckPath && deckPath !== file.parent?.path) {
+			const targetPath = `${deckPath}/${file.basename}.md`;
+			await this.app.vault.rename(file, targetPath);
+		}
+		await this.app.vault.modify(file, newContent);
+	}
+
+	/**
 	 * Build file content from frontmatter and body.
 	 * Accepts Record<string, unknown> to support merged template frontmatter.
 	 */

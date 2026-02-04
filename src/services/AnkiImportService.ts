@@ -696,7 +696,6 @@ export class AnkiImportService {
 		}
 
 		// Step 2: Extract media files from ZIP
-		const mediaUuidMap = new Map<string, string>(); // original filename -> UUID filename
 		const zip = await JSZip.loadAsync(apkgFile);
 
 		// Collect all media files referenced in notes
@@ -734,10 +733,6 @@ export class AnkiImportService {
 			if (!mediaZipFile) continue;
 
 			try {
-				const uuid = this.generateUUID();
-				const ext = this.getFileExtension(originalName);
-				const uuidFilename = `${uuid}${ext}`;
-
 				let mediaBuffer = await mediaZipFile.async("arraybuffer");
 				let mediaBytes = new Uint8Array(mediaBuffer);
 				// Detect zstd-compressed media (magic bytes: 28 b5 2f fd)
@@ -752,13 +747,21 @@ export class AnkiImportService {
 					mediaBytes = new Uint8Array(decompressed);
 					mediaBuffer = mediaBytes.buffer;
 				}
-				const mediaPath = `${this.settings.attachmentFolder}/${uuidFilename}`;
+				const mediaPath = `${this.settings.attachmentFolder}/${originalName}`;
 
 				// Ensure folder exists
 				await this.ensureFolderExists(this.settings.attachmentFolder);
-				await this.app.vault.createBinary(mediaPath, mediaBuffer);
+				const existing = this.app.vault.getAbstractFileByPath(mediaPath);
+				if (existing) {
+					if (existing instanceof TFile) {
+						await this.app.vault.modifyBinary(existing, mediaBuffer);
+					} else {
+						throw new Error(`Cannot overwrite non-file path: ${mediaPath}`);
+					}
+				} else {
+					await this.app.vault.createBinary(mediaPath, mediaBuffer);
+				}
 
-				mediaUuidMap.set(originalName, uuidFilename);
 				result.mediaImported++;
 			} catch (error) {
 				result.errors.push(
@@ -800,7 +803,6 @@ export class AnkiImportService {
 					templatePath,
 					destinationFolder,
 					data.media,
-					mediaUuidMap,
 					fieldNameMap,
 				);
 				result.cardsImported++;
@@ -905,13 +907,12 @@ export class AnkiImportService {
 		templatePath: string,
 		destinationFolder: string,
 		media: Map<string, string>,
-		mediaUuidMap: Map<string, string>,
 		fieldNameMap?: Map<string, string>,
 	): Promise<void> {
 		// Parse note fields
 		const fieldValues = note.flds.split("\x1f");
 		const fields: Record<string, string> = {};
-		const allMediaFiles = new Set<string>();
+		const frontmatterFields: Record<string, unknown> = {};
 
 		for (let i = 0; i < model.flds.length; i++) {
 			const fieldDef = model.flds[i];
@@ -920,29 +921,19 @@ export class AnkiImportService {
 			if (!fieldDef) continue;
 
 			// Convert field content to Markdown
-			const { markdown, mediaFiles } = this.contentConverter.convertField(
+			const { markdown } = this.contentConverter.convertField(
 				fieldHtml,
 				media,
 			);
 
-			// Replace media filenames with UUID versions
-			let finalMarkdown = markdown;
-			for (const originalName of mediaFiles) {
-				const uuidName = mediaUuidMap.get(originalName);
-				if (uuidName) {
-					finalMarkdown = finalMarkdown.replace(
-						new RegExp(
-							`!\\[\\[${this.escapeRegex(originalName)}\\]\\]`,
-							"g",
-						),
-						`![[${uuidName}]]`,
-					);
-				}
-				allMediaFiles.add(originalName);
-			}
+			const finalMarkdown = markdown;
 
 			const fieldName = this.mapFieldName(fieldDef.name, fieldNameMap);
 			fields[fieldName] = finalMarkdown;
+			frontmatterFields[fieldName] = this.normalizeFrontmatterValue(
+				fieldName,
+				finalMarkdown,
+			);
 		}
 
 		// Build deck folder path (convert :: to /)
@@ -965,7 +956,7 @@ export class AnkiImportService {
 			_type: "flashcard",
 			_template: `[[${templatePath}]]`,
 			_review: reviewState,
-			...fields,
+			...frontmatterFields,
 		};
 
 		// Build file content
@@ -1023,26 +1014,6 @@ export class AnkiImportService {
 				}
 			}
 		}
-	}
-
-	/**
-	 * Generate a UUID v4 string.
-	 */
-	private generateUUID(): string {
-		return "xxxxxxxx-xxxx-4xxx-yxxx-xxxxxxxxxxxx".replace(/[xy]/g, (c) => {
-			const r = (Math.random() * 16) | 0;
-			const v = c === "x" ? r : (r & 0x3) | 0x8;
-			return v.toString(16);
-		});
-	}
-
-	/**
-	 * Get file extension from filename (including the dot).
-	 */
-	private getFileExtension(filename: string): string {
-		const lastDot = filename.lastIndexOf(".");
-		if (lastDot === -1) return "";
-		return filename.slice(lastDot);
 	}
 
 	/**
@@ -1120,5 +1091,25 @@ export class AnkiImportService {
 		fieldNameMap?: Map<string, string>,
 	): string {
 		return fieldNameMap?.get(name) ?? name;
+	}
+
+	/**
+	 * Normalize values that are likely to cause invalid YAML frontmatter.
+	 */
+	private normalizeFrontmatterValue(
+		fieldName: string,
+		value: string,
+	): string | string[] {
+		if (fieldName.toLowerCase() === "tags") {
+			const parts = value
+				.split(",")
+				.map((part) => part.trim())
+				.filter((part) => part.length > 0);
+			if (parts.length > 1) {
+				return parts;
+			}
+		}
+
+		return value;
 	}
 }

@@ -18,6 +18,8 @@ export class TemplateService {
 	private app: App;
 	private env: nunjucks.Environment;
 	private defaultTemplateContent: string;
+	private readonly lineStartMarker = "__ANKER_LINE_START__";
+	private readonly lineEndMarker = "__ANKER_LINE_END__";
 
 	constructor(app: App, defaultTemplateContent?: string) {
 		this.app = app;
@@ -112,7 +114,61 @@ export class TemplateService {
 	 * Render a template with the given fields.
 	 */
 	render(templateContent: string, fields: Record<string, string>): string {
-		return this.env.renderString(templateContent, fields);
+		const prepared = this.prepareTemplateForLinePruning(templateContent);
+		const rendered = this.env.renderString(prepared, fields);
+		return this.cleanupRenderedOutput(rendered);
+	}
+
+	/**
+	 * Remove lines that only contain empty variables.
+	 */
+	private prepareTemplateForLinePruning(templateContent: string): string {
+		const lines = templateContent.split(/\r?\n/);
+		const variableOnlyLine = /^\s*(\{\{[^}]+\}\}\s*)+$/;
+		return lines
+			.map((line) => {
+				if (!variableOnlyLine.test(line)) {
+					return line;
+				}
+				return `${this.lineStartMarker}${line}${this.lineEndMarker}`;
+			})
+			.join("\n");
+	}
+
+	private cleanupRenderedOutput(rendered: string): string {
+		const withoutMarkers = rendered
+			.replaceAll(this.lineStartMarker, "")
+			.replaceAll(this.lineEndMarker, "");
+		const lines = withoutMarkers.split(/\r?\n/);
+		const cleaned: string[] = [];
+		let lastWasBlank = false;
+		for (const line of lines) {
+			const isBlank = line.trim().length === 0;
+			if (isBlank) {
+				if (cleaned.length === 0) {
+					continue;
+				}
+				if (lastWasBlank) {
+					continue;
+				}
+				lastWasBlank = true;
+				cleaned.push("");
+				continue;
+			}
+
+			lastWasBlank = false;
+			cleaned.push(line);
+		}
+
+		while (cleaned.length > 0) {
+			const lastLine = cleaned[cleaned.length - 1] ?? "";
+			if (lastLine.trim().length > 0) {
+				break;
+			}
+			cleaned.pop();
+		}
+
+		return cleaned.join("\n");
 	}
 
 	/**

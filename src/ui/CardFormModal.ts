@@ -31,9 +31,9 @@ function generateUUID(): string {
 }
 
 /**
- * Options for the CardCreationModal.
+ * Options for the CardFormModal.
  */
-export interface CardCreationModalOptions {
+export interface CardFormModalOptions {
 	app: App;
 	deckService: DeckService;
 	templateService: TemplateService;
@@ -41,16 +41,26 @@ export interface CardCreationModalOptions {
 	attachmentFolder: string;
 	lastUsedDeck?: string;
 	lastUsedTemplate?: string;
+	/** Modal mode (create or edit). Defaults to create. */
+	mode?: "create" | "edit";
 	onSubmit: (
 		fields: Record<string, string>,
 		deckPath: string,
 		templatePath: string,
 		createAnother: boolean,
 	) => void;
+	/** Called when saving updates in edit mode. */
+	onUpdate?: (
+		fields: Record<string, string>,
+		deckPath: string,
+		templatePath: string,
+	) => void;
 	/** Initial deck path (optional, uses last used or first available) */
 	initialDeckPath?: string;
 	/** Initial template (optional, uses last used or first available) */
 	initialTemplate?: FlashcardTemplate;
+	/** Initial field values (optional, used in edit mode) */
+	initialFields?: Record<string, string>;
 }
 
 type DeckSearchOption = {
@@ -134,17 +144,19 @@ class DeckPathSuggest extends AbstractInputSuggest<DeckSearchOption> {
 }
 
 /**
- * Modal for creating a flashcard with a dynamic form based on template variables.
+ * Modal for creating or editing a flashcard with a dynamic form based on template variables.
  * Includes inline deck/template switching, media toolbar, and paste handling.
  */
-export class CardCreationModal extends Modal {
+export class CardFormModal extends Modal {
 	private deckService: DeckService;
 	private templateService: TemplateService;
 	private templateFolder: string;
 	private attachmentFolder: string;
 	private lastUsedDeck?: string;
 	private lastUsedTemplate?: string;
-	private onSubmit: CardCreationModalOptions["onSubmit"];
+	private onSubmit: CardFormModalOptions["onSubmit"];
+	private onUpdate?: CardFormModalOptions["onUpdate"];
+	private mode: "create" | "edit";
 
 	private currentDeckPath: string;
 	private currentTemplate: FlashcardTemplate;
@@ -157,7 +169,7 @@ export class CardCreationModal extends Modal {
 	private textareaSuggests: TextareaSuggest[] = [];
 	private deckSuggest: DeckPathSuggest | null = null;
 
-	constructor(options: CardCreationModalOptions) {
+	constructor(options: CardFormModalOptions) {
 		super(options.app);
 		this.deckService = options.deckService;
 		this.templateService = options.templateService;
@@ -166,6 +178,11 @@ export class CardCreationModal extends Modal {
 		this.lastUsedDeck = options.lastUsedDeck;
 		this.lastUsedTemplate = options.lastUsedTemplate;
 		this.onSubmit = options.onSubmit;
+		this.onUpdate = options.onUpdate;
+		this.mode = options.mode ?? "create";
+		this.fields = options.initialFields
+			? { ...options.initialFields }
+			: {};
 
 		// Will be set in onOpen after loading available options
 		this.currentDeckPath = options.initialDeckPath ?? "";
@@ -176,7 +193,7 @@ export class CardCreationModal extends Modal {
 	async onOpen() {
 		const { contentEl } = this;
 		contentEl.empty();
-		contentEl.addClass("flashcard-creation-modal");
+		contentEl.addClass("flashcard-card-modal");
 
 		// Clean up old suggests
 		this.textareaSuggests.forEach((s) => s.destroy());
@@ -193,7 +210,9 @@ export class CardCreationModal extends Modal {
 		);
 
 		if (this.availableFolders.length === 0) {
-			new Notice("No folders found. Create a folder to use as a deck.");
+			new Notice(
+				"No folders found. Create a folder to use as a deck.",
+			);
 			this.close();
 			return;
 		}
@@ -222,10 +241,23 @@ export class CardCreationModal extends Modal {
 			}
 		}
 
-		if (!this.currentDeckPath) {
+		if (!this.currentDeckPath && this.mode === "create") {
 			new Notice("Select a folder to use as a deck.");
 			this.close();
 			return;
+		}
+
+		// Ensure current template is in the list for edit mode
+		if (
+			this.currentTemplate.path &&
+			!this.availableTemplates.some(
+				(t) => t.path === this.currentTemplate.path,
+			)
+		) {
+			this.availableTemplates = [
+				this.currentTemplate,
+				...this.availableTemplates,
+			];
 		}
 
 		// Determine initial template
@@ -261,18 +293,28 @@ export class CardCreationModal extends Modal {
 	private renderContent() {
 		const { contentEl } = this;
 		contentEl.empty();
+		contentEl.addClass("flashcard-card-modal");
 
-		// Clean up deck suggest when re-rendering
+		const isEditMode = this.mode === "edit";
+
+		// Clean up suggests when re-rendering
 		this.deckSuggest?.destroy();
 		this.deckSuggest = null;
+		this.textareaSuggests.forEach((s) => s.destroy());
+		this.textareaSuggests = [];
 
-		// Header row: "New [Template] Card in [Deck]"
-		const headerRow = contentEl.createDiv({
+		// 1. Sticky Header
+		const headerContainer = contentEl.createDiv({
+			cls: "flashcard-modal-sticky-header",
+		});
+
+		// Header row: "New [Template] Card in [Deck]" or "Edit ..."
+		const headerRow = headerContainer.createDiv({
 			cls: "flashcard-modal-header-row",
 		});
 
 		headerRow.createSpan({
-			text: "New ",
+			text: isEditMode ? "Edit " : "New ",
 			cls: "flashcard-modal-header-text",
 		});
 
@@ -323,11 +365,14 @@ export class CardCreationModal extends Modal {
 			},
 		);
 
-		contentEl.createDiv({ cls: "flashcard-modal-header-separator" });
+		// 2. Scrollable Content
+		const scrollContainer = contentEl.createDiv({
+			cls: "flashcard-modal-scroll-content",
+		});
 
 		// Dynamic form fields
 		for (const variable of this.currentTemplate.variables) {
-			const fieldRow = contentEl.createDiv({
+			const fieldRow = scrollContainer.createDiv({
 				cls: "flashcard-field-row",
 			});
 
@@ -383,9 +428,9 @@ export class CardCreationModal extends Modal {
 			});
 		}
 
-		// Button container
+		// 3. Sticky Footer
 		const buttonContainer = contentEl.createDiv({
-			cls: "flashcard-modal-buttons-v2",
+			cls: "flashcard-modal-buttons-v2 flashcard-modal-sticky-footer",
 		});
 
 		// Cancel button (left side)
@@ -401,23 +446,25 @@ export class CardCreationModal extends Modal {
 			cls: "flashcard-buttons-right",
 		});
 
-		const createAnotherLabel = rightButtons.createEl("label", {
-			cls: "flashcard-create-another-toggle",
-			attr: {
-				title: "Keep this dialog open after creating a card",
-			},
-		});
-		const createAnotherCheckbox = createAnotherLabel.createEl("input", {
-			type: "checkbox",
-		});
-		createAnotherCheckbox.checked = this.createAnother;
-		createAnotherCheckbox.addEventListener("change", () => {
-			this.createAnother = createAnotherCheckbox.checked;
-		});
-		createAnotherLabel.createSpan({ text: "Create another" });
+		if (!isEditMode) {
+			const createAnotherLabel = rightButtons.createEl("label", {
+				cls: "flashcard-create-another-toggle",
+				attr: {
+					title: "Keep this dialog open after creating a card",
+				},
+			});
+			const createAnotherCheckbox = createAnotherLabel.createEl("input", {
+				type: "checkbox",
+			});
+			createAnotherCheckbox.checked = this.createAnother;
+			createAnotherCheckbox.addEventListener("change", () => {
+				this.createAnother = createAnotherCheckbox.checked;
+			});
+			createAnotherLabel.createSpan({ text: "Create another" });
+		}
 
 		new ButtonComponent(rightButtons)
-			.setButtonText("Create")
+			.setButtonText(isEditMode ? "Save" : "Create")
 			.setCta()
 			.onClick(() => {
 				this.submitCard(this.createAnother);
@@ -432,6 +479,24 @@ export class CardCreationModal extends Modal {
 	}
 
 	private submitCard(createAnother: boolean) {
+		if (this.mode === "edit") {
+			if (!this.isValidDeckPath(this.currentDeckPath)) {
+				new Notice("Select an existing folder for the deck.");
+				return;
+			}
+			if (!this.onUpdate) {
+				new Notice("No update handler provided.");
+				return;
+			}
+			this.onUpdate(
+				{ ...this.fields },
+				this.currentDeckPath,
+				this.currentTemplate.path,
+			);
+			this.close();
+			return;
+		}
+
 		if (!this.isValidDeckPath(this.currentDeckPath)) {
 			new Notice("Select an existing folder for the deck.");
 			return;
