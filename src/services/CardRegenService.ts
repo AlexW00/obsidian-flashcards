@@ -470,8 +470,13 @@ export class CardRegenService {
 
 	/**
 	 * Regenerate all cards that use a specific template.
+	 * @param templatePath Path to the template file
+	 * @param skipCache If true, skip AI cache and force fresh generation
 	 */
-	async regenerateAllCardsFromTemplate(templatePath: string): Promise<void> {
+	async regenerateAllCardsFromTemplate(
+		templatePath: string,
+		skipCache = false,
+	): Promise<void> {
 		// Prevent concurrent regenerations
 		if (this.isRegeneratingAll) {
 			new Notice("A regeneration is already in progress.");
@@ -493,40 +498,51 @@ export class CardRegenService {
 
 		let successCount = 0;
 		let errorCount = 0;
+		let completedCount = 0;
 
 		// Show initial progress notice
+		const cacheNote = skipCache ? " (no cache)" : "";
 		const notice = new Notice(
-			`Regenerating 0/${cards.length} cards from "${templateName}"...`,
+			`Regenerating 0/${cards.length} cards from "${templateName}"${cacheNote}...`,
 			0,
 		);
 
 		try {
-			for (let i = 0; i < cards.length; i++) {
-				const card = cards[i];
-				if (!card) continue;
+			// Process cards in parallel with concurrency limit
+			const CONCURRENCY = 5;
+			const cardPaths = cards.map((c) => c.path);
 
+			// Create a queue of promises that process in batches
+			const processCard = async (cardPath: string) => {
 				try {
-					const file = this.app.vault.getAbstractFileByPath(
-						card.path,
-					);
+					const file =
+						this.app.vault.getAbstractFileByPath(cardPath);
 					if (file instanceof TFile) {
-						await this.cardService.regenerateCard(file);
+						await this.cardService.regenerateCard(file, {
+							skipCache,
+						});
 						successCount++;
 					} else {
 						errorCount++;
 					}
 				} catch (error) {
 					console.error(
-						`Failed to regenerate card ${card.path}:`,
+						`Failed to regenerate card ${cardPath}:`,
 						error,
 					);
 					errorCount++;
 				}
-
+				completedCount++;
 				// Update progress notice
 				notice.setMessage(
-					`Regenerating ${i + 1}/${cards.length} cards from "${templateName}"...`,
+					`Regenerating ${completedCount}/${cards.length} cards from "${templateName}"${cacheNote}...`,
 				);
+			};
+
+			// Process in batches
+			for (let i = 0; i < cardPaths.length; i += CONCURRENCY) {
+				const batch = cardPaths.slice(i, i + CONCURRENCY);
+				await Promise.all(batch.map((path) => processCard(path)));
 			}
 		} finally {
 			this.isRegeneratingAll = false;

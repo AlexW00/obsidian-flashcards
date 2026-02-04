@@ -1,5 +1,5 @@
-import { App, Plugin, PluginSettingTab, Setting } from "obsidian";
-import type { PluginWithSettings } from "./types";
+import { App, Plugin, PluginSettingTab, Setting, Notice } from "obsidian";
+import type { PluginWithSettings, AiProviderType, AiProviderConfig } from "./types";
 import {
 	ALL_DECK_VIEW_COLUMNS,
 	DECK_VIEW_COLUMN_LABELS,
@@ -10,10 +10,19 @@ import {
 export { DEFAULT_SETTINGS } from "./types";
 export type { FlashcardsPluginSettings } from "./types";
 
-export class AnkerSettingTab extends PluginSettingTab {
-	plugin: Plugin & PluginWithSettings;
+/**
+ * Extended plugin interface for settings tab with SecretStorage access.
+ */
+export interface PluginWithSettingsAndSecrets extends PluginWithSettings {
+	getApiKey(provider: AiProviderType): string | null;
+	setApiKey(provider: AiProviderType, key: string): void;
+	deleteApiKey(provider: AiProviderType): void;
+}
 
-	constructor(app: App, plugin: Plugin & PluginWithSettings) {
+export class AnkerSettingTab extends PluginSettingTab {
+	plugin: Plugin & PluginWithSettingsAndSecrets;
+
+	constructor(app: App, plugin: Plugin & PluginWithSettingsAndSecrets) {
 		super(app, plugin);
 		this.plugin = plugin;
 	}
@@ -314,6 +323,19 @@ export class AnkerSettingTab extends PluginSettingTab {
 
 		const columnsContainer = containerEl.createDiv();
 		this.renderColumnSettings(columnsContainer);
+
+		// AI Providers section
+		new Setting(containerEl).setName("AI providers").setHeading();
+
+		new Setting(containerEl)
+			.setName("AI pipes")
+			.setDesc(
+				"Configure AI providers for dynamic content generation in templates. Use {{ prompt | askAi }}, {{ prompt | generateImage }}, or {{ text | generateSpeech }} in your templates.",
+			);
+
+		// Render AI provider settings
+		const aiContainer = containerEl.createDiv();
+		this.renderAiProviderSettings(aiContainer);
 	}
 
 	/**
@@ -345,6 +367,341 @@ export class AnkerSettingTab extends PluginSettingTab {
 						await this.plugin.saveSettings();
 					}),
 				);
+		}
+	}
+
+	/**
+	 * Render AI provider settings section.
+	 */
+	private renderAiProviderSettings(container: HTMLElement): void {
+		container.empty();
+
+		const providers = this.plugin.settings.aiProviders ?? {};
+		const providerIds = Object.keys(providers);
+
+		// Add provider button
+		new Setting(container)
+			.setName("Add provider")
+			.setDesc("Add a new AI provider configuration")
+			.addButton((button) =>
+				button
+					.setButtonText("Add provider")
+					.setCta()
+					.onClick(async () => {
+						// Generate unique ID
+						const id = `provider_${Date.now()}`;
+						this.plugin.settings.aiProviders = {
+							...this.plugin.settings.aiProviders,
+							[id]: {
+								type: "openai",
+								textModel: "gpt-4o",
+							},
+						};
+						await this.plugin.saveSettings();
+						this.renderAiProviderSettings(container);
+					}),
+			);
+
+		// Render each provider
+		for (const id of providerIds) {
+			const config = providers[id];
+			if (!config) continue;
+
+			this.renderSingleProvider(container, id, config);
+		}
+
+		// Pipe provider selection
+		if (providerIds.length > 0) {
+			new Setting(container).setName("Pipe assignments").setHeading();
+
+			new Setting(container)
+				.setName("Ask AI provider")
+				.setDesc("Provider for {{ prompt | askAi }} filter")
+				.addDropdown((dropdown) => {
+					dropdown.addOption("", "Select provider...");
+					for (const id of providerIds) {
+						const config = providers[id];
+						dropdown.addOption(
+							id,
+							`${config?.type ?? "unknown"} (${config?.textModel ?? "default"})`,
+						);
+					}
+					dropdown.setValue(
+						this.plugin.settings.aiPipeProviders?.askAi ?? "",
+					);
+					dropdown.onChange(async (value) => {
+						this.plugin.settings.aiPipeProviders = {
+							...this.plugin.settings.aiPipeProviders,
+							askAi: value || undefined,
+						};
+						await this.plugin.saveSettings();
+					});
+				});
+
+			new Setting(container)
+				.setName("Generate image provider")
+				.setDesc("Provider for {{ prompt | generateImage }} filter")
+				.addDropdown((dropdown) => {
+					dropdown.addOption("", "Select provider...");
+					for (const id of providerIds) {
+						const config = providers[id];
+						// Only OpenAI supports image generation
+						if (config?.type === "openai") {
+							dropdown.addOption(
+								id,
+								`${config.type} (${config.imageModel ?? "dall-e-3"})`,
+							);
+						}
+					}
+					dropdown.setValue(
+						this.plugin.settings.aiPipeProviders?.generateImage ??
+							"",
+					);
+					dropdown.onChange(async (value) => {
+						this.plugin.settings.aiPipeProviders = {
+							...this.plugin.settings.aiPipeProviders,
+							generateImage: value || undefined,
+						};
+						await this.plugin.saveSettings();
+					});
+				});
+
+			new Setting(container)
+				.setName("Generate speech provider")
+				.setDesc("Provider for {{ text | generateSpeech }} filter")
+				.addDropdown((dropdown) => {
+					dropdown.addOption("", "Select provider...");
+					for (const id of providerIds) {
+						const config = providers[id];
+						// Only OpenAI supports speech generation
+						if (config?.type === "openai") {
+							dropdown.addOption(
+								id,
+								`${config.type} (${config.speechModel ?? "tts-1"})`,
+							);
+						}
+					}
+					dropdown.setValue(
+						this.plugin.settings.aiPipeProviders?.generateSpeech ??
+							"",
+					);
+					dropdown.onChange(async (value) => {
+						this.plugin.settings.aiPipeProviders = {
+							...this.plugin.settings.aiPipeProviders,
+							generateSpeech: value || undefined,
+						};
+						await this.plugin.saveSettings();
+					});
+				});
+		}
+	}
+
+	/**
+	 * Render settings for a single AI provider.
+	 */
+	private renderSingleProvider(
+		container: HTMLElement,
+		id: string,
+		config: AiProviderConfig,
+	): void {
+		const providerContainer = container.createDiv({
+			cls: "anker-ai-provider-settings",
+		});
+
+		// Provider header with delete button
+		new Setting(providerContainer)
+			.setName(`Provider: ${config.type}`)
+			.setDesc(`ID: ${id}`)
+			.addButton((button) =>
+				button
+					.setButtonText("Delete")
+					.setWarning()
+					.onClick(async () => {
+						 
+						delete this.plugin.settings.aiProviders[id];
+						// Clear pipe assignments that used this provider
+						if (this.plugin.settings.aiPipeProviders?.askAi === id) {
+							this.plugin.settings.aiPipeProviders.askAi =
+								undefined;
+						}
+						if (
+							this.plugin.settings.aiPipeProviders
+								?.generateImage === id
+						) {
+							this.plugin.settings.aiPipeProviders.generateImage =
+								undefined;
+						}
+						if (
+							this.plugin.settings.aiPipeProviders
+								?.generateSpeech === id
+						) {
+							this.plugin.settings.aiPipeProviders.generateSpeech =
+								undefined;
+						}
+						// Delete API key from SecretStorage
+						this.plugin.deleteApiKey(config.type);
+						await this.plugin.saveSettings();
+						// Re-render parent container
+						const parent = container;
+						this.renderAiProviderSettings(parent);
+					}),
+			);
+
+		// Provider type
+		new Setting(providerContainer)
+			.setName("Provider type")
+			.addDropdown((dropdown) => {
+				dropdown.addOption("openai", "Openai");
+				dropdown.addOption("anthropic", "Anthropic");
+				dropdown.addOption("google", "Google");
+				dropdown.setValue(config.type);
+				dropdown.onChange(async (value) => {
+					this.plugin.settings.aiProviders[id] = {
+						...config,
+						type: value as AiProviderType,
+					};
+					await this.plugin.saveSettings();
+					this.renderAiProviderSettings(container);
+				});
+			});
+
+		// API Key (uses SecretStorage)
+		new Setting(providerContainer)
+			.setName("API key")
+			.setDesc("Stored securely in Obsidian's secret storage")
+			.addText((text) => {
+				text.inputEl.type = "password";
+				text.setPlaceholder("Enter API key...");
+
+				// Load current key status (sync)
+				const key = this.plugin.getApiKey(config.type);
+				if (key) {
+					text.setPlaceholder("••••••••••••••••");
+				}
+
+				text.onChange((value) => {
+					if (value.trim()) {
+						this.plugin.setApiKey(config.type, value.trim());
+						new Notice("API key saved securely");
+						text.setValue("");
+						text.setPlaceholder("••••••••••••••••");
+					}
+				});
+			})
+			.addButton((button) =>
+				button.setButtonText("Clear").onClick(() => {
+					this.plugin.deleteApiKey(config.type);
+					new Notice("API key removed");
+					this.renderAiProviderSettings(container);
+				}),
+			);
+
+		// Text model
+		new Setting(providerContainer).setName("Text model").addText((text) =>
+			text
+				.setPlaceholder(this.getDefaultTextModel(config.type))
+				.setValue(config.textModel ?? "")
+				.onChange(async (value) => {
+					this.plugin.settings.aiProviders[id] = {
+						...config,
+						textModel: value.trim() || undefined,
+					};
+					await this.plugin.saveSettings();
+				}),
+		);
+
+		// Image model (OpenAI only)
+		if (config.type === "openai") {
+			new Setting(providerContainer)
+				.setName("Image model")
+				.addText((text) =>
+					text
+						// eslint-disable-next-line obsidianmd/ui/sentence-case
+						.setPlaceholder("dall-e-3")
+						.setValue(config.imageModel ?? "")
+						.onChange(async (value) => {
+							this.plugin.settings.aiProviders[id] = {
+								...config,
+								imageModel: value.trim() || undefined,
+							};
+							await this.plugin.saveSettings();
+						}),
+				);
+
+			new Setting(providerContainer)
+				.setName("Speech model")
+				.addText((text) =>
+					text
+						// eslint-disable-next-line obsidianmd/ui/sentence-case
+						.setPlaceholder("tts-1")
+						.setValue(config.speechModel ?? "")
+						.onChange(async (value) => {
+							this.plugin.settings.aiProviders[id] = {
+								...config,
+								speechModel: value.trim() || undefined,
+							};
+							await this.plugin.saveSettings();
+						}),
+				);
+
+			new Setting(providerContainer)
+				.setName("Speech voice")
+				.addDropdown((dropdown) => {
+					 
+					dropdown.addOption("alloy", "Alloy");
+					dropdown.addOption("echo", "Echo");
+					dropdown.addOption("fable", "Fable");
+					dropdown.addOption("onyx", "Onyx");
+					dropdown.addOption("nova", "Nova");
+					dropdown.addOption("shimmer", "Shimmer");
+					 
+					dropdown.setValue(config.speechVoice ?? "alloy");
+					dropdown.onChange(async (value) => {
+						this.plugin.settings.aiProviders[id] = {
+							...config,
+							speechVoice: value,
+						};
+						await this.plugin.saveSettings();
+					});
+				});
+		}
+
+		// Custom base URL (optional)
+		new Setting(providerContainer)
+			// eslint-disable-next-line obsidianmd/ui/sentence-case
+			.setName("Custom base url")
+			// eslint-disable-next-line obsidianmd/ui/sentence-case
+			.setDesc("Optional: Override the API endpoint")
+			.addText((text) =>
+				text
+					.setPlaceholder("https://api.openai.com/v1")
+					.setValue(config.baseUrl ?? "")
+					.onChange(async (value) => {
+						this.plugin.settings.aiProviders[id] = {
+							...config,
+							baseUrl: value.trim() || undefined,
+						};
+						await this.plugin.saveSettings();
+					}),
+			);
+
+		// Visual separator
+		providerContainer.createEl("hr");
+	}
+
+	/**
+	 * Get default text model for provider type.
+	 */
+	private getDefaultTextModel(type: AiProviderType): string {
+		switch (type) {
+			case "openai":
+				return "gpt-4o";
+			case "anthropic":
+				return "claude-sonnet-4-20250514";
+			case "google":
+				return "gemini-1.5-flash";
+			default:
+				return "gpt-4o";
 		}
 	}
 

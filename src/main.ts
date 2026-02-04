@@ -5,6 +5,7 @@ import {
 	DEFAULT_STATE,
 	type FlashcardsPluginSettings,
 	type FlashcardsPluginState,
+	type AiProviderType,
 } from "./types";
 import { TemplateService } from "./flashcards/TemplateService";
 import { CardService } from "./flashcards/CardService";
@@ -12,6 +13,8 @@ import { DeckService } from "./flashcards/DeckService";
 import { Scheduler } from "./srs/Scheduler";
 import { CardRegenService } from "./services/CardRegenService";
 import { AttachmentCleanupService } from "./services/AttachmentCleanupService";
+import { AiCacheService } from "./services/AiCacheService";
+import { AiService } from "./services/AiService";
 import { DashboardView, DASHBOARD_VIEW_TYPE } from "./ui/DashboardView";
 import { ReviewView, REVIEW_VIEW_TYPE } from "./ui/ReviewView";
 import { DeckSelectorModal } from "./ui/DeckSelectorModal";
@@ -20,6 +23,9 @@ import { TemplateNameModal } from "./ui/TemplateNameModal";
 import { showCardCreationModal, showCardEditModal } from "./ui/CardCreationFlow";
 import { OrphanAttachmentsModal } from "./ui/OrphanAttachmentsModal";
 import { AnkiImportModal } from "./ui/AnkiImportModal";
+
+/** Key prefix for storing API keys in SecretStorage */
+const API_KEY_PREFIX = "anker-ai-api-key-";
 
 export default class AnkerPlugin extends Plugin {
 	settings: FlashcardsPluginSettings;
@@ -35,6 +41,10 @@ export default class AnkerPlugin extends Plugin {
 	private cardRegenService: CardRegenService | null = null;
 	/** Service for finding and deleting unused attachments */
 	private attachmentCleanupService: AttachmentCleanupService | null = null;
+	/** Service for AI-powered template filters */
+	private aiService: AiService | null = null;
+	/** Service for caching AI responses */
+	private aiCacheService: AiCacheService | null = null;
 
 	async onload() {
 		await this.loadSettings();
@@ -51,6 +61,25 @@ export default class AnkerPlugin extends Plugin {
 		this.deckService = new DeckService(this.app);
 		this.scheduler = new Scheduler(this.settings);
 		this.attachmentCleanupService = new AttachmentCleanupService(this.app);
+
+		// Initialize AI cache service
+		this.aiCacheService = new AiCacheService(this.app);
+		this.aiCacheService.setPersistence(
+			() => this.loadData(),
+			(data) => this.saveData(data),
+		);
+		await this.aiCacheService.load();
+
+		// Initialize AI service
+		this.aiService = new AiService(
+			this.app,
+			this.settings,
+			this.aiCacheService,
+			(provider) => this.getApiKey(provider),
+		);
+
+		// Connect AI service to template service
+		this.templateService.setAiService(this.aiService);
 
 		// Initialize card regeneration service
 		this.cardRegenService = new CardRegenService({
@@ -132,6 +161,10 @@ export default class AnkerPlugin extends Plugin {
 		// Clean up card regeneration service
 		this.cardRegenService?.destroy();
 		this.cardRegenService = null;
+		// Save AI cache before unload
+		void this.aiCacheService?.forceSave();
+		this.aiService = null;
+		this.aiCacheService = null;
 		// Views are automatically cleaned up
 	}
 
@@ -158,6 +191,7 @@ export default class AnkerPlugin extends Plugin {
 		// Update settings in dependent services
 		this.cardRegenService?.updateSettings(this.settings);
 		this.scheduler?.updateSettings(this.settings);
+		this.aiService?.updateSettings(this.settings);
 	}
 
 	async saveState() {
@@ -165,6 +199,36 @@ export default class AnkerPlugin extends Plugin {
 			settings: this.settings,
 			state: this.state,
 		});
+	}
+
+	/**
+	 * Get an API key from SecretStorage.
+	 */
+	getApiKey(provider: AiProviderType): string | null {
+		const key = `${API_KEY_PREFIX}${provider}`;
+		// Use Obsidian's SecretStorage API (sync) - available in 1.11.4+
+		const secrets = (this.app as unknown as { secrets?: { getSecret: (id: string) => string | null } }).secrets;
+		return secrets?.getSecret(key) ?? null;
+	}
+
+	/**
+	 * Store an API key in SecretStorage.
+	 */
+	setApiKey(provider: AiProviderType, apiKey: string): void {
+		const key = `${API_KEY_PREFIX}${provider}`;
+		// Use Obsidian's SecretStorage API (sync) - available in 1.11.4+
+		const secrets = (this.app as unknown as { secrets?: { setSecret: (id: string, secret: string) => void } }).secrets;
+		secrets?.setSecret(key, apiKey);
+	}
+
+	/**
+	 * Delete an API key from SecretStorage.
+	 */
+	deleteApiKey(provider: AiProviderType): void {
+		const key = `${API_KEY_PREFIX}${provider}`;
+		// Use Obsidian's SecretStorage API - set empty string to "delete"
+		const secrets = (this.app as unknown as { secrets?: { setSecret: (id: string, secret: string) => void } }).secrets;
+		secrets?.setSecret(key, "");
 	}
 
 	/**
@@ -211,7 +275,7 @@ export default class AnkerPlugin extends Plugin {
 				const file = this.app.workspace.getActiveFile();
 				if (file && this.deckService.isFlashcard(file)) {
 					if (!checking) {
-						void this.regenerateCard(file);
+						void this.regenerateCard(file, false);
 					}
 					return true;
 				}
@@ -241,6 +305,36 @@ export default class AnkerPlugin extends Plugin {
 			id: "import-anki-backup",
 			name: "Import Anki backup",
 			callback: () => this.importAnkiBackup(),
+		});
+
+		this.addCommand({
+			id: "regenerate-card-no-cache",
+			name: "Regenerate current card (no cache)",
+			checkCallback: (checking: boolean) => {
+				const file = this.app.workspace.getActiveFile();
+				if (file && this.deckService.isFlashcard(file)) {
+					if (!checking) {
+						void this.regenerateCard(file, true);
+					}
+					return true;
+				}
+				return false;
+			},
+		});
+
+		this.addCommand({
+			id: "regenerate-all-from-template-no-cache",
+			name: "Regenerate all cards from template (no cache)",
+			callback: () => this.selectTemplateForRegeneration(true),
+		});
+
+		this.addCommand({
+			id: "clear-ai-cache",
+			name: "Clear AI response cache",
+			callback: () => {
+				this.aiCacheService?.clearAll();
+				new Notice("AI response cache cleared");
+			},
 		});
 	}
 
@@ -331,11 +425,14 @@ export default class AnkerPlugin extends Plugin {
 
 	/**
 	 * Regenerate a flashcard from its template.
+	 * @param file The flashcard file to regenerate
+	 * @param skipCache If true, skip AI cache and force fresh generation
 	 */
-	private async regenerateCard(file: TFile) {
+	private async regenerateCard(file: TFile, skipCache = false) {
 		try {
-			await this.cardService.regenerateCard(file);
-			new Notice("Card regenerated!");
+			await this.cardService.regenerateCard(file, { skipCache });
+			const cacheNote = skipCache ? " (cache skipped)" : "";
+			new Notice(`Card regenerated!${cacheNote}`);
 		} catch (error) {
 			new Notice(`Failed to regenerate: ${(error as Error).message}`);
 		}
@@ -365,8 +462,9 @@ export default class AnkerPlugin extends Plugin {
 
 	/**
 	 * Show template selector for regeneration.
+	 * @param skipCache If true, skip AI cache and force fresh generation
 	 */
-	private selectTemplateForRegeneration() {
+	private selectTemplateForRegeneration(skipCache = false) {
 		void this.templateService
 			.getTemplates(this.settings.templateFolder)
 			.then((templates) => {
@@ -380,6 +478,7 @@ export default class AnkerPlugin extends Plugin {
 				new TemplateSelectorModal(this.app, templates, (template) => {
 					void this.cardRegenService?.regenerateAllCardsFromTemplate(
 						template.path,
+						skipCache,
 					);
 				}).open();
 			});

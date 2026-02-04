@@ -2,6 +2,7 @@ import { App, TFile, TFolder, parseYaml } from "obsidian";
 import nunjucks from "nunjucks";
 import type { FlashcardTemplate, TemplateVariable } from "../types";
 import { DEFAULT_BASIC_TEMPLATE } from "../types";
+import type { AiService, AiPipeContext } from "../services/AiService";
 
 /**
  * Parsed template content with optional frontmatter.
@@ -9,6 +10,16 @@ import { DEFAULT_BASIC_TEMPLATE } from "../types";
 export interface ParsedTemplate {
 	frontmatter: Record<string, unknown> | null;
 	body: string;
+}
+
+/**
+ * Options for template rendering.
+ */
+export interface RenderOptions {
+	/** Skip AI cache and force fresh generation */
+	skipCache?: boolean;
+	/** Card file path for context (used for attachment saving) */
+	cardPath?: string;
 }
 
 /**
@@ -20,6 +31,8 @@ export class TemplateService {
 	private defaultTemplateContent: string;
 	private readonly lineStartMarker = "__ANKER_LINE_START__";
 	private readonly lineEndMarker = "__ANKER_LINE_END__";
+	private aiService: AiService | null = null;
+	private currentRenderContext: AiPipeContext | null = null;
 
 	constructor(app: App, defaultTemplateContent?: string) {
 		this.app = app;
@@ -31,6 +44,86 @@ export class TemplateService {
 			trimBlocks: true,
 			lstripBlocks: true,
 		});
+		
+		// Register AI pipe filters (async filters)
+		this.registerAiFilters();
+	}
+
+	/**
+	 * Set the AI service for AI-powered filters.
+	 * Must be called after construction if AI features are enabled.
+	 */
+	setAiService(aiService: AiService): void {
+		this.aiService = aiService;
+	}
+
+	/**
+	 * Register async AI filters with Nunjucks.
+	 * These filters call the AI service and are async.
+	 */
+	private registerAiFilters(): void {
+		// askAi filter: {{ prompt | askAi }}
+		this.env.addFilter(
+			"askAi",
+			(prompt: string, callback: (err: Error | null, result?: string) => void) => {
+				if (!this.aiService) {
+					callback(new Error("AI service not configured. Please configure an AI provider in settings."));
+					return;
+				}
+				if (!this.currentRenderContext) {
+					callback(new Error("No render context available"));
+					return;
+				}
+				
+				this.aiService
+					.askAi(prompt, this.currentRenderContext)
+					.then((result) => callback(null, result))
+					.catch((err) => callback(err instanceof Error ? err : new Error(String(err))));
+			},
+			true, // Mark as async filter
+		);
+
+		// generateImage filter: {{ prompt | generateImage }}
+		this.env.addFilter(
+			"generateImage",
+			(prompt: string, callback: (err: Error | null, result?: string) => void) => {
+				if (!this.aiService) {
+					callback(new Error("AI service not configured. Please configure an AI provider in settings."));
+					return;
+				}
+				if (!this.currentRenderContext) {
+					callback(new Error("No render context available"));
+					return;
+				}
+				
+				this.aiService
+					.generateImagePipe(prompt, this.currentRenderContext)
+					.then((result) => callback(null, result))
+					.catch((err) => callback(err instanceof Error ? err : new Error(String(err))));
+			},
+			true, // Mark as async filter
+		);
+
+		// generateSpeech filter: {{ text | generateSpeech }}
+		this.env.addFilter(
+			"generateSpeech",
+			(text: string, callback: (err: Error | null, result?: string) => void) => {
+				if (!this.aiService) {
+					callback(new Error("AI service not configured. Please configure an AI provider in settings."));
+					return;
+				}
+				if (!this.currentRenderContext) {
+					callback(new Error("No render context available"));
+					return;
+				}
+				
+				this.aiService
+					.generateSpeechPipe(text, this.currentRenderContext)
+					.then((result) => callback(null, result))
+					.catch((err) => callback(err instanceof Error ? err : new Error(String(err))));
+			},
+			true, // Mark as async filter
+		);
 	}
 
 	/**
@@ -112,8 +205,45 @@ export class TemplateService {
 
 	/**
 	 * Render a template with the given fields.
+	 * This is now async to support AI-powered filters.
 	 */
-	render(templateContent: string, fields: Record<string, string>): string {
+	async render(
+		templateContent: string,
+		fields: Record<string, string>,
+		options: RenderOptions = {},
+	): Promise<string> {
+		// Set the render context for AI filters
+		this.currentRenderContext = {
+			skipCache: options.skipCache ?? false,
+			cardPath: options.cardPath,
+		};
+
+		try {
+			const prepared = this.prepareTemplateForLinePruning(templateContent);
+			
+			// Use callback-based renderString for async filter support
+			const rendered = await new Promise<string>((resolve, reject) => {
+				this.env.renderString(prepared, fields, (err, result) => {
+					if (err) {
+						reject(err);
+					} else {
+						resolve(result ?? "");
+					}
+				});
+			});
+
+			return this.cleanupRenderedOutput(rendered);
+		} finally {
+			// Clear the render context
+			this.currentRenderContext = null;
+		}
+	}
+
+	/**
+	 * Synchronous render for templates without AI filters.
+	 * Use this when you know the template doesn't use AI pipes.
+	 */
+	renderSync(templateContent: string, fields: Record<string, string>): string {
 		const prepared = this.prepareTemplateForLinePruning(templateContent);
 		const rendered = this.env.renderString(prepared, fields);
 		return this.cleanupRenderedOutput(rendered);

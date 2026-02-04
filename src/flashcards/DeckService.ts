@@ -28,6 +28,16 @@ export class DeckService {
 	}
 
 	/**
+	 * Check whether a review state is due today.
+	 * New cards (no review state) are treated as due.
+	 */
+	isReviewDue(review: FlashcardFrontmatter["_review"]): boolean {
+		if (!review) return true;
+		const dueDate = new Date(review.due);
+		return this.isDueToday(dueDate);
+	}
+
+	/**
 	 * Get the due date for a card, used for sorting.
 	 * New cards (no review state) are treated as earliest due.
 	 */
@@ -202,10 +212,7 @@ export class DeckService {
 
 		const dueCards = flashcards.filter((card) => {
 			const review = card.frontmatter._review;
-			if (!review) return true; // New cards are always due
-
-			const dueDate = new Date(review.due);
-			return this.isDueToday(dueDate);
+			return this.isReviewDue(review);
 		});
 
 		return dueCards.sort(

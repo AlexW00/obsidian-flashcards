@@ -99,7 +99,7 @@ export class AnkiContentConverter {
 				options: TurndownService.Options,
 			): string => {
 				const parent = node.parentNode as HTMLElement | null;
-				let marker = options.bulletListMarker ?? "-";
+				let marker: string = options.bulletListMarker ?? "-";
 				if (parent?.nodeName === "OL") {
 					const start = parent.getAttribute("start");
 					const index = Array.prototype.indexOf.call(

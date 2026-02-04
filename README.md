@@ -184,6 +184,9 @@ npm run build
 # Watch mode for development
 npm run dev
 
+# Typecheck
+npm run typecheck
+
 # Lint
 npm run lint
 ```

@@ -199,7 +199,7 @@ Follow Obsidian's **Developer Policies** and **Plugin Guidelines**. In particula
 - Write idempotent code paths so reload/unload doesn't leak listeners or intervals.
 - Use `this.register*` helpers for everything that needs cleanup.
 - Use Components provided by the Obsidian API for UI consistency.
-- After finishing implementation, test plugin installation run `npm run lint` and build the plugin via `npm run build` to ensure no errors are present.
+- After finishing implementation, test plugin installation run `npm run lint` + `npm run typecheck` to ensure no errors are present.
 
 **Don't**
 

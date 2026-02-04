@@ -5,6 +5,14 @@ import { TemplateService } from "./TemplateService";
 import { createEmptyCard } from "ts-fsrs";
 
 /**
+ * Options for regenerating a card.
+ */
+export interface RegenerateOptions {
+	/** Skip AI cache and force fresh generation */
+	skipCache?: boolean;
+}
+
+/**
  * Service for creating and managing flashcard files.
  */
 export class CardService {
@@ -61,9 +69,6 @@ export class CardService {
 			this.templateService.generateNoteName(noteNameTemplate);
 		const filePath = `${deckPath}/${noteName}.md`;
 
-		// Render template body (without frontmatter)
-		const body = this.templateService.render(template.body, fields);
-
 		// Create system frontmatter (these always take precedence)
 		// User fields are spread at the top level, plugin properties are prefixed with _
 		const systemFrontmatter: FlashcardFrontmatter = {
@@ -72,6 +77,11 @@ export class CardService {
 			_review: this.createInitialReviewState(),
 			...fields,
 		};
+
+		// Render template body (without frontmatter) - now async for AI filters
+		const body = await this.templateService.render(template.body, fields, {
+			cardPath: filePath,
+		});
 
 		// Merge template frontmatter with system frontmatter
 		// Template frontmatter is the base, system props always overwrite
@@ -116,7 +126,7 @@ export class CardService {
 	/**
 	 * Regenerate a flashcard's body from its template and fields.
 	 */
-	async regenerateCard(file: TFile): Promise<void> {
+	async regenerateCard(file: TFile, options: RegenerateOptions = {}): Promise<void> {
 		const cache = this.app.metadataCache.getFileCache(file);
 		const fm = cache?.frontmatter as FlashcardFrontmatter | undefined;
 
@@ -148,8 +158,11 @@ export class CardService {
 			...userFields,
 		};
 
-		// Render new body (use template.body which excludes template frontmatter)
-		const body = this.templateService.render(template.body, userFields);
+		// Render new body (use template.body which excludes template frontmatter) - now async for AI filters
+		const body = await this.templateService.render(template.body, userFields, {
+			skipCache: options.skipCache,
+			cardPath: file.path,
+		});
 
 		// Merge existing frontmatter + template frontmatter + system overrides
 		const mergedFrontmatter = this.mergeTemplateFrontmatter(
@@ -229,8 +242,10 @@ export class CardService {
 			...fields,
 		};
 
-		// Render new body with updated fields
-		const body = this.templateService.render(template.body, fields);
+		// Render new body with updated fields - now async for AI filters
+		const body = await this.templateService.render(template.body, fields, {
+			cardPath: file.path,
+		});
 
 		// Merge existing frontmatter + template frontmatter + system overrides
 		const mergedFrontmatter = this.mergeTemplateFrontmatter(

@@ -176,6 +176,40 @@ export const ALL_DECK_VIEW_COLUMNS: DeckViewColumn[] = [
 ];
 
 /**
+ * Supported AI provider types.
+ */
+export type AiProviderType = "openai" | "anthropic" | "google";
+
+/**
+ * Configuration for a single AI provider.
+ */
+export interface AiProviderConfig {
+	type: AiProviderType;
+	/** Model ID for text generation (e.g., "gpt-4o", "claude-sonnet-4-20250514") */
+	textModel?: string;
+	/** Model ID for image generation (e.g., "dall-e-3") */
+	imageModel?: string;
+	/** Model ID for speech generation (e.g., "tts-1") */
+	speechModel?: string;
+	/** Voice ID for speech generation (e.g., "alloy") */
+	speechVoice?: string;
+	/** Optional custom base URL */
+	baseUrl?: string;
+}
+
+/**
+ * Per-pipe provider selection.
+ */
+export interface AiPipeProviders {
+	/** Provider ID for askAi pipe */
+	askAi?: string;
+	/** Provider ID for generateImage pipe */
+	generateImage?: string;
+	/** Provider ID for generateSpeech pipe */
+	generateSpeech?: string;
+}
+
+/**
  * Plugin settings interface.
  */
 export interface FlashcardsPluginSettings {
@@ -211,6 +245,10 @@ export interface FlashcardsPluginSettings {
 	fsrsRelearningSteps: Array<string | number>;
 	/** FSRS weights array. */
 	fsrsWeights: number[];
+	/** Configured AI providers, keyed by user-defined ID */
+	aiProviders: Record<string, AiProviderConfig>;
+	/** Provider selection for each AI pipe */
+	aiPipeProviders: AiPipeProviders;
 }
 
 /**
@@ -294,6 +332,8 @@ export const DEFAULT_SETTINGS: FlashcardsPluginSettings = {
 	fsrsLearningSteps: [...default_learning_steps],
 	fsrsRelearningSteps: [...default_relearning_steps],
 	fsrsWeights: [...default_w],
+	aiProviders: {},
+	aiPipeProviders: {},
 };
 
 export const DEFAULT_STATE: FlashcardsPluginState = {

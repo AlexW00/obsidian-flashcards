@@ -10,7 +10,7 @@ import {
 	setIcon,
 } from "obsidian";
 import type AnkerPlugin from "../main";
-import type { Flashcard } from "../types";
+import type { Flashcard, ReviewState } from "../types";
 import { Rating } from "../srs/Scheduler";
 import { registerReviewHotkeys } from "./ReviewHotkeys";
 
@@ -364,18 +364,25 @@ export class ReviewView extends ItemView {
 		if (!card) return;
 
 		const file = this.app.vault.getAbstractFileByPath(card.path);
+		let newState: ReviewState | null = null;
 
 		if (file instanceof TFile) {
-			const newState = this.plugin.scheduler.review(
+			newState = this.plugin.scheduler.review(
 				card.frontmatter._review,
 				rating,
 			);
 			await this.plugin.cardService.updateReviewState(file, newState);
 		}
 
-		const nextDueCards = this.plugin.deckService.getDueCards(
+		let nextDueCards = this.plugin.deckService.getDueCards(
 			this.session.deckPath,
 		);
+
+		if (newState && !this.plugin.deckService.isReviewDue(newState)) {
+			nextDueCards = nextDueCards.filter(
+				(nextCard) => nextCard.path !== card.path,
+			);
+		}
 
 		if (nextDueCards.length === 0) {
 			this.renderComplete();
