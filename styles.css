@@ -650,20 +650,27 @@
 	min-width: 450px;
 }
 
+.anki-import-modal h2 {
+	text-align: center;
+}
+
 .anki-import-file-input-hidden {
 	display: none;
 }
 
 .anki-import-file-section {
-	display: flex;
-	align-items: center;
-	gap: var(--size-4-2);
 	margin-bottom: var(--size-4-4);
 }
 
 .anki-import-filename {
 	color: var(--text-muted);
 	font-size: var(--font-ui-small);
+}
+
+.anki-import-separator {
+	width: 100%;
+	border-top: 1px solid var(--background-modifier-border);
+	margin: var(--size-4-4) 0;
 }
 
 .anki-import-deck-list {
@@ -673,6 +680,10 @@
 	border: 1px solid var(--background-modifier-border);
 	border-radius: var(--radius-s);
 	padding: var(--size-4-2);
+}
+
+.anki-import-deck-list-hidden {
+	display: none;
 }
 
 .anki-import-controls {
@@ -718,8 +729,27 @@
 	margin: var(--size-4-4) 0;
 }
 
-.anki-import-progress {
-	margin: var(--size-4-4) 0;
+.anki-import-file-section .setting-item {
+	align-items: center;
+	justify-content: space-between;
+	width: 100%;
+}
+
+.anki-import-file-section .setting-item-info {
+	flex: 1;
+}
+
+.anki-import-file-section .setting-item-control {
+	flex: 0 0 auto;
+}
+
+.anki-import-file-control {
+	display: flex;
+	flex-direction: column;
+	align-items: flex-end;
+	justify-content: center;
+	gap: var(--size-4-1);
+	text-align: right;
 }
 
 .anki-import-loading,

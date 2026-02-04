@@ -1,4 +1,4 @@
-import { App, stringifyYaml } from "obsidian";
+import { App, stringifyYaml, TFile } from "obsidian";
 import JSZip from "jszip";
 import * as protobuf from "protobufjs";
 import { decompress as zstdDecompress } from "fzstd";
@@ -815,6 +815,67 @@ export class AnkiImportService {
 	}
 
 	/**
+	 * Find template name conflicts for the selected decks.
+	 */
+	getTemplateConflicts(
+		data: AnkiPackageData,
+		selectedDeckIds: Set<number>,
+	): string[] {
+		// Build note-to-deck mapping (use first card's deck for each note)
+		const noteToDeck = new Map<number, number>();
+		for (const card of data.cards) {
+			if (!noteToDeck.has(card.nid)) {
+				noteToDeck.set(card.nid, card.did);
+			}
+		}
+
+		// Filter notes belonging to selected decks
+		const notesToImport = data.notes.filter((note) => {
+			const deckId = noteToDeck.get(note.id);
+			return deckId !== undefined && selectedDeckIds.has(deckId);
+		});
+
+		const usedModels = new Set<string>();
+		for (const note of notesToImport) {
+			usedModels.add(String(note.mid));
+		}
+
+		const conflicts = new Set<string>();
+		const templateFolder = this.settings.templateFolder;
+
+		for (const modelId of usedModels) {
+			const model = data.models.get(modelId);
+			if (!model) continue;
+
+			const fieldNameMap = this.buildFieldNameMap(model);
+
+			try {
+				const templates = this.templateConverter.convertModel(
+					model,
+					fieldNameMap,
+				);
+				const template = templates[0];
+				if (!template) continue;
+
+				const templatePath = `${templateFolder}/${template.name}.md`;
+				const existing = this.app.vault.getAbstractFileByPath(
+					templatePath,
+				);
+				if (existing) {
+					conflicts.add(template.name);
+				}
+			} catch (error) {
+				console.warn(
+					"[Anker] Failed to check template conflict:",
+					error,
+				);
+			}
+		}
+
+		return Array.from(conflicts).sort((a, b) => a.localeCompare(b));
+	}
+
+	/**
 	 * Create a template file from converted template.
 	 */
 	private async createTemplate(template: ConvertedTemplate): Promise<string> {
@@ -912,9 +973,19 @@ export class AnkiImportService {
 		const yamlContent = stringifyYaml(frontmatter);
 		const content = `---\n${yamlContent}---\n\n${PROTECTION_COMMENT}\n\n${body}`;
 
-		// Use Anki card ID as filename (fallback if it already exists)
+		// Use Anki card ID as filename (overwrite if it already exists)
 		const baseName = String(cardId);
-		const filePath = this.getAvailableFilePath(fullDeckPath, baseName);
+		const filePath = `${fullDeckPath}/${baseName}.md`;
+		const existing = this.app.vault.getAbstractFileByPath(filePath);
+		if (existing) {
+			if (existing instanceof TFile) {
+				await this.app.vault.modify(existing, content);
+				return;
+			}
+			throw new Error(
+				`Cannot overwrite non-file path: ${filePath}`,
+			);
+		}
 
 		await this.app.vault.create(filePath, content);
 	}
@@ -1054,22 +1125,4 @@ export class AnkiImportService {
 		return fieldNameMap?.get(name) ?? name;
 	}
 
-	/**
-	 * Get a non-conflicting file path for a card filename.
-	 */
-	private getAvailableFilePath(folderPath: string, baseName: string): string {
-		let candidate = `${folderPath}/${baseName}.md`;
-		if (!this.app.vault.getAbstractFileByPath(candidate)) {
-			return candidate;
-		}
-
-		let counter = 2;
-		while (true) {
-			candidate = `${folderPath}/${baseName}-${counter}.md`;
-			if (!this.app.vault.getAbstractFileByPath(candidate)) {
-				return candidate;
-			}
-			counter++;
-		}
-	}
 }

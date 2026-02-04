@@ -236,10 +236,7 @@ export class AnkiTemplateConverter {
 		let result = markdown;
 
 		for (const [token, original] of tokens) {
-			const transpiled = this.transpileToNunjucks(
-				original,
-				fieldNameMap,
-			);
+			const transpiled = this.transpileToNunjucks(original, fieldNameMap);
 			result = result.split(token).join(transpiled);
 		}
 

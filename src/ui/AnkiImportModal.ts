@@ -133,10 +133,7 @@ export class AnkiImportModal extends Modal {
 
 		// Header
 		contentEl.createEl("h2", { text: "Import Anki backup" });
-		contentEl.createEl("p", {
-			text: "Select an .apkg file to import decks from Anki.",
-			cls: "flashcard-modal-subtitle",
-		});
+		contentEl.createDiv({ cls: "anki-import-separator" });
 
 		// File picker section
 		this.renderFilePicker(contentEl);
@@ -145,6 +142,7 @@ export class AnkiImportModal extends Modal {
 		this.deckListContainer = contentEl.createDiv({
 			cls: "anki-import-deck-list",
 		});
+		this.deckListContainer.addClass("anki-import-deck-list-hidden");
 
 		// Destination folder selector
 		this.renderFolderSelector(contentEl);
@@ -200,17 +198,25 @@ export class AnkiImportModal extends Modal {
 			cls: "anki-import-file-section",
 		});
 
+		const setting = new Setting(fileSection)
+			.setName("Select an .apkg file")
+			.setDesc("Import decks from Anki.");
+
 		const fileInput = document.createElement("input");
 		fileInput.type = "file";
 		fileInput.accept = ".apkg,.colpkg";
 		fileInput.addClass("anki-import-file-input-hidden");
 		fileSection.appendChild(fileInput);
 
-		const fileButton = new ButtonComponent(fileSection)
+		const controlEl = setting.controlEl.createDiv({
+			cls: "anki-import-file-control",
+		});
+
+		const fileButton = new ButtonComponent(controlEl)
 			.setButtonText("Select .apkg file")
 			.onClick(() => fileInput.click());
 
-		const fileNameDisplay = fileSection.createSpan({
+		const fileNameDisplay = controlEl.createSpan({
 			cls: "anki-import-filename",
 			text: "No file selected",
 		});
@@ -222,9 +228,11 @@ export class AnkiImportModal extends Modal {
 			this.selectedFile = file;
 			fileNameDisplay.textContent = file.name;
 			fileButton.setButtonText("Change file");
+			this.deckListContainer?.removeClass("anki-import-deck-list-hidden");
 
 			void this.parseSelectedFile();
 		});
+
 	}
 
 	/**
@@ -434,6 +442,19 @@ export class AnkiImportModal extends Modal {
 			return;
 		}
 
+		const templateConflicts = this.importService.getTemplateConflicts(
+			this.packageData,
+			selectedDeckIds,
+		);
+		if (templateConflicts.length > 0) {
+			const confirmed = window.confirm(
+				this.buildTemplateConflictMessage(templateConflicts),
+			);
+			if (!confirmed) {
+				return;
+			}
+		}
+
 		// Show progress
 		if (this.progressContainer) {
 			this.progressContainer.removeClass("anki-import-progress-hidden");
@@ -456,6 +477,22 @@ export class AnkiImportModal extends Modal {
 			new Notice(`Import failed: ${(error as Error).message}`);
 			this.importButton?.setDisabled(false);
 		}
+	}
+
+	/**
+	 * Build confirmation message for template conflicts.
+	 */
+	private buildTemplateConflictMessage(conflicts: string[]): string {
+		const maxNames = 6;
+		const shown = conflicts.slice(0, maxNames);
+		const remaining = conflicts.length - shown.length;
+		const list = shown.join(", ");
+		const more = remaining > 0 ? ` and ${remaining} more` : "";
+		return (
+			"Existing templates were found with the same name(s): " +
+			`${list}${more}.\n\n` +
+			"Importing will use those templates instead of creating new ones. Continue?"
+		);
 	}
 
 	/**
