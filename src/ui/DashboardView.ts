@@ -283,6 +283,10 @@ export class DashboardView extends ItemView {
 				"review",
 			);
 
+			const dueCount =
+				this.plugin.deckService.getDueCards(deck.path).length;
+			const hasDueCards = dueCount > 0;
+
 			// Actions
 			const actionsEl = deckEl.createDiv({
 				cls: "flashcard-deck-actions",
@@ -291,9 +295,14 @@ export class DashboardView extends ItemView {
 			const studyBtnComponent = new ButtonComponent(actionsEl)
 				.setButtonText("Study")
 				.setClass("flashcard-btn-small")
+				.setDisabled(!hasDueCards)
 				.onClick(() => {
 					void this.plugin.startReview(deck.path);
 				});
+			studyBtnComponent.buttonEl.setAttr(
+				"title",
+				hasDueCards ? "Start review" : "No cards due to study",
+			);
 			// Stop propagation on the button element
 			studyBtnComponent.buttonEl.addEventListener("click", (e) =>
 				e.stopPropagation(),

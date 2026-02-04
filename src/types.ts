@@ -188,6 +188,8 @@ export type AiProviderType = "openai" | "anthropic" | "google" | "openrouter";
  */
 export interface AiProviderConfig {
 	type: AiProviderType;
+	/** Optional system prompt prepended to text generation requests */
+	systemPrompt?: string;
 	/** Model ID for text generation (e.g., "gpt-4o", "claude-sonnet-4-20250514") */
 	textModel?: string;
 	/** Model ID for image generation (e.g., "dall-e-3") */

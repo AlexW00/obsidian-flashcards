@@ -336,35 +336,47 @@
 }
 
 .flashcard-btn-again button {
+	color: var(--color-red);
 	border-color: var(--color-red);
+	background-color: hsla(var(--color-red-hsl), 0.1);
 }
 
 .flashcard-btn-again button:hover {
-	background: hsla(var(--color-red-hsl), 0.2);
+	background-color: hsla(var(--color-red-hsl), 0.2);
+	box-shadow: 0 0 8px hsla(var(--color-red-hsl), 0.5);
 }
 
 .flashcard-btn-hard button {
-	border-color: var(--color-orange);
+	color: var(--color-yellow);
+	border-color: var(--color-yellow);
+	background-color: hsla(var(--color-yellow-hsl), 0.1);
 }
 
 .flashcard-btn-hard button:hover {
-	background: hsla(var(--color-orange-hsl), 0.2);
+	background-color: hsla(var(--color-yellow-hsl), 0.2);
+	box-shadow: 0 0 8px hsla(var(--color-yellow-hsl), 0.5);
 }
 
 .flashcard-btn-good button {
+	color: var(--color-green);
 	border-color: var(--color-green);
+	background-color: hsla(var(--color-green-hsl), 0.1);
 }
 
 .flashcard-btn-good button:hover {
-	background: hsla(var(--color-green-hsl), 0.2);
+	background-color: hsla(var(--color-green-hsl), 0.2);
+	box-shadow: 0 0 8px hsla(var(--color-green-hsl), 0.5);
 }
 
 .flashcard-btn-easy button {
+	color: var(--color-blue);
 	border-color: var(--color-blue);
+	background-color: hsla(var(--color-blue-hsl), 0.1);
 }
 
 .flashcard-btn-easy button:hover {
-	background: hsla(var(--color-blue-hsl), 0.2);
+	background-color: hsla(var(--color-blue-hsl), 0.2);
+	box-shadow: 0 0 8px hsla(var(--color-blue-hsl), 0.5);
 }
 
 .flashcard-rating-hints {
@@ -549,11 +561,16 @@
 }
 
 /* Button container - Cancel left, Create buttons right */
-.flashcard-modal-buttons-row {
+.flashcard-modal-buttons-row,
+.flashcard-modal-buttons-v2 {
 	display: flex;
 	justify-content: space-between;
 	align-items: center;
 	width: 100%;
+}
+
+.flashcard-modal-buttons-v2 {
+	margin-top: var(--size-4-6);
 }
 
 .flashcard-buttons-left,
@@ -677,7 +694,9 @@
 /* Settings */
 .flashcard-settings-template-textarea {
 	width: 100%;
-	min-height: 200px;
+	min-height: 140px;
+	height: 140px;
+	resize: vertical;
 	font-family: var(--font-monospace);
 	font-size: var(--font-ui-smaller);
 }
@@ -750,7 +769,7 @@
 	overflow-y: auto;
 	border: 1px solid var(--background-modifier-border);
 	border-radius: var(--radius-s);
-	padding: var(--size-4-2);
+	padding: 0;
 }
 
 .anki-import-deck-list-hidden {
@@ -760,15 +779,19 @@
 .anki-import-controls {
 	display: flex;
 	gap: var(--size-4-2);
-	margin-bottom: var(--size-4-2);
-	padding-bottom: var(--size-4-2);
+	padding: var(--size-4-2);
 	border-bottom: 1px solid var(--background-modifier-border);
+	position: sticky;
+	top: 0;
+	background-color: var(--background-primary);
+	z-index: 1;
 }
 
 .anki-import-decks {
 	display: flex;
 	flex-direction: column;
 	gap: var(--size-4-1);
+	padding: var(--size-4-2);
 }
 
 .anki-import-deck-row {
@@ -882,4 +905,121 @@
 	margin-top: 0;
 	padding-top: var(--size-4-4); /* matches padding */
 	border-top: 1px solid var(--background-modifier-border); /* redundant but safe */
+}
+
+.flashcard-settings-system-prompt {
+	width: 100%;
+	height: 80px;
+	min-height: 80px;
+	resize: vertical;
+	font-family: var(--font-monospace);
+	font-size: var(--font-ui-smaller);
+}
+
+/* Template Regeneration Modal */
+.template-regen-modal {
+	width: 100%;
+	max-width: 550px;
+}
+
+.template-regen-description {
+	color: var(--text-muted);
+	font-size: var(--font-ui-small);
+	margin: 0 0 var(--size-4-3) 0;
+}
+
+.template-regen-controls {
+	display: flex;
+	align-items: center;
+	gap: var(--size-4-2);
+	margin-bottom: var(--size-4-2);
+}
+
+.template-regen-count {
+	margin-left: auto;
+	font-size: var(--font-ui-smaller);
+	color: var(--text-muted);
+}
+
+.template-regen-card-list {
+	max-height: 300px;
+	overflow-y: auto;
+	border: 1px solid var(--background-modifier-border);
+	border-radius: var(--radius-s);
+	background: var(--background-secondary);
+	margin-bottom: var(--size-4-4);
+}
+
+.template-regen-cards,
+.template-regen-visible-items {
+	width: 100%;
+}
+
+.template-regen-card-row {
+	display: flex;
+	align-items: center;
+	gap: var(--size-4-2);
+	padding: var(--size-2-2) var(--size-4-3);
+	border-bottom: 1px solid var(--background-modifier-border);
+}
+
+.template-regen-card-row:last-child {
+	border-bottom: none;
+}
+
+.template-regen-card-row:hover {
+	background: var(--background-modifier-hover);
+}
+
+.template-regen-checkbox {
+	flex-shrink: 0;
+	margin: 0;
+}
+
+.template-regen-card-name {
+	flex: 1;
+	overflow: hidden;
+	text-overflow: ellipsis;
+	white-space: nowrap;
+	font-size: var(--font-ui-small);
+}
+
+.template-regen-progress {
+	margin-top: var(--size-4-4);
+	margin-bottom: var(--size-4-3);
+}
+
+.template-regen-progress-hidden {
+	display: none;
+}
+
+.template-regen-virtual-scroll {
+	width: 100%;
+	height: var(--virtual-scroll-height, auto);
+	position: relative;
+}
+
+.template-regen-visible-items {
+	position: absolute;
+	left: 0;
+	right: 0;
+	top: var(--visible-items-top, 0);
+}
+
+.template-regen-cache-toggle {
+	display: inline-flex;
+	align-items: center;
+	gap: var(--size-4-1);
+	color: var(--text-muted);
+	font-size: var(--font-ui-small);
+	cursor: pointer;
+	margin-right: var(--size-4-2);
+}
+
+.template-regen-cache-toggle:hover {
+	color: var(--text-normal);
+}
+
+.template-regen-cache-toggle input {
+	margin: 0;
 }

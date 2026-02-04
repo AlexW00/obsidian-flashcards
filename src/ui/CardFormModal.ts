@@ -62,6 +62,7 @@ export interface CardFormModalOptions {
 		deckPath: string,
 		templatePath: string,
 		statusCallback: StatusCallback,
+		options: { skipCache: boolean },
 	) => Promise<void> | void;
 	/** Initial deck path (optional, uses last used or first available) */
 	initialDeckPath?: string;
@@ -173,6 +174,7 @@ export class CardFormModal extends Modal {
 	private availableTemplates: FlashcardTemplate[] = [];
 	private fields: Record<string, string> = {};
 	private createAnother = false;
+	private useCache = true; // Whether to use AI cache (checked by default, edit mode only)
 	private activeTextarea: HTMLTextAreaElement | null = null;
 	private textareaSuggests: TextareaSuggest[] = [];
 	private deckSuggest: DeckPathSuggest | null = null;
@@ -180,7 +182,9 @@ export class CardFormModal extends Modal {
 	private createButton: ButtonComponent | null = null;
 	private cancelButton: ButtonComponent | null = null;
 	private createAnotherCheckbox: HTMLInputElement | null = null;
+	private cacheCheckbox: HTMLInputElement | null = null;
 	private statusTextEl: HTMLElement | null = null;
+	private keydownHandler: ((event: KeyboardEvent) => void) | null = null;
 
 	constructor(options: CardFormModalOptions) {
 		super(options.app);
@@ -205,6 +209,21 @@ export class CardFormModal extends Modal {
 		const { contentEl } = this;
 		contentEl.empty();
 		contentEl.addClass("flashcard-card-modal");
+
+		if (!this.keydownHandler) {
+			this.keydownHandler = (event: KeyboardEvent) => {
+				if (event.key !== "Enter") return;
+				const isSubmitShortcut =
+					(event.metaKey || event.ctrlKey) &&
+					!event.altKey &&
+					!event.shiftKey;
+				if (!isSubmitShortcut) return;
+				event.preventDefault();
+				if (this.isSubmitting) return;
+				void this.submitCard(this.createAnother);
+			};
+			contentEl.addEventListener("keydown", this.keydownHandler);
+		}
 
 		// Clean up old suggests
 		this.textareaSuggests.forEach((s) => s.destroy());
@@ -478,6 +497,27 @@ export class CardFormModal extends Modal {
 			createAnotherLabel.createSpan({ text: "Create another" });
 		}
 
+		if (isEditMode) {
+			// Cache AI results checkbox for edit mode
+			const cacheLabel = rightButtons.createEl("label", {
+				cls: "flashcard-create-another-toggle",
+				attr: {
+					title:
+						"When enabled, AI filter results are cached and reused. Disable to force fresh AI generation.",
+				},
+			});
+			this.cacheCheckbox = cacheLabel.createEl("input", {
+				type: "checkbox",
+			});
+			this.cacheCheckbox.checked = this.useCache;
+			this.cacheCheckbox.addEventListener("change", () => {
+				if (this.cacheCheckbox) {
+					this.useCache = this.cacheCheckbox.checked;
+				}
+			});
+			cacheLabel.createSpan({ text: "Cache AI results" });
+		}
+
 		this.createButton = new ButtonComponent(rightButtons)
 			.setButtonText(isEditMode ? "Save" : "Create")
 			.setCta()
@@ -528,6 +568,7 @@ export class CardFormModal extends Modal {
 						this.currentDeckPath,
 						this.currentTemplate.path,
 						statusCallback,
+						{ skipCache: !this.useCache },
 					),
 				);
 				this.close();
@@ -603,6 +644,10 @@ export class CardFormModal extends Modal {
 			this.createAnotherCheckbox.disabled = this.isSubmitting;
 		}
 
+		if (this.cacheCheckbox) {
+			this.cacheCheckbox.disabled = this.isSubmitting;
+		}
+
 		this.contentEl.toggleClass(
 			"flashcard-modal-submitting",
 			this.isSubmitting,
@@ -663,6 +708,11 @@ export class CardFormModal extends Modal {
 		this.textareaSuggests = [];
 		this.deckSuggest?.destroy();
 		this.deckSuggest = null;
+
+		if (this.keydownHandler) {
+			this.contentEl.removeEventListener("keydown", this.keydownHandler);
+			this.keydownHandler = null;
+		}
 
 		const { contentEl } = this;
 		contentEl.empty();

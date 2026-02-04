@@ -3,10 +3,13 @@ import type { TFile } from "obsidian";
 
 /**
  * Represents a failed card with its file and error message.
+ * file can be null if the file was not found.
  */
 export interface FailedCard {
-	file: TFile;
+	file: TFile | null;
 	error: string;
+	/** Path to the file (useful when file is null) */
+	path?: string;
 }
 
 /**
@@ -35,18 +38,31 @@ export class FailedCardsModal extends Modal {
 			cls: "flashcard-failed-list",
 		});
 
-		for (const { file, error } of this.failedCards) {
+		for (const { file, error, path } of this.failedCards) {
 			const item = list.createEl("li");
-			const link = item.createEl("a", {
-				text: file.basename,
-				cls: "flashcard-failed-link",
-				href: "#",
-			});
-			link.addEventListener("click", (event) => {
-				event.preventDefault();
-				this.close();
-				void this.app.workspace.getLeaf().openFile(file);
-			});
+			
+			// Get display name from file or path
+			const displayName = file
+				? file.basename
+				: (path?.split("/").pop()?.replace(/\.md$/, "") ?? "Unknown");
+
+			if (file) {
+				const link = item.createEl("a", {
+					text: displayName,
+					cls: "flashcard-failed-link",
+					href: "#",
+				});
+				link.addEventListener("click", (event) => {
+					event.preventDefault();
+					this.close();
+					void this.app.workspace.getLeaf().openFile(file);
+				});
+			} else {
+				item.createSpan({
+					text: displayName,
+					cls: "flashcard-failed-name",
+				});
+			}
 
 			// Show truncated error as hint
 			const truncatedError =

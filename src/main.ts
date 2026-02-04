@@ -6,7 +6,6 @@ import {
 	type FlashcardsPluginSettings,
 	type FlashcardsPluginState,
 	type FlashcardTemplate,
-	type AiProviderType,
 	debugLog,
 } from "./types";
 import { TemplateService } from "./flashcards/TemplateService";
@@ -207,10 +206,19 @@ export default class AnkerPlugin extends Plugin {
 	}
 
 	/**
+	 * Convert a provider ID to a valid SecretStorage key.
+	 * SecretStorage requires: lowercase letters, numbers, and dashes only.
+	 */
+	private toSecretKey(providerId: string): string {
+		// Replace underscores with dashes to make valid key
+		return `${API_KEY_PREFIX}${providerId.replace(/_/g, "-")}`;
+	}
+
+	/**
 	 * Get an API key from SecretStorage.
 	 */
-	async getApiKey(provider: AiProviderType): Promise<string | null> {
-		const key = `${API_KEY_PREFIX}${provider}`;
+	async getApiKey(providerId: string): Promise<string | null> {
+		const key = this.toSecretKey(providerId);
 		// Use Obsidian's SecretStorage API - available in 1.11.4+
 		const secretStorage = (
 			this.app as unknown as {
@@ -237,8 +245,8 @@ export default class AnkerPlugin extends Plugin {
 	/**
 	 * Store an API key in SecretStorage.
 	 */
-	async setApiKey(provider: AiProviderType, apiKey: string): Promise<void> {
-		const key = `${API_KEY_PREFIX}${provider}`;
+	async setApiKey(providerId: string, apiKey: string): Promise<void> {
+		const key = this.toSecretKey(providerId);
 		// Use Obsidian's SecretStorage API - available in 1.11.4+
 		const secretStorage = (
 			this.app as unknown as {
@@ -264,8 +272,8 @@ export default class AnkerPlugin extends Plugin {
 	/**
 	 * Delete an API key from SecretStorage.
 	 */
-	async deleteApiKey(provider: AiProviderType): Promise<void> {
-		const key = `${API_KEY_PREFIX}${provider}`;
+	async deleteApiKey(providerId: string): Promise<void> {
+		const key = this.toSecretKey(providerId);
 		// Use Obsidian's SecretStorage API - available in 1.11.4+
 		const secretStorage = (
 			this.app as unknown as {
@@ -363,27 +371,6 @@ export default class AnkerPlugin extends Plugin {
 		});
 
 		this.addCommand({
-			id: "regenerate-card-no-cache",
-			name: "Regenerate current card (no cache)",
-			checkCallback: (checking: boolean) => {
-				const file = this.app.workspace.getActiveFile();
-				if (file && this.deckService.isFlashcard(file)) {
-					if (!checking) {
-						void this.regenerateCard(file, true);
-					}
-					return true;
-				}
-				return false;
-			},
-		});
-
-		this.addCommand({
-			id: "regenerate-all-from-template-no-cache",
-			name: "Regenerate all cards from template (no cache)",
-			callback: () => this.selectTemplateForRegeneration(true),
-		});
-
-		this.addCommand({
 			id: "clear-ai-cache",
 			name: "Clear AI response cache",
 			callback: () => {
@@ -468,11 +455,18 @@ export default class AnkerPlugin extends Plugin {
 	 */
 	private async createCard() {
 		let initialTemplate: FlashcardTemplate | undefined;
+		let initialDeckPath: string | undefined;
 		const activeFile = this.app.workspace.getActiveFile();
-		if (activeFile && this.isTemplateFile(activeFile)) {
-			initialTemplate =
-				(await this.templateService.loadTemplate(activeFile.path)) ??
-				undefined;
+
+		if (activeFile) {
+			if (this.isTemplateFile(activeFile)) {
+				initialTemplate =
+					(await this.templateService.loadTemplate(activeFile.path)) ??
+					undefined;
+			} else if (this.isDeckBaseFile(activeFile)) {
+				// Extract deck path from base file (e.g., "deck/path/flashcards.base" -> "deck/path")
+				initialDeckPath = activeFile.parent?.path;
+			}
 		}
 
 		showCardCreationModal(
@@ -484,7 +478,7 @@ export default class AnkerPlugin extends Plugin {
 			this.state,
 			() => this.saveState(),
 			undefined,
-			undefined,
+			initialDeckPath,
 			initialTemplate,
 		);
 	}
@@ -497,6 +491,16 @@ export default class AnkerPlugin extends Plugin {
 		return (
 			file.path.startsWith(templateFolder + "/") ||
 			file.path === templateFolder
+		);
+	}
+
+	/**
+	 * Check if a file is a deck base view file (flashcards.base or flashcards-{filter}.base).
+	 */
+	private isDeckBaseFile(file: TFile): boolean {
+		return (
+			file.extension === "base" &&
+			/^flashcards(-\w+)?$/.test(file.basename)
 		);
 	}
 
@@ -539,9 +543,16 @@ export default class AnkerPlugin extends Plugin {
 
 	/**
 	 * Show template selector for regeneration.
-	 * @param skipCache If true, skip AI cache and force fresh generation
 	 */
-	private selectTemplateForRegeneration(skipCache = false) {
+	private selectTemplateForRegeneration() {
+		const activeFile = this.app.workspace.getActiveFile();
+		if (activeFile && this.isTemplateFile(activeFile)) {
+			void this.cardRegenService?.regenerateAllCardsFromTemplate(
+				activeFile.path,
+			);
+			return;
+		}
+
 		void this.templateService
 			.getTemplates(this.settings.templateFolder)
 			.then((templates) => {
@@ -555,7 +566,6 @@ export default class AnkerPlugin extends Plugin {
 				new TemplateSelectorModal(this.app, templates, (template) => {
 					void this.cardRegenService?.regenerateAllCardsFromTemplate(
 						template.path,
-						skipCache,
 					);
 				}).open();
 			});

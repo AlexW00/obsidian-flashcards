@@ -441,17 +441,21 @@ export class AnkiImportModal extends Modal {
 			return;
 		}
 
+		// Check for template conflicts and ask user whether to overwrite
+		let overwriteTemplates = false;
 		const templateConflicts = this.importService.getTemplateConflicts(
 			this.packageData,
 			selectedDeckIds,
 		);
 		if (templateConflicts.length > 0) {
-			const confirmed = window.confirm(
+			const confirmed = await this.confirmTemplateConflicts(
 				this.buildTemplateConflictMessage(templateConflicts),
 			);
 			if (!confirmed) {
 				return;
 			}
+			// User confirmed - overwrite the conflicting templates
+			overwriteTemplates = true;
 		}
 
 		// Show progress
@@ -469,6 +473,7 @@ export class AnkiImportModal extends Modal {
 				(current, total, message) => {
 					this.updateProgress(current, total, message);
 				},
+				overwriteTemplates,
 			);
 
 			this.showResult(result);
@@ -476,6 +481,59 @@ export class AnkiImportModal extends Modal {
 			new Notice(`Import failed: ${(error as Error).message}`);
 			this.importButton?.setDisabled(false);
 		}
+	}
+
+	private async confirmTemplateConflicts(message: string): Promise<boolean> {
+		return new Promise((resolve) => {
+			let resolved = false;
+			const modal = new Modal(this.app);
+			modal.onOpen = () => {
+				const { contentEl } = modal;
+				contentEl.empty();
+				contentEl.addClass("anki-import-confirm-modal");
+
+				contentEl.createEl("h2", { text: "Template conflicts" });
+				message.split(/\n\n+/).forEach((paragraph) => {
+					contentEl.createEl("p", { text: paragraph });
+				});
+
+				const buttonRow = contentEl.createDiv({
+					cls: "flashcard-modal-buttons-v2",
+				});
+				const leftButtons = buttonRow.createDiv({
+					cls: "flashcard-buttons-left",
+				});
+				const rightButtons = buttonRow.createDiv({
+					cls: "flashcard-buttons-right",
+				});
+
+				new ButtonComponent(leftButtons)
+					.setButtonText("Cancel")
+					.onClick(() => {
+						resolved = true;
+						resolve(false);
+						modal.close();
+					});
+
+				new ButtonComponent(rightButtons)
+					.setButtonText("Continue")
+					.setCta()
+					.onClick(() => {
+						resolved = true;
+						resolve(true);
+						modal.close();
+					});
+			};
+
+			modal.onClose = () => {
+				modal.contentEl.empty();
+				if (!resolved) {
+					resolve(false);
+				}
+			};
+
+			modal.open();
+		});
 	}
 
 	/**
@@ -490,7 +548,7 @@ export class AnkiImportModal extends Modal {
 		return (
 			"Existing templates were found with the same name(s): " +
 			`${list}${more}.\n\n` +
-			"Importing will use those templates instead of creating new ones. Continue?"
+			"Importing will overwrite those templates with the converted Anki versions. Continue?"
 		);
 	}
 

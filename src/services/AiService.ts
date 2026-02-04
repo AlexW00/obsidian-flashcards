@@ -7,7 +7,6 @@ import { createGoogleGenerativeAI } from "@ai-sdk/google";
 import { createOpenRouter } from "@openrouter/ai-sdk-provider";
 import type {
 	AiProviderConfig,
-	AiProviderType,
 	FlashcardsPluginSettings,
 } from "../types";
 import { debugLog } from "../types";
@@ -54,7 +53,7 @@ export class AiService {
 	private app: App;
 	private settings: FlashcardsPluginSettings;
 	private cacheService: AiCacheService;
-	private getApiKey: (provider: AiProviderType) => Promise<string | null>;
+	private getApiKey: (providerId: string) => Promise<string | null>;
 
 	// Parallel processing queue
 	private queue: QueueItem<unknown>[] = [];
@@ -65,7 +64,7 @@ export class AiService {
 		app: App,
 		settings: FlashcardsPluginSettings,
 		cacheService: AiCacheService,
-		getApiKey: (provider: AiProviderType) => Promise<string | null>,
+		getApiKey: (providerId: string) => Promise<string | null>,
 	) {
 		this.app = app;
 		this.settings = settings;
@@ -85,7 +84,7 @@ export class AiService {
 	 */
 	private getProviderForPipe(
 		pipeType: "askAi" | "generateImage" | "generateSpeech",
-	): AiProviderConfig | null {
+	): { id: string; config: AiProviderConfig } | null {
 		const providerId = this.settings.aiPipeProviders?.[pipeType];
 		if (!providerId) {
 			debugLog("AI pipe %s: no provider assigned", pipeType);
@@ -98,15 +97,18 @@ export class AiService {
 			providerId,
 			config?.type ?? "missing",
 		);
-		return config;
+		if (!config) {
+			return null;
+		}
+		return { id: providerId, config };
 	}
 
 	/**
 	 * Create a provider instance based on type and API key.
 	 */
-	private async createProvider(config: AiProviderConfig) {
-		const apiKey = await this.getApiKey(config.type);
-		debugLog("AI provider %s: apiKey present=%s", config.type, !!apiKey);
+	private async createProvider(providerId: string, config: AiProviderConfig) {
+		const apiKey = await this.getApiKey(providerId);
+		debugLog("AI provider %s (id=%s): apiKey present=%s", config.type, providerId, !!apiKey);
 		if (!apiKey) {
 			throw new Error(
 				`No API key configured for provider: ${config.type}`,
@@ -192,12 +194,15 @@ export class AiService {
 	 */
 	async askAi(prompt: string, context: AiPipeContext): Promise<string> {
 		const pipeType = "askAi" as const;
+		const systemPrompt =
+			this.getProviderForPipe(pipeType)?.config.systemPrompt;
 
 		// Check cache first (unless skipCache)
 		if (!context.skipCache) {
 			const cacheKey = await this.cacheService.generateKey(
 				pipeType,
 				prompt,
+				systemPrompt ?? "",
 			);
 			const cached = this.cacheService.get(cacheKey);
 			if (cached) {
@@ -206,27 +211,33 @@ export class AiService {
 		}
 
 		// Get provider config
-		const config = this.getProviderForPipe(pipeType);
-		if (!config) {
+		const providerResult = this.getProviderForPipe(pipeType);
+		if (!providerResult) {
 			throw new Error("No provider configured for askAi pipe");
 		}
+		const { id: providerId, config } = providerResult;
 
 		// Enqueue the API call
 		const result = await this.enqueue(async () => {
-			const provider = await this.createProvider(config);
+			const provider = await this.createProvider(providerId, config);
 			const modelId =
 				config.textModel ?? getDefaultTextModel(config.type);
 
 			const response = await generateText({
 				model: provider(modelId),
 				prompt,
+				system: config.systemPrompt?.trim() || undefined,
 			});
 
 			return response.text;
 		});
 
 		// Cache the result
-		const cacheKey = await this.cacheService.generateKey(pipeType, prompt);
+		const cacheKey = await this.cacheService.generateKey(
+			pipeType,
+			prompt,
+			config.systemPrompt ?? "",
+		);
 		this.cacheService.set(cacheKey, result, pipeType);
 
 		return result;
@@ -258,14 +269,15 @@ export class AiService {
 		}
 
 		// Get provider config
-		const config = this.getProviderForPipe(pipeType);
-		if (!config) {
+		const providerResult = this.getProviderForPipe(pipeType);
+		if (!providerResult) {
 			throw new Error("No provider configured for generateImage pipe");
 		}
+		const { id: providerId, config } = providerResult;
 
 		// Enqueue the API call
 		const result = await this.enqueue(async () => {
-			const provider = await this.createProvider(config);
+			const provider = await this.createProvider(providerId, config);
 			const modelId =
 				config.imageModel ?? getDefaultImageModel(config.type);
 
@@ -326,14 +338,15 @@ export class AiService {
 		}
 
 		// Get provider config
-		const config = this.getProviderForPipe(pipeType);
-		if (!config) {
+		const providerResult = this.getProviderForPipe(pipeType);
+		if (!providerResult) {
 			throw new Error("No provider configured for generateSpeech pipe");
 		}
+		const { id: providerId, config } = providerResult;
 
 		// Enqueue the API call
 		const result = await this.enqueue(async () => {
-			const provider = await this.createProvider(config);
+			const provider = await this.createProvider(providerId, config);
 			const modelId =
 				config.speechModel ?? getDefaultSpeechModel(config.type);
 			const voice = config.speechVoice ?? "alloy";

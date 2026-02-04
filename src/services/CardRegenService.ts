@@ -4,7 +4,7 @@ import { debugLog, PROTECTION_COMMENT } from "../types";
 import type { CardService } from "../flashcards/CardService";
 import type { DeckService } from "../flashcards/DeckService";
 import type { TemplateService } from "../flashcards/TemplateService";
-import { FailedCardsModal, type FailedCard } from "../ui/FailedCardsModal";
+import { TemplateRegenModal } from "../ui/TemplateRegenModal";
 
 /**
  * Configuration for the CardRegenService.
@@ -470,14 +470,11 @@ export class CardRegenService {
 	}
 
 	/**
-	 * Regenerate all cards that use a specific template.
+	 * Open the regeneration modal for all cards using a specific template.
+	 * Shows a list of cards and allows the user to select which to regenerate.
 	 * @param templatePath Path to the template file
-	 * @param skipCache If true, skip AI cache and force fresh generation
 	 */
-	async regenerateAllCardsFromTemplate(
-		templatePath: string,
-		skipCache = false,
-	): Promise<void> {
+	async regenerateAllCardsFromTemplate(templatePath: string): Promise<void> {
 		// Prevent concurrent regenerations
 		if (this.isRegeneratingAll) {
 			new Notice("A regeneration is already in progress.");
@@ -491,113 +488,44 @@ export class CardRegenService {
 			return;
 		}
 
+		// Load template for display
+		const template = await this.templateService.loadTemplate(templatePath);
+		if (!template) {
+			new Notice(`Template not found: ${templatePath}`);
+			return;
+		}
+
+		// Mark as regenerating (will be cleared when modal closes)
 		this.isRegeneratingAll = true;
 
-		// Get template name for display
-		const template = await this.templateService.loadTemplate(templatePath);
-		const templateName = template?.name ?? templatePath;
+		// Open the regeneration modal
+		const modal = new TemplateRegenModal(
+			this.app,
+			template,
+			cards,
+			this.cardService,
+			(result) => {
+				// Clear the regenerating flag when modal closes
+				this.isRegeneratingAll = false;
 
-		let successCount = 0;
-		let completedCount = 0;
-		const failedCards: FailedCard[] = [];
-
-		// Show initial progress notice
-		const cacheNote = skipCache ? " (no cache)" : "";
-		const notice = new Notice(
-			`Regenerating 0/${cards.length} cards from "${templateName}"${cacheNote}...`,
-			0,
+				// Show completion notice
+				if (result.cancelled) {
+					new Notice(
+						`Regeneration cancelled. ${result.successCount} card${result.successCount !== 1 ? "s" : ""} regenerated.`,
+					);
+				} else if (result.failedCards.length === 0) {
+					new Notice(
+						`Successfully regenerated ${result.successCount} card${result.successCount !== 1 ? "s" : ""}.`,
+					);
+				} else {
+					new Notice(
+						`Regenerated ${result.successCount} card${result.successCount !== 1 ? "s" : ""}, ${result.failedCards.length} failed.`,
+					);
+				}
+			},
 		);
 
-		try {
-			// Process cards in parallel with concurrency limit
-			const CONCURRENCY = 5;
-			const cardPaths = cards.map((c) => c.path);
-
-			// Create a queue of promises that process in batches
-			const processCard = async (cardPath: string) => {
-				const file = this.app.vault.getAbstractFileByPath(cardPath);
-				if (!(file instanceof TFile)) {
-					// File not found - can't write error to frontmatter
-					completedCount++;
-					notice.setMessage(
-						`Regenerating ${completedCount}/${cards.length} cards from "${templateName}"${cacheNote}...`,
-					);
-					return;
-				}
-
-				try {
-					await this.cardService.regenerateCard(file, {
-						skipCache,
-					});
-					// Clear any previous error on successful regeneration
-					await this.cardService.clearCardError(file);
-					successCount++;
-				} catch (regenError) {
-					const errorMessage =
-						regenError instanceof Error
-							? regenError.message
-							: String(regenError);
-					console.error(
-						`Failed to regenerate card ${cardPath}:`,
-						regenError,
-					);
-					// Write error to card frontmatter
-					try {
-						await this.cardService.setCardError(file, errorMessage);
-					} catch (writeError) {
-						console.error(
-							`Failed to write error to card ${cardPath}:`,
-							writeError,
-						);
-					}
-					failedCards.push({ file, error: errorMessage });
-				}
-				completedCount++;
-				// Update progress notice
-				notice.setMessage(
-					`Regenerating ${completedCount}/${cards.length} cards from "${templateName}"${cacheNote}...`,
-				);
-			};
-
-			// Process in batches
-			for (let i = 0; i < cardPaths.length; i += CONCURRENCY) {
-				const batch = cardPaths.slice(i, i + CONCURRENCY);
-				await Promise.all(batch.map((path) => processCard(path)));
-			}
-		} finally {
-			this.isRegeneratingAll = false;
-			notice.hide();
-
-			// Show completion notice
-			if (failedCards.length === 0) {
-				new Notice(
-					`Successfully regenerated ${successCount} card${successCount !== 1 ? "s" : ""} from "${templateName}".`,
-				);
-			} else {
-				// Show notice with button to view failed cards
-				const resultNotice = new Notice("", 8000);
-				resultNotice.messageEl.empty();
-				const container = resultNotice.messageEl.createDiv({
-					cls: "flashcard-notice-container",
-				});
-
-				container.createSpan({
-					text: `Regenerated ${successCount} card${successCount !== 1 ? "s" : ""}, ${failedCards.length} failed.`,
-					cls: "flashcard-notice-text",
-				});
-
-				const buttons = container.createDiv({
-					cls: "flashcard-notice-buttons",
-				});
-
-				new ButtonComponent(buttons)
-					.setButtonText("View failed")
-					.onClick(() => {
-						resultNotice.hide();
-						new FailedCardsModal(this.app, failedCards).open();
-					});
-			}
-		}
+		modal.open();
 	}
 
 	/**

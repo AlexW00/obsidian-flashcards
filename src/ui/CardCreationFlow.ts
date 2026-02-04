@@ -132,11 +132,13 @@ export async function showCardEditModal(
 			updatedDeckPath,
 			updatedTemplatePath,
 			statusCallback,
+			options,
 		) => {
 			return cardService
 				.updateCardFields(file, fields, {
 					templatePath: updatedTemplatePath,
 					deckPath: updatedDeckPath,
+					skipCache: options.skipCache,
 					onStatusUpdate: statusCallback,
 				})
 				.then(async () => {

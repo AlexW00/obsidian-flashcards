@@ -206,17 +206,35 @@ export class AnkiTemplateConverter {
 		let counter = 0;
 
 		// Pattern matches all Anki template syntax:
+		// {{{Field}}} (triple braces for unescaped HTML)
+		// {{{Field}} (malformed triple braces - 3 open, 2 close - seen in some Anki exports)
 		// {{Field}}, {{#Field}}, {{^Field}}, {{/Field}}, {{FrontSide}}, {{cloze:Field}}
-		const placeholderRegex = /\{\{([#^/])?([^{}]+)\}\}/g;
+		// Order matters: triple braces (and malformed variants) must match first
+		const placeholderRegex = /\{\{\{([^{}]+)\}\}\}|\{\{\{([^{}]+)\}\}|\{\{([#^/])?([^{}]+)\}\}/g;
 
 		const tokenized = html.replace(
 			placeholderRegex,
-			(match, prefix: string | undefined, content: string) => {
+			(
+				match,
+				tripleContent: string | undefined,
+				malformedTripleContent: string | undefined,
+				prefix: string | undefined,
+				content: string | undefined,
+			) => {
 				const token = `${this.placeholderPrefix}${counter}${this.placeholderSuffix}`;
 				counter++;
 
 				// Store the original match for restoration
-				tokens.set(token, match);
+				// For triple braces (well-formed or malformed), normalize to double braces
+				if (tripleContent !== undefined) {
+					// Triple braces {{{Field}}} -> store as normalized double braces
+					tokens.set(token, `{{${tripleContent.trim()}}}`);
+				} else if (malformedTripleContent !== undefined) {
+					// Malformed triple braces {{{Field}} -> store as normalized double braces
+					tokens.set(token, `{{${malformedTripleContent.trim()}}}`);
+				} else {
+					tokens.set(token, match);
+				}
 
 				return token;
 			},

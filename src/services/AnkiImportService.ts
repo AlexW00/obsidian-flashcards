@@ -616,6 +616,7 @@ export class AnkiImportService {
 
 	/**
 	 * Import selected decks into the vault.
+	 * @param overwriteTemplates If true, overwrite existing template files instead of reusing them.
 	 */
 	async importDecks(
 		data: AnkiPackageData,
@@ -623,6 +624,7 @@ export class AnkiImportService {
 		selectedDeckIds: Set<number>,
 		destinationFolder: string,
 		onProgress?: ImportProgressCallback,
+		overwriteTemplates = false,
 	): Promise<ImportResult> {
 		const result: ImportResult = {
 			cardsImported: 0,
@@ -684,7 +686,10 @@ export class AnkiImportService {
 				// Use first template for this model
 				const template = templates[0];
 				if (template) {
-					const templatePath = await this.createTemplate(template);
+					const templatePath = await this.createTemplate(
+						template,
+						overwriteTemplates,
+					);
 					templatePathMap.set(modelId, templatePath);
 					result.templatesCreated++;
 				}
@@ -884,8 +889,12 @@ export class AnkiImportService {
 
 	/**
 	 * Create a template file from converted template.
+	 * @param overwrite If true, overwrite existing template file.
 	 */
-	private async createTemplate(template: ConvertedTemplate): Promise<string> {
+	private async createTemplate(
+		template: ConvertedTemplate,
+		overwrite = false,
+	): Promise<string> {
 		const templateFolder = this.settings.templateFolder;
 		await this.ensureFolderExists(templateFolder);
 
@@ -894,6 +903,11 @@ export class AnkiImportService {
 		// Check if exists
 		const existing = this.app.vault.getAbstractFileByPath(templatePath);
 		if (existing) {
+			if (overwrite && existing instanceof TFile) {
+				// Overwrite existing template
+				await this.app.vault.modify(existing, template.body);
+				return templatePath;
+			}
 			// Use existing template
 			return templatePath;
 		}
@@ -954,7 +968,7 @@ export class AnkiImportService {
 		}
 
 		// Render body
-		const body = this.templateService.render(template.body, fields);
+		const body = await this.templateService.render(template.body, fields);
 
 		// Create frontmatter
 		const reviewState = this.createInitialReviewState();

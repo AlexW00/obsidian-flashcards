@@ -20,9 +20,9 @@ export type { FlashcardsPluginSettings } from "./types";
  * Extended plugin interface for settings tab with SecretStorage access.
  */
 export interface PluginWithSettingsAndSecrets extends PluginWithSettings {
-	getApiKey(provider: AiProviderType): Promise<string | null>;
-	setApiKey(provider: AiProviderType, key: string): Promise<void>;
-	deleteApiKey(provider: AiProviderType): Promise<void>;
+	getApiKey(providerId: string): Promise<string | null>;
+	setApiKey(providerId: string, key: string): Promise<void>;
+	deleteApiKey(providerId: string): Promise<void>;
 }
 
 export class AnkerSettingTab extends PluginSettingTab {
@@ -372,8 +372,12 @@ export class AnkerSettingTab extends PluginSettingTab {
 
 	/**
 	 * Render AI provider settings section.
+	 * @param scrollToId Optional provider ID to scroll into view after rendering
 	 */
-	private renderAiProviderSettings(container: HTMLElement): void {
+	private renderAiProviderSettings(
+		container: HTMLElement,
+		scrollToId?: string,
+	): void {
 		container.empty();
 
 		const providers = this.plugin.settings.aiProviders ?? {};
@@ -382,7 +386,7 @@ export class AnkerSettingTab extends PluginSettingTab {
 		new Setting(container)
 			.setName("About AI pipes")
 			.setDesc(
-				"AI pipes connect template filters to a configured provider, so prompts in your templates can generate text, images, or speech.",
+				"AI pipes can be used to generate dynamic content in your flashcards using AI.",
 			);
 
 		new Setting(container)
@@ -482,7 +486,7 @@ export class AnkerSettingTab extends PluginSettingTab {
 							},
 						};
 						await this.plugin.saveSettings();
-						this.renderAiProviderSettings(container);
+						this.renderAiProviderSettings(container, id);
 					}),
 			);
 
@@ -495,18 +499,29 @@ export class AnkerSettingTab extends PluginSettingTab {
 			const config = providers[id];
 			if (!config) continue;
 
-			this.renderSingleProvider(container, id, config);
+			const providerEl = this.renderSingleProvider(container, id, config);
+
+			// Scroll to newly added provider
+			if (scrollToId && id === scrollToId && providerEl) {
+				setTimeout(() => {
+					providerEl.scrollIntoView({
+						behavior: "smooth",
+						block: "start",
+					});
+				}, 50);
+			}
 		}
 	}
 
 	/**
 	 * Render settings for a single AI provider.
+	 * @returns The provider container element
 	 */
 	private renderSingleProvider(
 		container: HTMLElement,
 		id: string,
 		config: AiProviderConfig,
-	): void {
+	): HTMLElement {
 		const providerContainer = container.createDiv({
 			cls: "anker-ai-provider-settings",
 		});
@@ -520,7 +535,13 @@ export class AnkerSettingTab extends PluginSettingTab {
 					.setButtonText("Delete")
 					.setWarning()
 					.onClick(async () => {
-						delete this.plugin.settings.aiProviders[id];
+								// Create new object without the deleted provider
+								const remainingProviders = Object.fromEntries(
+									Object.entries(
+										this.plugin.settings.aiProviders,
+									).filter(([key]) => key !== id),
+								);
+						this.plugin.settings.aiProviders = remainingProviders;
 						// Clear pipe assignments that used this provider
 						if (
 							this.plugin.settings.aiPipeProviders?.askAi === id
@@ -543,11 +564,10 @@ export class AnkerSettingTab extends PluginSettingTab {
 								undefined;
 						}
 						// Delete API key from SecretStorage
-						await this.plugin.deleteApiKey(config.type);
+						await this.plugin.deleteApiKey(id);
 						await this.plugin.saveSettings();
-						// Re-render parent container
-						const parent = container;
-						this.renderAiProviderSettings(parent);
+						// Re-render settings to ensure UI updates
+						this.display();
 					}),
 			);
 
@@ -555,12 +575,18 @@ export class AnkerSettingTab extends PluginSettingTab {
 		new Setting(providerContainer)
 			.setName("Provider type")
 			.addDropdown((dropdown) => {
-				dropdown.addOption("openai", "OpenAI");
+					// eslint-disable-next-line obsidianmd/ui/sentence-case
+					dropdown.addOption("openai", "OpenAI");
 				dropdown.addOption("anthropic", "Anthropic");
 				dropdown.addOption("google", "Google");
-				dropdown.addOption("openrouter", "OpenRouter");
+					// eslint-disable-next-line obsidianmd/ui/sentence-case
+					dropdown.addOption("openrouter", "OpenRouter");
 				dropdown.setValue(config.type);
 				dropdown.onChange(async (value) => {
+					// Check if provider was deleted
+					if (!this.plugin.settings.aiProviders[id]) {
+						return;
+					}
 					const nextType = value as AiProviderType;
 					const trimmedTextModel = config.textModel?.trim();
 					const isDefaultModel =
@@ -590,7 +616,7 @@ export class AnkerSettingTab extends PluginSettingTab {
 
 				// Load current key status (async)
 				let currentKey: string | null = null;
-				void this.plugin.getApiKey(config.type).then((value) => {
+				void this.plugin.getApiKey(id).then((value) => {
 					currentKey = value;
 					if (currentKey) {
 						text.setPlaceholder("••••••••••••••••");
@@ -609,7 +635,7 @@ export class AnkerSettingTab extends PluginSettingTab {
 					}
 				});
 
-				text.inputEl.addEventListener("blur", async () => {
+				const handleApiKeyBlur = async (): Promise<void> => {
 					if (!pendingKey) {
 						return;
 					}
@@ -621,20 +647,23 @@ export class AnkerSettingTab extends PluginSettingTab {
 					}
 					debugLog(
 						"Settings: saving API key for %s (len=%s)",
-						config.type,
+						id,
 						pendingKey.length,
 					);
-					await this.plugin.setApiKey(config.type, pendingKey);
+					await this.plugin.setApiKey(id, pendingKey);
 					currentKey = pendingKey;
 					pendingKey = "";
 					new Notice("API key saved securely");
 					text.setValue("");
 					text.setPlaceholder("••••••••••••••••");
+				};
+				text.inputEl.addEventListener("blur", () => {
+					void handleApiKeyBlur();
 				});
 			})
 			.addButton((button) =>
 				button.setButtonText("Clear").onClick(async () => {
-					await this.plugin.deleteApiKey(config.type);
+					await this.plugin.deleteApiKey(id);
 					new Notice("API key removed");
 					this.renderAiProviderSettings(container);
 				}),
@@ -650,11 +679,53 @@ export class AnkerSettingTab extends PluginSettingTab {
 				}),
 		);
 
+		// System prompt (text only)
+		let currentSystemPrompt = config.systemPrompt ?? "";
+		let pendingSystemPrompt = currentSystemPrompt;
+		new Setting(providerContainer)
+			.setName("System prompt")
+			.setDesc(
+				"Used for text generation only. Ignored for image and speech.",
+			)
+			.addTextArea((text) => {
+				text.setPlaceholder("Optional system prompt...")
+					.setValue(currentSystemPrompt)
+					.onChange((value) => {
+						pendingSystemPrompt = value;
+					});
+				text.inputEl.rows = 3;
+				text.inputEl.addClass("flashcard-settings-system-prompt");
+
+				// Save on blur
+				const handleSystemPromptBlur = async (): Promise<void> => {
+					const nextValue = pendingSystemPrompt;
+					if (nextValue === currentSystemPrompt) {
+						return;
+					}
+					// Check if provider was deleted
+					if (!this.plugin.settings.aiProviders[id]) {
+						return;
+					}
+					const normalizedValue =
+						nextValue.trim().length > 0 ? nextValue : undefined;
+					currentSystemPrompt = normalizedValue ?? "";
+					this.plugin.settings.aiProviders[id] = {
+						...config,
+						systemPrompt: normalizedValue,
+					};
+					await this.plugin.saveSettings();
+					this.renderAiProviderSettings(container);
+				};
+				text.inputEl.addEventListener("blur", () => {
+					void handleSystemPromptBlur();
+				});
+			});
+
 		let currentTextModel = config.textModel ?? "";
 		let pendingTextModel = currentTextModel;
-		const textModelInput = providerContainer.querySelector(
+		const textModelInput = providerContainer.querySelector<HTMLInputElement>(
 			"input[type='text']",
-		) as HTMLInputElement | null;
+		);
 		if (textModelInput) {
 			textModelInput.addEventListener("keydown", (event) => {
 				if (event.key === "Enter") {
@@ -663,9 +734,13 @@ export class AnkerSettingTab extends PluginSettingTab {
 				}
 			});
 
-			textModelInput.addEventListener("blur", async () => {
+			const handleTextModelBlur = async (): Promise<void> => {
 				const nextValue = pendingTextModel.trim();
 				if (nextValue === currentTextModel) {
+					return;
+				}
+				// Check if provider was deleted
+				if (!this.plugin.settings.aiProviders[id]) {
 					return;
 				}
 				currentTextModel = nextValue;
@@ -675,6 +750,9 @@ export class AnkerSettingTab extends PluginSettingTab {
 				};
 				await this.plugin.saveSettings();
 				this.renderAiProviderSettings(container);
+			};
+			textModelInput.addEventListener("blur", () => {
+				void handleTextModelBlur();
 			});
 		}
 
@@ -688,6 +766,10 @@ export class AnkerSettingTab extends PluginSettingTab {
 						.setPlaceholder("dall-e-3")
 						.setValue(config.imageModel ?? "")
 						.onChange(async (value) => {
+							// Check if provider was deleted
+							if (!this.plugin.settings.aiProviders[id]) {
+								return;
+							}
 							this.plugin.settings.aiProviders[id] = {
 								...config,
 								imageModel: value.trim() || undefined,
@@ -704,6 +786,10 @@ export class AnkerSettingTab extends PluginSettingTab {
 						.setPlaceholder("tts-1")
 						.setValue(config.speechModel ?? "")
 						.onChange(async (value) => {
+							// Check if provider was deleted
+							if (!this.plugin.settings.aiProviders[id]) {
+								return;
+							}
 							this.plugin.settings.aiProviders[id] = {
 								...config,
 								speechModel: value.trim() || undefined,
@@ -724,6 +810,10 @@ export class AnkerSettingTab extends PluginSettingTab {
 
 					dropdown.setValue(config.speechVoice ?? "alloy");
 					dropdown.onChange(async (value) => {
+						// Check if provider was deleted
+						if (!this.plugin.settings.aiProviders[id]) {
+							return;
+						}
 						this.plugin.settings.aiProviders[id] = {
 							...config,
 							speechVoice: value,
@@ -744,6 +834,10 @@ export class AnkerSettingTab extends PluginSettingTab {
 					.setPlaceholder("https://api.openai.com/v1")
 					.setValue(config.baseUrl ?? "")
 					.onChange(async (value) => {
+						// Check if provider was deleted
+						if (!this.plugin.settings.aiProviders[id]) {
+							return;
+						}
 						this.plugin.settings.aiProviders[id] = {
 							...config,
 							baseUrl: value.trim() || undefined,
@@ -754,6 +848,8 @@ export class AnkerSettingTab extends PluginSettingTab {
 
 		// Visual separator
 		providerContainer.createEl("hr");
+
+		return providerContainer;
 	}
 
 	private formatSteps(steps: Array<string | number>): string {

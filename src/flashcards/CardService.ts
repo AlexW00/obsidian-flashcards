@@ -20,6 +20,8 @@ export interface CardUpdateOptions {
 	templatePath?: string;
 	/** New deck path (optional) */
 	deckPath?: string;
+	/** Skip AI cache and force fresh generation */
+	skipCache?: boolean;
 	/** Callback for status updates during card update */
 	onStatusUpdate?: (status: string) => void;
 }
@@ -309,6 +311,7 @@ export class CardService {
 				normalizedFields,
 				{
 					cardPath: file.path,
+					skipCache: options.skipCache,
 					onStatusUpdate: options.onStatusUpdate,
 				},
 			);
