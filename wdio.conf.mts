@@ -73,10 +73,7 @@ const prepareVaults = async () => {
 		await rm(vaultReadyFile, { force: true });
 		await Promise.all(
 			desktopVersions.map(async ([appVersion, installerVersion]) => {
-				const vaultPath = buildVaultPath(
-					appVersion,
-					installerVersion,
-				);
+				const vaultPath = buildVaultPath(appVersion, installerVersion);
 				await rm(vaultPath, { recursive: true, force: true });
 				await cp(vaultBaseDir, vaultPath, { recursive: true });
 			}),
