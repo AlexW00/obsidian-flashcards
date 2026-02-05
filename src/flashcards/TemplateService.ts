@@ -47,7 +47,7 @@ export class TemplateService {
 	private defaultTemplateContent: string;
 	private aiService: AiService | null = null;
 	private furiganaService: FuriganaService | null = null;
-	private furiganaFormat: FuriganaFormat = "curly";
+	private furiganaFormat: FuriganaFormat = "ruby";
 	private currentRenderContext: DynamicPipeContext | null = null;
 
 	constructor(app: App, defaultTemplateContent?: string) {
@@ -75,7 +75,7 @@ export class TemplateService {
 	 */
 	setFuriganaService(
 		furiganaService: FuriganaService,
-		format: FuriganaFormat = "curly",
+		format: FuriganaFormat = "ruby",
 	): void {
 		this.furiganaService = furiganaService;
 		this.furiganaFormat = format;

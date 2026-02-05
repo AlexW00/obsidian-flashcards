@@ -66,7 +66,7 @@ function formatFurigana(
 function convertToFurigana(
 	tokenizer: Tokenizer,
 	text: string,
-	format: FuriganaFormat = "curly",
+	format: FuriganaFormat = "ruby",
 ): string {
 	if (!text || text.trim().length === 0) {
 		return text;
@@ -222,20 +222,22 @@ describe("Furigana Conversion Integration", () => {
 		it("should convert simple kanji word", () => {
 			const result = convertToFurigana(tokenizer, "日本");
 			// Both にほん and にっぽん are valid readings for 日本
-			expect(result).toMatch(/\{日本\|(にほん|にっぽん)\}/);
+			expect(result).toMatch(
+				/<ruby>日本<rt>(にほん|にっぽん)<\/rt><\/ruby>/,
+			);
 		});
 
 		it("should convert multiple kanji words", () => {
 			const result = convertToFurigana(tokenizer, "日本語");
-			expect(result).toBe("{日本語|にほんご}");
+			expect(result).toBe("<ruby>日本語<rt>にほんご</rt></ruby>");
 		});
 
 		it("should handle sentence with particles", () => {
 			const result = convertToFurigana(tokenizer, "私は学生です");
 			// Should annotate kanji but leave hiragana particles alone
-			expect(result).toContain("{私|わたし}");
+			expect(result).toContain("<ruby>私<rt>わたし</rt></ruby>");
 			expect(result).toContain("は");
-			expect(result).toContain("{学生|がくせい}");
+			expect(result).toContain("<ruby>学生<rt>がくせい</rt></ruby>");
 			expect(result).toContain("です");
 		});
 
@@ -256,9 +258,9 @@ describe("Furigana Conversion Integration", () => {
 	});
 
 	describe("convertToFurigana - output formats", () => {
-		it("should output curly format by default", () => {
+		it("should output ruby format by default", () => {
 			const result = convertToFurigana(tokenizer, "漢字");
-			expect(result).toBe("{漢字|かんじ}");
+			expect(result).toBe("<ruby>漢字<rt>かんじ</rt></ruby>");
 		});
 
 		it("should output ruby format", () => {
@@ -290,14 +292,16 @@ describe("Furigana Conversion Integration", () => {
 			const result = convertToFurigana(tokenizer, "Hello日本World");
 			expect(result).toContain("Hello");
 			// Both にほん and にっぽん are valid readings
-			expect(result).toMatch(/\{日本\|(にほん|にっぽん)\}/);
+			expect(result).toMatch(
+				/<ruby>日本<rt>(にほん|にっぽん)<\/rt><\/ruby>/,
+			);
 			expect(result).toContain("World");
 		});
 
 		it("should handle numbers mixed with kanji", () => {
 			const result = convertToFurigana(tokenizer, "2024年");
 			expect(result).toContain("2024");
-			expect(result).toContain("{年|ねん}");
+			expect(result).toContain("<ruby>年<rt>ねん</rt></ruby>");
 		});
 
 		it("should handle punctuation", () => {
@@ -322,7 +326,7 @@ describe("Furigana Conversion Integration", () => {
 			const result = convertToFurigana(tokenizer, "東京駅");
 			// Tokyo Station - may be tokenized as 東京 + 駅 or as one token
 			expect(result).toMatch(
-				/\{東京\|とうきょう\}|\{東京駅\|とうきょうえき\}/,
+				/<ruby>東京<rt>とうきょう<\/rt><\/ruby>|<ruby>東京駅<rt>とうきょうえき<\/rt><\/ruby>/,
 			);
 		});
 	});
@@ -336,7 +340,7 @@ describe("Furigana Conversion Integration", () => {
 
 		it("should convert a simple question", () => {
 			const result = convertToFurigana(tokenizer, "何を食べますか");
-			expect(result).toContain("{何|なに}");
+			expect(result).toContain("<ruby>何<rt>なに</rt></ruby>");
 			// Kuromoji tokenizes 食べ as a unit
 			expect(result).toContain("たべ");
 		});
@@ -348,7 +352,7 @@ describe("Furigana Conversion Integration", () => {
 
 		it("should convert time expressions", () => {
 			const result = convertToFurigana(tokenizer, "今日");
-			expect(result).toBe("{今日|きょう}");
+			expect(result).toBe("<ruby>今日<rt>きょう</rt></ruby>");
 		});
 	});
 });

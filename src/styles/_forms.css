@@ -27,6 +27,14 @@
    margin-bottom: 0;
 }
 
+.flashcard-card-modal .flashcard-modal-header-row {
+   gap: var(--size-4-2);
+}
+
+.flashcard-card-modal .flashcard-header-group {
+   gap: var(--size-4-1);
+}
+
 .flashcard-modal-scroll-content {
    flex: 1 1 auto;
    overflow-y: auto;

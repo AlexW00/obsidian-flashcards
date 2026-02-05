@@ -353,7 +353,7 @@ export const DEFAULT_SETTINGS: FlashcardsPluginSettings = {
 	imageSearchProviders: {},
 	dynamicPipeProviders: {},
 	furiganaEnabled: false,
-	furiganaFormat: "curly",
+	furiganaFormat: "ruby",
 };
 
 export const DEFAULT_STATE: FlashcardsPluginState = {

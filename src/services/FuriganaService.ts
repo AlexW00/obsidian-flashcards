@@ -112,7 +112,7 @@ export class FuriganaService {
 	 */
 	async convert(
 		text: string,
-		format: "curly" | "ruby" | "parentheses" | "brackets" = "curly",
+		format: "curly" | "ruby" | "parentheses" | "brackets" = "ruby",
 	): Promise<string> {
 		if (!text || text.trim().length === 0) {
 			return text;
