@@ -210,7 +210,10 @@ describe("Anki Import Integration", () => {
 
 		describe("extractMediaFile", () => {
 			it("should extract and decompress media file", async () => {
-				const mediaData = await parser.extractMediaFile(apkgBuffer, "0");
+				const mediaData = await parser.extractMediaFile(
+					apkgBuffer,
+					"0",
+				);
 				expect(mediaData).not.toBeNull();
 				expect(mediaData!.length).toBeGreaterThan(0);
 				// PNG magic bytes: 89 50 4E 47

@@ -53,30 +53,30 @@ The file `resources/example-export.apkg` is used for integration testing. It con
 
 **Decks (2)**
 
-| ID | Name |
-|----|------|
-| 1 | Default |
+| ID            | Name                 |
+| ------------- | -------------------- |
+| 1             | Default              |
 | 1770302890374 | Default::nested deck |
 
 **Note Types (3)**
 
-| Name | Type | Fields |
-|------|------|--------|
-| Basic | Standard (0) | Front, Back |
-| Cloze | Cloze (1) | Text, Back Extra |
+| Name   | Type         | Fields                      |
+| ------ | ------------ | --------------------------- |
+| Basic  | Standard (0) | Front, Back                 |
+| Cloze  | Cloze (1)    | Text, Back Extra            |
 | Custom | Standard (0) | Front, Back, Comment, Image |
 
 **Notes (3)**
 
 1. **Custom note** — Contains:
-   - HTML formatting (`<ul>`, `<b>`, `<br>`)
-   - Furigana with ruby annotation
-   - Image reference (`<img src="...png">`)
-   - Tags: `ddd`, `tag2`
+    - HTML formatting (`<ul>`, `<b>`, `<br>`)
+    - Furigana with ruby annotation
+    - Image reference (`<img src="...png">`)
+    - Tags: `ddd`, `tag2`
 
 2. **Cloze note** — Contains:
-   - Cloze deletion: `{{c1::hidden}}`
-   - Back Extra field
+    - Cloze deletion: `{{c1::hidden}}`
+    - Back Extra field
 
 3. **Basic note** — Simple text in Front/Back fields
 
@@ -84,9 +84,9 @@ The file `resources/example-export.apkg` is used for integration testing. It con
 
 **Media (1)**
 
-| Key | Filename |
-|-----|----------|
-| 0 | 9f1b5b46aed533f5386cf276ab2cdce48cbd2e25.png |
+| Key | Filename                                     |
+| --- | -------------------------------------------- |
+| 0   | 9f1b5b46aed533f5386cf276ab2cdce48cbd2e25.png |
 
 The media file is zstd-compressed in the ZIP and is a PNG image.
 
