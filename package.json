@@ -15,9 +15,6 @@
 		"test:coverage": "vitest run --coverage",
 		"prepare": "husky install"
 	},
-	"lint-staged": {
-		"**/*.{js,jsx,ts,tsx,json,css,md}": "prettier --write"
-	},
 	"keywords": [],
 	"license": "0-BSD",
 	"devDependencies": {
@@ -33,7 +30,6 @@
 		"globals": "^17.3.0",
 		"husky": "^9.1.7",
 		"jiti": "2.6.1",
-		"lint-staged": "^16.2.7",
 		"prettier": "^3.8.1",
 		"tslib": "^2.8.1",
 		"typescript": "^5.9.3",

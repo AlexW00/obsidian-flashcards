@@ -22,10 +22,10 @@ export class FuriganaDictModal extends Modal {
     onOpen(): void {
         const { contentEl } = this;
 
-        contentEl.createEl("h2", { text: "Enable Furigana" });
+        contentEl.createEl("h2", { text: "Enable furigana" });
 
         contentEl.createEl("p", {
-            text: "To enable furigana support, the plugin needs to download Japanese dictionary files (~18MB) to your vault.",
+            text: "To enable furigana support, the plugin needs to download dictionary files (~18 mb) to your vault.",
         });
 
         contentEl.createEl("p", {
@@ -35,7 +35,7 @@ export class FuriganaDictModal extends Modal {
 
         // Progress area (hidden initially)
         this.progressEl = contentEl.createDiv({ cls: "furigana-download-progress" });
-        this.progressEl.style.display = "none";
+        this.progressEl.classList.add("is-hidden");
 
         // Button container
         const buttonContainer = contentEl.createDiv({
@@ -55,8 +55,8 @@ export class FuriganaDictModal extends Modal {
             text: "Download",
             cls: "mod-cta",
         });
-        downloadBtn.addEventListener("click", async () => {
-            await this.startDownload(downloadBtn);
+        downloadBtn.addEventListener("click", () => {
+            void this.startDownload(downloadBtn);
         });
     }
 
@@ -66,7 +66,7 @@ export class FuriganaDictModal extends Modal {
         downloadBtn.setText("Downloading...");
 
         if (this.progressEl) {
-            this.progressEl.style.display = "block";
+            this.progressEl.classList.remove("is-hidden");
             this.progressEl.setText("Starting download...");
         }
 
@@ -86,7 +86,7 @@ export class FuriganaDictModal extends Modal {
                 error instanceof Error ? error.message : "Unknown error";
             new Notice(`Failed to download dictionary: ${message}`);
             downloadBtn.disabled = false;
-            downloadBtn.setText("Retry Download");
+            downloadBtn.setText("Retry download");
             if (this.progressEl) {
                 this.progressEl.setText(`Error: ${message}`);
             }

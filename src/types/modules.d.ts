@@ -65,3 +65,26 @@ declare module "fzstd" {
 	 */
 	export function decompress(data: Uint8Array): Uint8Array;
 }
+
+declare module "@patdx/kuromoji" {
+	export interface TokenizerToken {
+		surface_form: string;
+		reading?: string;
+		word_type: string;
+	}
+
+	export interface Tokenizer {
+		tokenize(text: string): TokenizerToken[];
+	}
+
+	export interface Builder {
+		build(): Promise<Tokenizer>;
+	}
+
+	export function builder(config: {
+		dicPath: string;
+		loader?: {
+			loadArrayBuffer: (url: string) => Promise<ArrayBufferLike>;
+		};
+	}): Builder;
+}

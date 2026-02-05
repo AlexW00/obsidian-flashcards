@@ -198,6 +198,14 @@
    flex: 1;
 }
 
+/* ==========================================================================
+   Furigana Dictionary Modal
+   ========================================================================== */
+
+.furigana-download-progress.is-hidden {
+   display: none;
+}
+
 .anki-import-file-section .setting-item-control {
    flex: 0 0 auto;
 }

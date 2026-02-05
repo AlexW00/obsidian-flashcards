@@ -1,27 +1,86 @@
 import { describe, it, expect, beforeEach } from "vitest";
 import { AnkiTemplateConverter } from "./AnkiTemplateConverter";
-import type { AnkiModel } from "../types";
+import type { AnkiCardTemplate, AnkiField, AnkiModel } from "../types";
+
+type MockModelOverrides = Partial<Omit<AnkiModel, "flds" | "tmpls">> & {
+	flds?: Array<Partial<AnkiField>>;
+	tmpls?: Array<Partial<AnkiCardTemplate>>;
+};
+
+function createField(field: Partial<AnkiField>, ord: number): AnkiField {
+	return {
+		name: field.name ?? `Field ${ord}`,
+		ord: field.ord ?? ord,
+		sticky: field.sticky ?? false,
+		rtl: field.rtl ?? false,
+		font: field.font ?? "Arial",
+		size: field.size ?? 20,
+	};
+}
+
+function createTemplate(
+	template: Partial<AnkiCardTemplate>,
+	ord: number,
+): AnkiCardTemplate {
+	return {
+		name: template.name ?? `Card ${ord + 1}`,
+		qfmt: template.qfmt ?? "",
+		afmt: template.afmt ?? "",
+		ord: template.ord ?? ord,
+		did: template.did ?? null,
+		bqfmt: template.bqfmt ?? "",
+		bafmt: template.bafmt ?? "",
+	};
+}
 
 /**
  * Create a minimal mock AnkiModel for testing.
  */
-function createMockModel(overrides: Partial<AnkiModel> = {}): AnkiModel {
-	return {
-		id: "123456",
-		name: "Basic",
-		flds: [
-			{ name: "Front", ord: 0 },
-			{ name: "Back", ord: 1 },
-		],
-		tmpls: [
+function createMockModel(overrides: MockModelOverrides = {}): AnkiModel {
+	const defaultFields = [
+		createField({ name: "Front", ord: 0 }, 0),
+		createField({ name: "Back", ord: 1 }, 1),
+	];
+	const defaultTemplates = [
+		createTemplate(
 			{
 				name: "Card 1",
 				qfmt: "<div>{{Front}}</div>",
 				afmt: '<hr id="answer">{{FrontSide}}<div>{{Back}}</div>',
 				ord: 0,
 			},
-		],
-		...overrides,
+			0,
+		),
+	];
+
+	const { flds: overrideFields, tmpls: overrideTemplates, ...modelOverrides } =
+		overrides;
+
+	const model: AnkiModel = {
+		id: "123456",
+		name: "Basic",
+		type: 0,
+		flds: defaultFields,
+		tmpls: defaultTemplates,
+		css: "",
+		latexPre: "",
+		latexPost: "",
+		mod: 0,
+		did: 0,
+		sortf: 0,
+		tags: [],
+		...modelOverrides,
+	};
+
+	const fldsSource = overrideFields ?? model.flds;
+	const tmplsSource = overrideTemplates ?? model.tmpls;
+
+	return {
+		...model,
+		flds: fldsSource.map((field, index) => createField(field, index)),
+		tmpls: tmplsSource.map((template, index) =>
+			createTemplate(template, index),
+		),
 	};
 }
 
@@ -38,9 +97,9 @@ describe("AnkiTemplateConverter", () => {
 			const templates = converter.convertModel(model);
 
 			expect(templates).toHaveLength(1);
-			expect(templates[0].name).toBe("Basic");
-			expect(templates[0].modelId).toBe("123456");
-			expect(templates[0].templateOrd).toBe(0);
+			expect(templates[0]!.name).toBe("Basic");
+			expect(templates[0]!.modelId).toBe("123456");
+			expect(templates[0]!.templateOrd).toBe(0);
 		});
 
 		it("should create multiple templates for multi-card models", () => {
@@ -65,16 +124,16 @@ describe("AnkiTemplateConverter", () => {
 			const templates = converter.convertModel(model);
 
 			expect(templates).toHaveLength(2);
-			expect(templates[0].name).toBe("Basic (and reversed) - Card 1");
-			expect(templates[1].name).toBe("Basic (and reversed) - Card 2");
+			expect(templates[0]!.name).toBe("Basic (and reversed) - Card 1");
+			expect(templates[1]!.name).toBe("Basic (and reversed) - Card 2");
 		});
 
 		it("should extract variables from templates", () => {
 			const model = createMockModel();
 			const templates = converter.convertModel(model);
 
-			expect(templates[0].variables).toContain("Front");
-			expect(templates[0].variables).toContain("Back");
+			expect(templates[0]!.variables).toContain("Front");
+			expect(templates[0]!.variables).toContain("Back");
 		});
 
 		it("should apply field name mapping", () => {
@@ -86,10 +145,10 @@ describe("AnkiTemplateConverter", () => {
 
 			const templates = converter.convertModel(model, fieldNameMap);
 
-			expect(templates[0].body).toContain("{{ question }}");
-			expect(templates[0].body).toContain("{{ answer }}");
-			expect(templates[0].variables).toContain("question");
-			expect(templates[0].variables).toContain("answer");
+			expect(templates[0]!.body).toContain("{{ question }}");
+			expect(templates[0]!.body).toContain("{{ answer }}");
+			expect(templates[0]!.variables).toContain("question");
+			expect(templates[0]!.variables).toContain("answer");
 		});
 	});
 
@@ -107,8 +166,8 @@ describe("AnkiTemplateConverter", () => {
 			});
 
 			const templates = converter.convertModel(model);
-			expect(templates[0].body).toContain("{{ Front }}");
-			expect(templates[0].body).toContain("{{ Back }}");
+			expect(templates[0]!.body).toContain("{{ Front }}");
+			expect(templates[0]!.body).toContain("{{ Back }}");
 		});
 
 		it("should convert conditional (if field)", () => {
@@ -129,8 +188,8 @@ describe("AnkiTemplateConverter", () => {
 			});
 
 			const templates = converter.convertModel(model);
-			expect(templates[0].body).toContain("{% if Extra %}");
-			expect(templates[0].body).toContain("{% endif %}");
+			expect(templates[0]!.body).toContain("{% if Extra %}");
+			expect(templates[0]!.body).toContain("{% endif %}");
 		});
 
 		it("should convert negation (if not field)", () => {
@@ -151,8 +210,8 @@ describe("AnkiTemplateConverter", () => {
 			});
 
 			const templates = converter.convertModel(model);
-			expect(templates[0].body).toContain("{% if not Extra %}");
-			expect(templates[0].body).toContain("{% endif %}");
+			expect(templates[0]!.body).toContain("{% if not Extra %}");
+			expect(templates[0]!.body).toContain("{% endif %}");
 		});
 
 		it("should handle cloze: prefix", () => {
@@ -170,7 +229,7 @@ describe("AnkiTemplateConverter", () => {
 
 			const templates = converter.convertModel(model);
 			// cloze: prefix should be stripped, just output the field
-			expect(templates[0].body).toContain("{{ Text }}");
+			expect(templates[0]!.body).toContain("{{ Text }}");
 		});
 
 		it("should handle type: prefix", () => {
@@ -190,7 +249,7 @@ describe("AnkiTemplateConverter", () => {
 			});
 
 			const templates = converter.convertModel(model);
-			expect(templates[0].body).toContain("{{ Answer }}");
+			expect(templates[0]!.body).toContain("{{ Answer }}");
 		});
 
 		it("should replace {{FrontSide}} with front template content", () => {
@@ -207,10 +266,10 @@ describe("AnkiTemplateConverter", () => {
 
 			const templates = converter.convertModel(model);
 			// FrontSide should be replaced with the front content
-			expect(templates[0].body).toContain("{{ Front }}");
-			expect(templates[0].body).toContain("{{ Back }}");
+			expect(templates[0]!.body).toContain("{{ Front }}");
+			expect(templates[0]!.body).toContain("{{ Back }}");
 			// Should not contain literal FrontSide
-			expect(templates[0].body).not.toContain("{{ FrontSide }}");
+			expect(templates[0]!.body).not.toContain("{{ FrontSide }}");
 		});
 	});
 
@@ -229,8 +288,8 @@ describe("AnkiTemplateConverter", () => {
 
 			const templates = converter.convertModel(model);
 			// Triple braces should be normalized to double
-			expect(templates[0].body).toContain("{{ Front }}");
-			expect(templates[0].body).toContain("{{ Back }}");
+			expect(templates[0]!.body).toContain("{{ Front }}");
+			expect(templates[0]!.body).toContain("{{ Back }}");
 		});
 
 		it("should handle malformed triple braces (3 open, 2 close)", () => {
@@ -247,7 +306,7 @@ describe("AnkiTemplateConverter", () => {
 
 			const templates = converter.convertModel(model);
 			// Malformed triple braces should be normalized
-			expect(templates[0].body).toContain("{{ Front }}");
+			expect(templates[0]!.body).toContain("{{ Front }}");
 		});
 	});
 
@@ -266,7 +325,7 @@ describe("AnkiTemplateConverter", () => {
 
 			const templates = converter.convertModel(model);
 			// Should not have duplicates
-			const frontCount = templates[0].variables.filter(
+			const frontCount = templates[0]!.variables.filter(
 				(v) => v === "Front",
 			).length;
 			expect(frontCount).toBe(1);
@@ -287,17 +346,17 @@ describe("AnkiTemplateConverter", () => {
 			const templates = converter.convertModel(model);
 
 			// These should never appear as variables
-			expect(templates[0].variables).not.toContain("loop");
-			expect(templates[0].variables).not.toContain("self");
-			expect(templates[0].variables).not.toContain("true");
-			expect(templates[0].variables).not.toContain("false");
+			expect(templates[0]!.variables).not.toContain("loop");
+			expect(templates[0]!.variables).not.toContain("self");
+			expect(templates[0]!.variables).not.toContain("true");
+			expect(templates[0]!.variables).not.toContain("false");
 		});
 
 		it("should skip FrontSide special variable", () => {
 			const model = createMockModel();
 			const templates = converter.convertModel(model);
 
-			expect(templates[0].variables).not.toContain("FrontSide");
+			expect(templates[0]!.variables).not.toContain("FrontSide");
 		});
 	});
 
@@ -308,10 +367,10 @@ describe("AnkiTemplateConverter", () => {
 			});
 
 			const templates = converter.convertModel(model);
-			expect(templates[0].name).not.toContain(":");
-			expect(templates[0].name).not.toContain("/");
-			expect(templates[0].name).not.toContain("<");
-			expect(templates[0].name).not.toContain(">");
+			expect(templates[0]!.name).not.toContain(":");
+			expect(templates[0]!.name).not.toContain("/");
+			expect(templates[0]!.name).not.toContain("<");
+			expect(templates[0]!.name).not.toContain(">");
 		});
 
 		it("should collapse multiple dashes", () => {
@@ -320,7 +379,7 @@ describe("AnkiTemplateConverter", () => {
 			});
 
 			const templates = converter.convertModel(model);
-			expect(templates[0].name).not.toContain("---");
+			expect(templates[0]!.name).not.toContain("---");
 		});
 
 		it("should trim dashes from ends", () => {
@@ -329,8 +388,8 @@ describe("AnkiTemplateConverter", () => {
 			});
 
 			const templates = converter.convertModel(model);
-			expect(templates[0].name).not.toMatch(/^-/);
-			expect(templates[0].name).not.toMatch(/-$/);
+			expect(templates[0]!.name).not.toMatch(/^-/);
+			expect(templates[0]!.name).not.toMatch(/-$/);
 		});
 	});
 
@@ -348,7 +407,7 @@ describe("AnkiTemplateConverter", () => {
 			});
 
 			const templates = converter.convertModel(model);
-			expect(templates[0].body).toContain("---");
+			expect(templates[0]!.body).toContain("---");
 		});
 
 		it("should strip style tags", () => {
@@ -364,8 +423,8 @@ describe("AnkiTemplateConverter", () => {
 			});
 
 			const templates = converter.convertModel(model);
-			expect(templates[0].body).not.toContain("<style>");
-			expect(templates[0].body).not.toContain("color");
+			expect(templates[0]!.body).not.toContain("<style>");
+			expect(templates[0]!.body).not.toContain("color");
 		});
 
 		it("should strip script tags", () => {
@@ -381,8 +440,8 @@ describe("AnkiTemplateConverter", () => {
 			});
 
 			const templates = converter.convertModel(model);
-			expect(templates[0].body).not.toContain("<script>");
-			expect(templates[0].body).not.toContain("console.log");
+			expect(templates[0]!.body).not.toContain("<script>");
+			expect(templates[0]!.body).not.toContain("console.log");
 		});
 
 		it("should strip div classes but keep content", () => {
@@ -398,9 +457,9 @@ describe("AnkiTemplateConverter", () => {
 			});
 
 			const templates = converter.convertModel(model);
-			expect(templates[0].body).not.toContain("class=");
-			expect(templates[0].body).toContain("{{ Front }}");
-			expect(templates[0].body).toContain("{{ Back }}");
+			expect(templates[0]!.body).not.toContain("class=");
+			expect(templates[0]!.body).toContain("{{ Front }}");
+			expect(templates[0]!.body).toContain("{{ Back }}");
 		});
 
 		it("should preserve bold and italic", () => {
@@ -416,8 +475,8 @@ describe("AnkiTemplateConverter", () => {
 			});
 
 			const templates = converter.convertModel(model);
-			expect(templates[0].body).toContain("**{{ Front }}**");
-			expect(templates[0].body).toContain("*{{ Back }}*");
+			expect(templates[0]!.body).toContain("**{{ Front }}**");
+			expect(templates[0]!.body).toContain("*{{ Back }}*");
 		});
 	});
 
@@ -451,13 +510,13 @@ describe("AnkiTemplateConverter", () => {
 
 			const templates = converter.convertModel(model);
 
-			expect(templates[0].name).toBe("Vocabulary");
-			expect(templates[0].body).toContain("{{ Word }}");
-			expect(templates[0].body).toContain("{{ Meaning }}");
-			expect(templates[0].body).toContain("{% if Audio %}");
-			expect(templates[0].body).toContain("{% if Example %}");
-			expect(templates[0].body).toContain("---");
-			expect(templates[0].variables).toEqual(
+			expect(templates[0]!.name).toBe("Vocabulary");
+			expect(templates[0]!.body).toContain("{{ Word }}");
+			expect(templates[0]!.body).toContain("{{ Meaning }}");
+			expect(templates[0]!.body).toContain("{% if Audio %}");
+			expect(templates[0]!.body).toContain("{% if Example %}");
+			expect(templates[0]!.body).toContain("---");
+			expect(templates[0]!.variables).toEqual(
 				expect.arrayContaining(["Word", "Meaning", "Example", "Audio"]),
 			);
 		});
@@ -481,10 +540,10 @@ describe("AnkiTemplateConverter", () => {
 
 			const templates = converter.convertModel(model);
 
-			expect(templates[0].body).toContain("{{ Front }}");
-			expect(templates[0].body).toContain("{% if Hint %}");
-			expect(templates[0].body).toContain("{{ Hint }}");
-			expect(templates[0].body).toContain("{% endif %}");
+			expect(templates[0]!.body).toContain("{{ Front }}");
+			expect(templates[0]!.body).toContain("{% if Hint %}");
+			expect(templates[0]!.body).toContain("{{ Hint }}");
+			expect(templates[0]!.body).toContain("{% endif %}");
 		});
 	});
 
@@ -503,7 +562,7 @@ describe("AnkiTemplateConverter", () => {
 
 			const templates = converter.convertModel(model);
 			expect(templates).toHaveLength(1);
-			expect(templates[0].body).toBeDefined();
+			expect(templates[0]!.body).toBeDefined();
 		});
 
 		it("should handle fields with spaces in names", () => {
@@ -523,7 +582,7 @@ describe("AnkiTemplateConverter", () => {
 			});
 
 			const templates = converter.convertModel(model);
-			expect(templates[0].body).toContain("{{ Front Side }}");
+			expect(templates[0]!.body).toContain("{{ Front Side }}");
 		});
 
 		it("should handle unicode in template", () => {
@@ -544,9 +603,9 @@ describe("AnkiTemplateConverter", () => {
 			});
 
 			const templates = converter.convertModel(model);
-			expect(templates[0].name).toContain("日本語カード");
-			expect(templates[0].body).toContain("{{ 表 }}");
-			expect(templates[0].body).toContain("{{ 裏 }}");
+			expect(templates[0]!.name).toContain("日本語カード");
+			expect(templates[0]!.body).toContain("{{ 表 }}");
+			expect(templates[0]!.body).toContain("{{ 裏 }}");
 		});
 	});
 });

@@ -91,10 +91,10 @@ export default class AnkerPlugin extends Plugin {
 		this.templateService.setAiService(this.aiService);
 
 		// Initialize Furigana services
-		this.dictManager = new DictionaryManager(
-			this.app,
-			this.manifest.dir ?? ".obsidian/plugins/anker",
-		);
+		const pluginDir =
+			this.manifest.dir ??
+			`${this.app.vault.configDir}/plugins/${this.manifest.id}`;
+		this.dictManager = new DictionaryManager(this.app, pluginDir);
 		this.furiganaService = new FuriganaService(this.app, this.dictManager);
 
 		// Connect furigana service to template service if enabled

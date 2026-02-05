@@ -537,7 +537,7 @@ export class AnkerSettingTab extends PluginSettingTab {
 		};
 
 		new Setting(container)
-			.setName("Enable Furigana")
+			.setName("Enable furigana")
 			.setDesc(
 				"Adds {{ text | furigana }} filter for Japanese text. Requires ~18MB dictionary download.",
 			)

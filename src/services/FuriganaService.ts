@@ -1,32 +1,15 @@
 import type { App } from "obsidian";
+import type { Tokenizer } from "@patdx/kuromoji";
 import type { DictionaryManager } from "./DictionaryManager";
+import * as kuromoji from "@patdx/kuromoji";
 import pako from "pako";
-
-// eslint-disable-next-line @typescript-eslint/no-require-imports
-const kuromoji = require("@patdx/kuromoji");
-
-/**
- * Token from kuromoji tokenizer.
- */
-interface KuromojiToken {
-    surface_form: string;
-    reading?: string;
-    word_type: string;
-}
-
-/**
- * Kuromoji tokenizer interface.
- */
-interface KuromojiTokenizer {
-    tokenize(text: string): KuromojiToken[];
-}
 
 /**
  * Service for converting Japanese text to furigana format.
  * Uses kuromoji tokenizer to identify kanji and their readings.
  */
 export class FuriganaService {
-    private tokenizer: KuromojiTokenizer | null = null;
+    private tokenizer: Tokenizer | null = null;
     private initPromise: Promise<void> | null = null;
     private isReady = false;
     private app: App;
@@ -72,7 +55,7 @@ export class FuriganaService {
                 })
                 .build();
 
-            this.tokenizer = tokenizer as unknown as KuromojiTokenizer;
+            this.tokenizer = tokenizer;
             this.isReady = true;
         })();
 
