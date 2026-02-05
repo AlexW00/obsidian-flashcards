@@ -11,6 +11,7 @@ export default defineConfig({
 				"src/srs/**/*.ts",
 				"src/services/AnkiContentConverter.ts",
 				"src/services/AnkiTemplateConverter.ts",
+				"src/services/AnkiPackageParser.ts",
 			],
 			exclude: ["src/**/*.test.ts"],
 		},

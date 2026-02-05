@@ -354,6 +354,14 @@ export default class AnkerPlugin extends Plugin {
 	}
 
 	/**
+	 * Update the furigana format on the template service.
+	 * Called by settings when user changes the format.
+	 */
+	setFuriganaFormat(format: "curly" | "ruby" | "parentheses" | "brackets"): void {
+		this.templateService.setFuriganaFormat(format);
+	}
+
+	/**
 	 * Register all plugin commands.
 	 */
 	private registerCommands() {

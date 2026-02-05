@@ -507,6 +507,35 @@ export class AnkerSettingTab extends PluginSettingTab {
 			});
 
 		// Furigana toggle - requires dictionary download
+		// Create a container div for the format dropdown so we can show/hide it dynamically
+		const furiganaFormatContainer = container.createDiv();
+
+		const createFormatDropdown = () => {
+			furiganaFormatContainer.empty();
+			if (this.plugin.settings.furiganaEnabled) {
+				new Setting(furiganaFormatContainer)
+					.setName("Furigana format")
+					.setDesc("How to format the furigana output")
+					.addDropdown((dropdown) => {
+						dropdown.addOption("curly", "{漢字|かんじ}");
+						dropdown.addOption("ruby", "<ruby>漢字<rt>かんじ</rt></ruby>");
+						dropdown.addOption("parentheses", "漢字(かんじ)");
+						dropdown.addOption("brackets", "漢字[かんじ]");
+						dropdown.setValue(this.plugin.settings.furiganaFormat);
+						dropdown.onChange(async (value) => {
+							const format = value as "curly" | "ruby" | "parentheses" | "brackets";
+							this.plugin.settings.furiganaFormat = format;
+							await this.plugin.saveSettings();
+							// Update template service with new format
+							const pluginWithFormat = this.plugin as unknown as {
+								setFuriganaFormat?: (f: typeof format) => void;
+							};
+							pluginWithFormat.setFuriganaFormat?.(format);
+						});
+					});
+			}
+		};
+
 		new Setting(container)
 			.setName("Enable Furigana")
 			.setDesc(
@@ -541,6 +570,7 @@ export class AnkerSettingTab extends PluginSettingTab {
 							if (pluginWithFurigana.showFuriganaDictModal) {
 								pluginWithFurigana.showFuriganaDictModal(() => {
 									toggle.setValue(true);
+									createFormatDropdown();
 								});
 							}
 							// Reset toggle until download completes
@@ -551,28 +581,15 @@ export class AnkerSettingTab extends PluginSettingTab {
 
 					this.plugin.settings.furiganaEnabled = value;
 					await this.plugin.saveSettings();
-					// Re-render to show/hide format dropdown
-					this.display();
+					// Show/hide format dropdown
+					createFormatDropdown();
 				});
 			});
 
-		// Furigana format dropdown (only show when enabled)
-		if (this.plugin.settings.furiganaEnabled) {
-			new Setting(container)
-				.setName("Furigana format")
-				.setDesc("How to format the furigana output")
-				.addDropdown((dropdown) => {
-					dropdown.addOption("curly", "{漢字|かんじ}");
-					dropdown.addOption("ruby", "<ruby>漢字<rt>かんじ</rt></ruby>");
-					dropdown.addOption("parentheses", "漢字(かんじ)");
-					dropdown.addOption("brackets", "漢字[かんじ]");
-					dropdown.setValue(this.plugin.settings.furiganaFormat);
-					dropdown.onChange(async (value) => {
-						this.plugin.settings.furiganaFormat = value as "curly" | "ruby" | "parentheses" | "brackets";
-						await this.plugin.saveSettings();
-					});
-				});
-		}
+		// Move the format container after the toggle setting
+		container.appendChild(furiganaFormatContainer);
+		// Initial render of format dropdown
+		createFormatDropdown();
 
 		// Add provider button
 		new Setting(container)
