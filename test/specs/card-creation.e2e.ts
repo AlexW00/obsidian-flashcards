@@ -1,32 +1,26 @@
 import { describe, it, beforeEach } from "mocha";
 import { browser, expect } from "@wdio/globals";
 import { obsidianPage } from "wdio-obsidian-service";
+import { waitForVaultReady } from "../helpers/waitForVaultReady";
 
 describe("Card Creation", function () {
     beforeEach(async function () {
         // Reset vault state before each test
         await obsidianPage.resetVault();
-        // Wait for plugins to load
-        await browser.pause(1000);
+        await browser.executeObsidian(async ({ app }) => {
+            // Ensure a "flashcards" folder exists for deck service
+            if (!app.vault.getAbstractFileByPath("flashcards")) {
+                await app.vault.createFolder("flashcards");
+            }
 
-        // Wait for vault to be indexed (files to be found)
-        await browser.waitUntil(async () => {
-            return await browser.executeObsidian(async ({ app }) => {
-                // Ensure a "flashcards" folder exists for deck service
-                if (!app.vault.getAbstractFileByPath("flashcards")) {
-                    await app.vault.createFolder("flashcards");
-                }
-
-                // Configure settings to match test vault
-                const plugin = (app as any).plugins.getPlugin("anker");
-                if (plugin) {
-                    plugin.settings.templateFolder = "templates";
-                    await plugin.saveSettings();
-                }
-
-                return app.vault.getMarkdownFiles().length > 0;
-            });
-        }, { timeout: 10000, interval: 500, timeoutMsg: "Vault files not indexed" });
+            // Configure settings to match test vault
+            const plugin = (app as any).plugins.getPlugin("anker");
+            if (plugin) {
+                plugin.settings.templateFolder = "templates";
+                await plugin.saveSettings();
+            }
+        });
+        await waitForVaultReady();
     });
 
     it("opens card creation modal via command", async function () {

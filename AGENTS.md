@@ -29,7 +29,7 @@ Obsidian community plugin for spaced repetition flashcards using FSRS. The plugi
 
 - **Lint**: `npm run lint`
 - **Typecheck**: `npm run typecheck`
-- **Test**: `npm test -- --run`
+- **Test (unit + integration)**: `npm test -- --run`
 - **Build (when needed)**: `npm run build`
 
 ## Key conventions
@@ -51,9 +51,12 @@ Obsidian community plugin for spaced repetition flashcards using FSRS. The plugi
 
 ## Testing guidelines
 
-- Add unit tests when you introduce or modify logic that can run without Obsidian.
-- Prefer Vitest unit tests colocated in [src/services/](src/services/) and [src/srs/](src/srs/).
-- Run `npm test -- --run` after making changes, along with lint and typecheck.
+- After any code changes, run lint, typecheck, and unit + integration tests.
+- E2E tests are not required locally; they run in CI/CD because they are resource intensive.
+- Unit tests cover pure logic that does not require the Obsidian API.
+- Integration tests also avoid the Obsidian API, but can exercise file interactions like Anki packages, templates, or markdown fixtures.
+- E2E tests validate end-to-end user flows in Obsidian; keep them focused on high-value paths.
+- Follow the Pareto principle for coverage: prioritize high-impact scenarios over exhaustive coverage.
 
 ## Obsidian API reference
 

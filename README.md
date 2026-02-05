@@ -189,6 +189,10 @@ npm run typecheck
 
 # Lint
 npm run lint
+
+# Run E2E Tests (requires Linux or macOS)
+# Note: On Linux, requires xvfb (see .github/workflows/e2e.yml)
+npm run test:e2e
 ```
 
 ## License

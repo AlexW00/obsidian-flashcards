@@ -1,6 +1,7 @@
 import { describe, it, before } from "mocha";
 import { browser, expect } from "@wdio/globals";
 import { obsidianPage } from "wdio-obsidian-service";
+import { waitForVaultReady } from "../helpers/waitForVaultReady";
 
 describe("Template Regeneration", function () {
     before(async function () {
@@ -15,6 +16,8 @@ describe("Template Regeneration", function () {
                 await plugin.saveSettings();
             }
         });
+
+        await waitForVaultReady();
     });
 
     it("card body contains template-rendered content", async function () {

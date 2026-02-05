@@ -1,4 +1,5 @@
 import * as path from "path";
+import { readFile } from "fs/promises";
 import { parseObsidianVersions, obsidianBetaAvailable } from "wdio-obsidian-service";
 import { env } from "process";
 
@@ -6,8 +7,13 @@ import { env } from "process";
 const cacheDir = path.resolve(".obsidian-cache");
 
 // Choose Obsidian versions to test
-// Default: test on minAppVersion (0.15.0) and latest
-let defaultVersions = "earliest/earliest latest/latest";
+// Default: test on manifest minAppVersion and latest
+const manifestPath = path.resolve("manifest.json");
+const manifest = JSON.parse(await readFile(manifestPath, "utf8")) as {
+    minAppVersion?: string;
+};
+const minAppVersion = manifest.minAppVersion ?? "1.11.5";
+let defaultVersions = `${minAppVersion}/${minAppVersion} latest/latest`;
 if (await obsidianBetaAvailable({ cacheDir })) {
     defaultVersions += " latest-beta/latest";
 }

@@ -1,11 +1,13 @@
 import { describe, it, before } from "mocha";
 import { browser, expect } from "@wdio/globals";
 import { obsidianPage } from "wdio-obsidian-service";
+import { waitForVaultReady } from "../helpers/waitForVaultReady";
 
 describe("Dashboard", function () {
     before(async function () {
         // Reset vault to initial state before tests
         await obsidianPage.resetVault();
+        await waitForVaultReady();
     });
 
     it("plugin loads successfully", async function () {
