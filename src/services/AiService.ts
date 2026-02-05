@@ -572,7 +572,8 @@ export class AiService {
 		}
 
 		// Get provider config
-		const providerResult = this.getImageSearchProviderForDynamicPipe(pipeType);
+		const providerResult =
+			this.getImageSearchProviderForDynamicPipe(pipeType);
 		if (!providerResult) {
 			throw new Error(
 				"No provider configured for searchImage dynamic pipe. Add a Pexels provider and select it in the Search image provider dropdown.",

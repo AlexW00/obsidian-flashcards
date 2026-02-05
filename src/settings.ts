@@ -532,7 +532,10 @@ export class AnkerSettingTab extends PluginSettingTab {
 										},
 									};
 									await this.plugin.saveSettings();
-									this.renderAiProviderSettings(container, id);
+									this.renderAiProviderSettings(
+										container,
+										id,
+									);
 								}),
 						);
 
@@ -543,14 +546,19 @@ export class AnkerSettingTab extends PluginSettingTab {
 								.setIcon("image")
 								.onClick(async () => {
 									const id = `imgsearch_${Date.now()}`;
-									this.plugin.settings.imageSearchProviders = {
-										...this.plugin.settings.imageSearchProviders,
-										[id]: {
-											type: "pexels",
-										},
-									};
+									this.plugin.settings.imageSearchProviders =
+										{
+											...this.plugin.settings
+												.imageSearchProviders,
+											[id]: {
+												type: "pexels",
+											},
+										};
 									await this.plugin.saveSettings();
-									this.renderAiProviderSettings(container, id);
+									this.renderAiProviderSettings(
+										container,
+										id,
+									);
 								}),
 						);
 

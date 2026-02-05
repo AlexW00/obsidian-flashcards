@@ -112,7 +112,11 @@ export class PexelsService {
 
 		for (
 			let i = 0;
-			i < Math.min(searchData.photos.length, PexelsService.MAX_FALLBACK_ATTEMPTS);
+			i <
+			Math.min(
+				searchData.photos.length,
+				PexelsService.MAX_FALLBACK_ATTEMPTS,
+			);
 			i++
 		) {
 			const photo = searchData.photos[i];
@@ -148,7 +152,9 @@ export class PexelsService {
 	 * @param photo Pexels photo object
 	 * @returns Image data and metadata
 	 */
-	private async downloadPhoto(photo: PexelsPhoto): Promise<PexelsImageResult> {
+	private async downloadPhoto(
+		photo: PexelsPhoto,
+	): Promise<PexelsImageResult> {
 		// Use medium size for good balance of quality and file size
 		const imageUrl = photo.src.medium;
 
