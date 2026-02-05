@@ -56,8 +56,23 @@ describe("Review Progress & Settings", function () {
 			btn?.click();
 		}, ratingClass);
 
-		// Small pause for state update
-		await browser.pause(500);
+		// Wait for either next card or completion state
+		await browser.waitUntil(
+			async () => {
+				// Check if session completed
+				const complete = browser.$(
+					".flashcard-complete-state",
+				);
+				if (await complete.isExisting()) return true;
+
+				// Check if new reveal button appeared (next card)
+				const reveal = browser.$(
+					".flashcard-review .flashcard-btn-reveal",
+				);
+				return reveal.isExisting();
+			},
+			{ timeout: 5000, interval: 100 },
+		);
 	};
 
 	/**
@@ -154,13 +169,15 @@ describe("Review Progress & Settings", function () {
 				return;
 			}
 
-			const afterText = await getProgressText();
-			const afterWidth = await getProgressFillWidth();
-
-			// At least one of text or width should have changed
-			const textChanged = afterText !== initialText;
-			const widthChanged = afterWidth !== initialWidth;
-			expect(textChanged || widthChanged).toBe(true);
+			// Wait for progress to actually update (poll until changed)
+			await browser.waitUntil(
+				async () => {
+					const afterText = await getProgressText();
+					const afterWidth = await getProgressFillWidth();
+					return afterText !== initialText || afterWidth !== initialWidth;
+				},
+				{ timeout: 5000, interval: 100, timeoutMsg: "Progress did not update after rating" },
+			);
 		}
 	});
 
@@ -185,17 +202,30 @@ describe("Review Progress & Settings", function () {
 		const isComplete = await completeState.isExisting();
 
 		if (!isComplete) {
+			// Wait for completed count to increase (poll until updated)
+			await browser.waitUntil(
+				async () => {
+					const afterText = await getProgressText();
+					const afterMatch = afterText.match(
+						/(\d+)\s*\/\s*(\d+)\s*completed/,
+					);
+					if (!afterMatch) return false;
+					const afterCompleted = Number(afterMatch[1]);
+					return afterCompleted > initialCompleted;
+				},
+				{ timeout: 5000, interval: 100, timeoutMsg: "Completed count did not increase after rating" },
+			);
+
+			// Final verification
 			const afterText = await getProgressText();
 			const afterMatch = afterText.match(
 				/(\d+)\s*\/\s*(\d+)\s*completed/,
 			);
 			expect(afterMatch).not.toBe(null);
-			const afterCompleted = Number(afterMatch![1]);
 			const afterTotal = Number(afterMatch![2]);
 
-			// The total should stay stable; completed should increase
+			// The total should stay stable
 			expect(afterTotal).toEqual(initialTotal);
-			expect(afterCompleted).toBeGreaterThan(initialCompleted);
 		}
 		// If complete, that's fine — all cards were reviewed
 	});
