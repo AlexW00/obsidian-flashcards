@@ -1,4 +1,5 @@
 import { ButtonComponent } from "obsidian";
+import { StickyListContainer } from "./StickyListContainer";
 
 /**
  * Item wrapper with selection state for the SelectableListComponent.
@@ -20,6 +21,8 @@ export interface SelectableListOptions<T> {
 	getSecondaryText?: (item: T) => string;
 	/** Optional function to get indent level for an item (0 = no indent). */
 	getIndent?: (item: T) => number;
+	/** Optional function to check if an item should be disabled (non-selectable). */
+	isItemDisabled?: (item: T) => boolean;
 	/** Number of items above which virtual scrolling is enabled. Defaults to 100. */
 	virtualScrollThreshold?: number;
 	/** Callback when selection changes. */
@@ -57,13 +60,16 @@ interface VirtualScrollState {
  */
 export class SelectableListComponent<T> {
 	private containerEl: HTMLElement;
+	private scrollEl: HTMLElement;
 	private listEl: HTMLElement;
+	private headerEl: HTMLElement | null = null;
 	private countEl: HTMLElement | null = null;
 	private options: SelectableListOptions<T>;
 	private selectableItems: SelectableItem<T>[] = [];
 	private virtualScroll: VirtualScrollState | null = null;
 	private checkboxElements: Map<number, HTMLInputElement> = new Map();
 	private isDisabled = false;
+	private stickyContainer: StickyListContainer;
 
 	private static readonly DEFAULT_ITEM_HEIGHT = 32;
 	private static readonly BUFFER_SIZE = 10;
@@ -77,16 +83,32 @@ export class SelectableListComponent<T> {
 		const initiallySelected = options.initiallySelected !== false;
 		this.selectableItems = options.items.map((item) => ({
 			item,
-			selected: initiallySelected,
+			// Disabled items are never initially selected
+			selected:
+				initiallySelected && !(options.isItemDisabled?.(item) ?? false),
 		}));
 
 		this.render();
 	}
 
 	private render(): void {
+		const contentClasses = ["selectable-list-items"];
+		if (this.options.containerClass) {
+			contentClasses.push(this.options.containerClass);
+		}
+
+		this.stickyContainer = new StickyListContainer(this.containerEl, {
+			scrollClass: "selectable-list",
+			headerClass: "selectable-list-header",
+			contentClass: contentClasses.join(" "),
+		});
+		this.scrollEl = this.stickyContainer.getScrollEl();
+		this.listEl = this.stickyContainer.getContentEl();
+
 		// Controls row (select all / deselect all)
 		if (this.options.showControls !== false) {
-			const controlRow = this.containerEl.createDiv({
+			this.headerEl = this.stickyContainer.getHeaderEl();
+			const controlRow = this.headerEl.createDiv({
 				cls: "selectable-list-controls",
 			});
 
@@ -105,11 +127,9 @@ export class SelectableListComponent<T> {
 				});
 				this.updateCountDisplay();
 			}
+		} else {
+			this.stickyContainer.removeHeader();
 		}
-
-		// List container
-		const listClass = this.options.containerClass ?? "selectable-list";
-		this.listEl = this.containerEl.createDiv({ cls: listClass });
 
 		this.renderList();
 	}
@@ -165,7 +185,7 @@ export class SelectableListComponent<T> {
 		});
 
 		this.virtualScroll = {
-			container: this.listEl,
+			container: this.scrollEl,
 			visibleContainer,
 			itemHeight,
 			bufferSize: SelectableListComponent.BUFFER_SIZE,
@@ -177,9 +197,9 @@ export class SelectableListComponent<T> {
 		this.updateVisibleItems(0);
 
 		// Scroll handler
-		this.listEl.addEventListener("scroll", () => {
+		this.scrollEl.addEventListener("scroll", () => {
 			if (this.virtualScroll) {
-				this.updateVisibleItems(this.listEl.scrollTop);
+				this.updateVisibleItems(this.scrollEl.scrollTop);
 			}
 		});
 	}
@@ -188,11 +208,16 @@ export class SelectableListComponent<T> {
 		if (!this.virtualScroll) return;
 
 		const { itemHeight, bufferSize, visibleContainer } = this.virtualScroll;
-		const containerHeight = this.listEl.clientHeight;
+		const headerHeight = this.headerEl?.offsetHeight ?? 0;
+		const scrollTopAdjusted = Math.max(0, scrollTop - headerHeight);
+		const containerHeight = Math.max(
+			0,
+			this.scrollEl.clientHeight - headerHeight,
+		);
 
 		const startIndex = Math.max(
 			0,
-			Math.floor(scrollTop / itemHeight) - bufferSize,
+			Math.floor(scrollTopAdjusted / itemHeight) - bufferSize,
 		);
 		const visibleCount = Math.ceil(containerHeight / itemHeight);
 		const endIndex = Math.min(
@@ -245,9 +270,19 @@ export class SelectableListComponent<T> {
 			}
 		}
 
+		// Check if item is disabled (non-selectable)
+		const isItemDisabled =
+			this.options.isItemDisabled?.(selectableItem.item) ?? false;
+		if (isItemDisabled) {
+			row.addClass("selectable-list-item-disabled");
+		}
+
 		const checkbox = row.createEl("input", { type: "checkbox" });
 		checkbox.checked = selectableItem.selected;
-		checkbox.disabled = this.isDisabled;
+		checkbox.disabled = this.isDisabled || isItemDisabled;
+		if (isItemDisabled) {
+			checkbox.addClass("selectable-list-checkbox-hidden");
+		}
 
 		if (!forMeasure) {
 			this.checkboxElements.set(index, checkbox);
@@ -316,11 +351,13 @@ export class SelectableListComponent<T> {
 	}
 
 	/**
-	 * Select all items.
+	 * Select all items (skips disabled items).
 	 */
 	selectAll(): void {
 		for (const item of this.selectableItems) {
-			item.selected = true;
+			if (!(this.options.isItemDisabled?.(item.item) ?? false)) {
+				item.selected = true;
+			}
 		}
 		this.syncCheckboxesToData();
 		this.onSelectionChanged();
@@ -334,6 +371,38 @@ export class SelectableListComponent<T> {
 			item.selected = false;
 		}
 		this.syncCheckboxesToData();
+		this.onSelectionChanged();
+	}
+
+	/**
+	 * Update selection state for a set of items.
+	 */
+	setItemsSelected(
+		items: T[],
+		selected: boolean,
+		options?: { notify?: boolean },
+	): void {
+		if (items.length === 0) return;
+
+		const itemSet = new Set(items);
+		let changed = false;
+
+		for (const item of this.selectableItems) {
+			if (!itemSet.has(item.item)) continue;
+			if (this.options.isItemDisabled?.(item.item) ?? false) continue;
+			if (item.selected !== selected) {
+				item.selected = selected;
+				changed = true;
+			}
+		}
+
+		if (!changed) return;
+
+		this.syncCheckboxesToData();
+		if (options?.notify === false) {
+			this.updateCountDisplay();
+			return;
+		}
 		this.onSelectionChanged();
 	}
 

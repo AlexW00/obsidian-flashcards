@@ -17,6 +17,7 @@ import type {
 	AnkiPackageData,
 	FlashcardsPluginSettings,
 } from "../types";
+import { ANKI_DECK_SEPARATOR } from "../types";
 import {
 	AnkiImportService,
 	type ImportResult,
@@ -106,6 +107,7 @@ export class AnkiImportModal extends Modal {
 	private deckSelections: AnkiDeckSelection[] = [];
 	private destinationFolder: string;
 	private folderSuggest: FolderPathSuggest | null = null;
+	private lastSelectedDeckIds: Set<number> = new Set();
 
 	// UI components
 	private deckListContainer: HTMLElement | null = null;
@@ -340,17 +342,83 @@ export class AnkiImportModal extends Modal {
 				items: this.deckSelections,
 				getDisplayName: (sel) => {
 					// Display only the last part for nested decks
-					const nameParts = sel.deck.name.split("::");
+					const nameParts = sel.deck.name.split(ANKI_DECK_SEPARATOR);
 					return nameParts[nameParts.length - 1] ?? sel.deck.name;
 				},
-				getSecondaryText: (sel) => `(${sel.noteCount} cards)`,
+				getSecondaryText: (sel) =>
+					sel.noteCount > 0 ? `(${sel.noteCount} cards)` : "",
 				getIndent: (sel) => sel.depth,
-				onSelectionChange: () => this.updateImportButton(),
+				isItemDisabled: (sel) => sel.deck.id < 0, // Synthetic parent decks
+				onSelectionChange: (selectedItems) =>
+					this.handleDeckSelectionChange(selectedItems),
 				initiallySelected: true,
 				containerClass: "anki-import-decks",
 				showCount: false,
 			},
 		);
+
+		this.lastSelectedDeckIds = new Set(
+			this.selectableList.getSelectedItems().map((sel) => sel.deck.id),
+		);
+	}
+
+	/**
+	 * When a deck is selected, select all of its descendant decks.
+	 */
+	private handleDeckSelectionChange(
+		selectedItems: AnkiDeckSelection[],
+	): void {
+		if (!this.selectableList) return;
+
+		const newlySelected = selectedItems.filter(
+			(item) => !this.lastSelectedDeckIds.has(item.deck.id),
+		);
+		const newlyDeselected = this.deckSelections.filter(
+			(item) =>
+				this.lastSelectedDeckIds.has(item.deck.id) &&
+				!selectedItems.some(
+					(selected) => selected.deck.id === item.deck.id,
+					),
+		);
+
+		if (newlySelected.length > 0) {
+			const descendants = this.collectDescendants(newlySelected);
+			this.selectableList.setItemsSelected(descendants, true, {
+				notify: false,
+			});
+		}
+
+		if (newlyDeselected.length > 0) {
+			const descendants = this.collectDescendants(newlyDeselected);
+			this.selectableList.setItemsSelected(descendants, false, {
+				notify: false,
+			});
+		}
+
+		const updatedSelected = this.selectableList.getSelectedItems();
+		this.lastSelectedDeckIds = new Set(
+			updatedSelected.map((sel) => sel.deck.id),
+		);
+		this.updateImportButton();
+	}
+
+	private collectDescendants(
+		parents: AnkiDeckSelection[],
+	): AnkiDeckSelection[] {
+		const descendants: AnkiDeckSelection[] = [];
+		const seen = new Set<number>();
+
+		for (const parent of parents) {
+			const prefix = `${parent.deck.name}${ANKI_DECK_SEPARATOR}`;
+			for (const selection of this.deckSelections) {
+				if (!selection.deck.name.startsWith(prefix)) continue;
+				if (seen.has(selection.deck.id)) continue;
+				descendants.push(selection);
+				seen.add(selection.deck.id);
+			}
+		}
+
+		return descendants;
 	}
 
 	/**

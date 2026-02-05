@@ -17,6 +17,7 @@ import type {
 	ImportProgressCallback,
 	ReviewState,
 } from "../types";
+import { ANKI_DECK_SEPARATOR } from "../types";
 import { PROTECTION_COMMENT } from "../types";
 import { AnkiContentConverter } from "./AnkiContentConverter";
 import {
@@ -563,6 +564,7 @@ export class AnkiImportService {
 
 	/**
 	 * Build deck hierarchy from parsed decks for UI selection.
+	 * Synthesizes missing parent decks to show full hierarchy.
 	 */
 	buildDeckHierarchy(
 		data: AnkiPackageData,
@@ -584,27 +586,60 @@ export class AnkiImportService {
 			noteCountByDeck.set(card.did, count + 1);
 		}
 
-		// Build tree structure
+		// Build initial deck list
 		const deckList = Array.from(data.decks.values())
 			// Filter out default deck (id=1) if it has no cards
 			.filter((d) => d.id !== 1 || (noteCountByDeck.get(d.id) ?? 0) > 0)
 			// Filter out dynamic/filtered decks
 			.filter((d) => d.dyn !== 1);
 
-		// Sort by name for consistent ordering
+		// Track all deck names to synthesize missing parents
+		const existingDeckNames = new Set(deckList.map((d) => d.name));
+		const allDeckNames = new Set<string>();
+
+		// Collect all parent paths that should exist
+		for (const deck of deckList) {
+			const parts = deck.name.split(ANKI_DECK_SEPARATOR);
+			let path = "";
+			for (const part of parts) {
+				path = path ? `${path}${ANKI_DECK_SEPARATOR}${part}` : part;
+				allDeckNames.add(path);
+			}
+		}
+
+		// Synthesize missing parent decks (virtual, non-selectable)
+		let syntheticId = -1;
+		for (const name of allDeckNames) {
+			if (!existingDeckNames.has(name)) {
+				deckList.push({
+					id: syntheticId--,
+					name,
+					desc: "",
+					mod: 0,
+					dyn: 0,
+					collapsed: false,
+				});
+			}
+		}
+
+		// Sort by name for consistent ordering (parents before children)
 		deckList.sort((a, b) => a.name.localeCompare(b.name));
 
-		// Create flat list with depth info (Anki uses :: for hierarchy)
+		// Create flat list with depth info (Anki uses unit separator for hierarchy)
 		const selections: AnkiDeckSelection[] = [];
 
 		for (const deck of deckList) {
-			const parts = deck.name.split("::");
+			const parts = deck.name.split(ANKI_DECK_SEPARATOR);
 			const depth = parts.length - 1;
 			const noteCount = noteCountByDeck.get(deck.id) ?? 0;
+			// Synthetic decks (id < 0) are non-selectable parent placeholders
+			const isSynthetic = deck.id < 0;
 
 			selections.push({
 				deck,
-				selected: selectedDeckIds?.has(deck.id) ?? false,
+				selected: isSynthetic
+					? false
+					: (selectedDeckIds?.has(deck.id) ?? false),
 				noteCount,
 				children: [], // Not used for flat list
 				depth,
@@ -956,8 +991,10 @@ export class AnkiImportService {
 			);
 		}
 
-		// Build deck folder path (convert :: to /)
-		const deckPath = deck.name.replace(/::/g, "/");
+		// Build deck folder path (convert Anki separator to /)
+		const deckPath = deck.name
+			.split(ANKI_DECK_SEPARATOR)
+			.join("/");
 		const fullDeckPath = `${destinationFolder}/${deckPath}`;
 		await this.ensureFolderExists(fullDeckPath);
 

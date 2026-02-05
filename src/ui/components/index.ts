@@ -14,6 +14,9 @@ export type {
 	SelectableListOptions,
 } from "./SelectableListComponent";
 
+export { StickyListContainer } from "./StickyListContainer";
+export type { StickyListContainerOptions } from "./StickyListContainer";
+
 export { StatusTextComponent } from "./StatusTextComponent";
 
 export { FileListComponent } from "./FileListComponent";

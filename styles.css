@@ -222,13 +222,37 @@ background: var(--background-primary);
 }
 
 /* --------------------------------------------------------------------------
+   Sticky List Container (shared)
+   -------------------------------------------------------------------------- */
+.flashcard-sticky-list {
+max-height: 300px;
+overflow-y: auto;
+border: 1px solid var(--background-modifier-border);
+border-radius: var(--radius-s);
+background: var(--background-secondary);
+}
+
+.flashcard-sticky-list-header {
+position: sticky;
+top: 0;
+z-index: 1;
+background: var(--background-secondary);
+border-bottom: 1px solid var(--background-modifier-border);
+padding: var(--size-4-2) var(--size-4-3);
+}
+
+.flashcard-sticky-list-content {
+display: flex;
+flex-direction: column;
+}
+
+/* --------------------------------------------------------------------------
    SelectableListComponent
    -------------------------------------------------------------------------- */
 .selectable-list-controls {
 display: flex;
 align-items: center;
 gap: var(--size-4-2);
-margin-bottom: var(--size-4-2);
 }
 
 .selectable-list-count {
@@ -238,11 +262,11 @@ color: var(--text-muted);
 }
 
 .selectable-list {
-max-height: 300px;
-overflow-y: auto;
-border: 1px solid var(--background-modifier-border);
-border-radius: var(--radius-s);
-background: var(--background-secondary);
+/* Scroll container styles come from .flashcard-sticky-list */
+}
+
+.selectable-list-items {
+/* Item container inside the scrollable list */
 }
 
 .selectable-list-item {
@@ -279,15 +303,27 @@ text-decoration: underline;
 }
 
 .selectable-list-item-secondary {
-color: var(--text-muted);
-font-size: var(--font-ui-small);
-flex-shrink: 0;
+	color: var(--text-muted);
+	font-size: var(--font-ui-small);
+	flex-shrink: 0;
+}
+
+.selectable-list-item-disabled {
+	color: var(--text-muted);
+}
+
+.selectable-list-item-disabled .selectable-list-item-name {
+	font-style: italic;
+}
+
+.selectable-list-checkbox-hidden {
+	visibility: hidden;
 }
 
 /* Virtual scrolling for large lists */
 .selectable-list-virtual {
 position: relative;
-/* Container keeps its max-height constraint as the viewport */
+display: block;
 }
 
 /* Spacer element to establish total scrollable height */
@@ -1054,10 +1090,6 @@ margin: var(--size-4-4) 0;
 
 .anki-import-deck-list {
 margin: var(--size-4-4) 0;
-max-height: 300px;
-overflow-y: auto;
-border: 1px solid var(--background-modifier-border);
-border-radius: var(--radius-s);
 padding: 0;
 }
 

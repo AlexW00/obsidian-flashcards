@@ -396,12 +396,14 @@ export interface AnkiModel {
  */
 export interface AnkiDeck {
 	id: number;
-	name: string; // May contain "::" for nested decks
+	name: string; // May contain unit separator (\x1f) for nested decks
 	desc: string;
 	mod: number;
 	dyn: number; // 1 if filtered/dynamic deck
 	collapsed: boolean;
 }
+
+export const ANKI_DECK_SEPARATOR = "\x1f";
 
 /**
  * Anki note from notes table.
