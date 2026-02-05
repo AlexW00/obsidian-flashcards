@@ -214,7 +214,9 @@ describe("Review Bugs", function () {
 					if (await progressText.isExisting()) {
 						const text = await progressText.getText();
 						const match = text.match(/(\d+)\s*\/\s*(\d+)/);
-						const completed = match ? parseInt(match[1] ?? "0", 10) : 0;
+						const completed = match
+							? parseInt(match[1] ?? "0", 10)
+							: 0;
 						return completed > initialCompleted;
 					}
 					return false;
