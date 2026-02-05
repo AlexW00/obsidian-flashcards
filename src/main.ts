@@ -71,11 +71,6 @@ export default class AnkerPlugin extends Plugin {
 
 		// Initialize AI cache service
 		this.aiCacheService = new AiCacheService(this.app);
-		this.aiCacheService.setPersistence(
-			() => this.loadData(),
-			(data) => this.saveData(data),
-		);
-		await this.aiCacheService.load();
 
 		// Initialize AI service
 		this.aiService = new AiService(
@@ -168,8 +163,6 @@ export default class AnkerPlugin extends Plugin {
 		// Clean up card regeneration service
 		this.cardRegenService?.destroy();
 		this.cardRegenService = null;
-		// Save AI cache before unload
-		void this.aiCacheService?.forceSave();
 		this.aiService = null;
 		this.aiCacheService = null;
 		// Views are automatically cleaned up
@@ -377,8 +370,7 @@ export default class AnkerPlugin extends Plugin {
 			id: "clear-ai-cache",
 			name: "Clear dynamic pipe cache",
 			callback: () => {
-				this.aiCacheService?.clearAll();
-				new Notice("Dynamic pipe cache cleared");
+				void this.clearDynamicPipeCache();
 			},
 		});
 
@@ -579,6 +571,26 @@ export default class AnkerPlugin extends Plugin {
 					);
 				}).open();
 			});
+	}
+
+	/**
+	 * Clear dynamic pipe cache from all flashcard frontmatter.
+	 */
+	private async clearDynamicPipeCache(): Promise<void> {
+		if (!this.aiCacheService) {
+			new Notice("Cache service not available");
+			return;
+		}
+
+		const result = await this.aiCacheService.clearAll(() =>
+			this.deckService.getAllFlashcards().map((card) => card.path),
+		);
+
+		if (result.cleared === 0) {
+			new Notice("No cards with cached data found");
+		} else {
+			new Notice(`Cleared cache from ${result.cleared} card(s)`);
+		}
 	}
 
 	/**

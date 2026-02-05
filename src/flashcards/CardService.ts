@@ -1,5 +1,10 @@
 import { App, TFile, stringifyYaml } from "obsidian";
-import type { Flashcard, FlashcardFrontmatter, ReviewState } from "../types";
+import type {
+	DynamicPipeCacheEntry,
+	Flashcard,
+	FlashcardFrontmatter,
+	ReviewState,
+} from "../types";
 import { debugLog, PROTECTION_COMMENT } from "../types";
 import { TemplateService } from "./TemplateService";
 import { createEmptyCard } from "ts-fsrs";
@@ -123,14 +128,26 @@ export class CardService {
 				},
 			);
 		} catch (error) {
+			// Clear pending cache writes on error
+			this.templateService.clearPendingCacheWrites();
 			throw this.wrapCardError(filePath, error);
 		}
 
+		// Flush pending cache writes from dynamic pipes
+		const pendingCacheWrites =
+			this.templateService.flushPendingCacheWrites();
+
 		// Merge template frontmatter with system frontmatter
 		// Template frontmatter is the base, system props always overwrite
-		const mergedFrontmatter = this.mergeTemplateFrontmatter(
+		let mergedFrontmatter = this.mergeTemplateFrontmatter(
 			template.frontmatter,
 			systemFrontmatter,
+		);
+
+		// Apply cache writes to frontmatter
+		mergedFrontmatter = this.applyCacheToFrontmatter(
+			mergedFrontmatter,
+			pendingCacheWrites,
 		);
 		debugLog("create-card: merged frontmatter keys", {
 			keys: Object.keys(mergedFrontmatter),
@@ -168,6 +185,42 @@ export class CardService {
 		});
 
 		return merged;
+	}
+
+	/**
+	 * Apply pending cache writes to frontmatter.
+	 * Merges new cache entries and removes _cache if empty.
+	 */
+	private applyCacheToFrontmatter(
+		frontmatter: Record<string, unknown>,
+		pendingWrites: Map<string, DynamicPipeCacheEntry>,
+	): Record<string, unknown> {
+		const result = { ...frontmatter };
+
+		if (pendingWrites.size > 0) {
+			// Merge new cache entries with existing ones
+			const existingCache = (result._cache as Record<
+				string,
+				DynamicPipeCacheEntry
+			>) ?? {};
+			const newCache: Record<string, DynamicPipeCacheEntry> = {
+				...existingCache,
+			};
+			for (const [key, entry] of pendingWrites) {
+				newCache[key] = entry;
+			}
+			result._cache = newCache;
+		} else {
+			// No new cache entries - check if we should clean up existing empty cache
+			const existingCache = result._cache as
+				| Record<string, DynamicPipeCacheEntry>
+				| undefined;
+			if (!existingCache || Object.keys(existingCache).length === 0) {
+				delete result._cache;
+			}
+		}
+
+		return result;
 	}
 
 	/**
@@ -213,18 +266,29 @@ export class CardService {
 		};
 
 		// Render new body (use template.body which excludes template frontmatter) - now async for AI filters
-		const body = await this.templateService.render(
-			template.body,
-			normalizedFields,
-			{
-				skipCache: options.skipCache,
-				cardPath: file.path,
-				onStatusUpdate: options.onStatusUpdate,
-			},
-		);
+		let body: string;
+		try {
+			body = await this.templateService.render(
+				template.body,
+				normalizedFields,
+				{
+					skipCache: options.skipCache,
+					cardPath: file.path,
+					onStatusUpdate: options.onStatusUpdate,
+				},
+			);
+		} catch (error) {
+			// Clear pending cache writes on error
+			this.templateService.clearPendingCacheWrites();
+			throw error;
+		}
+
+		// Flush pending cache writes from dynamic pipes
+		const pendingCacheWrites =
+			this.templateService.flushPendingCacheWrites();
 
 		// Merge existing frontmatter + template frontmatter + system overrides
-		const mergedFrontmatter = this.mergeTemplateFrontmatter(
+		let mergedFrontmatter = this.mergeTemplateFrontmatter(
 			template.frontmatter,
 			systemFrontmatter,
 			fm as unknown as Record<string, unknown>,
@@ -232,6 +296,12 @@ export class CardService {
 
 		// Clear any previous error since regeneration succeeded
 		delete mergedFrontmatter._error;
+
+		// Apply cache writes to frontmatter (also cleans up empty cache)
+		mergedFrontmatter = this.applyCacheToFrontmatter(
+			mergedFrontmatter,
+			pendingCacheWrites,
+		);
 
 		debugLog("regenerate-card: merged frontmatter keys", {
 			keys: Object.keys(mergedFrontmatter),

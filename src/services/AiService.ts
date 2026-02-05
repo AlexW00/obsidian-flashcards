@@ -156,6 +156,24 @@ export class AiService {
 	}
 
 	/**
+	 * Flush pending cache writes and return them.
+	 * Called by CardService after render to merge into frontmatter.
+	 */
+	flushPendingCacheWrites(): Map<
+		string,
+		{ output: string; cachedAt: number }
+	> {
+		return this.cacheService.flushPendingWrites();
+	}
+
+	/**
+	 * Clear pending cache writes without flushing (e.g., on render error).
+	 */
+	clearPendingCacheWrites(): void {
+		this.cacheService.clearPendingWrites();
+	}
+
+	/**
 	 * Get the provider config for a specific dynamic pipe type.
 	 */
 	private getProviderForDynamicPipe(
@@ -287,13 +305,13 @@ export class AiService {
 			this.getProviderForDynamicPipe(pipeType)?.config.systemPrompt;
 
 		// Check cache first (unless skipCache)
-		if (!context.skipCache) {
+		if (!context.skipCache && context.cardPath) {
 			const cacheKey = await this.cacheService.generateKey(
 				pipeType,
 				prompt,
 				systemPrompt ?? "",
 			);
-			const cached = this.cacheService.get(cacheKey);
+			const cached = this.cacheService.get(context.cardPath, cacheKey);
 			if (cached) {
 				return cached.output;
 			}
@@ -335,7 +353,7 @@ export class AiService {
 			prompt,
 			config.systemPrompt ?? "",
 		);
-		this.cacheService.set(cacheKey, result, pipeType);
+		this.cacheService.set(cacheKey, result);
 
 		return result;
 	}
@@ -354,12 +372,12 @@ export class AiService {
 		const pipeType = "generateImage" as const;
 
 		// Check cache first (unless skipCache)
-		if (!context.skipCache) {
+		if (!context.skipCache && context.cardPath) {
 			const cacheKey = await this.cacheService.generateKey(
 				pipeType,
 				prompt,
 			);
-			const cached = this.cacheService.get(cacheKey);
+			const cached = this.cacheService.get(context.cardPath, cacheKey);
 			if (cached) {
 				return cached.output;
 			}
@@ -406,7 +424,7 @@ export class AiService {
 
 		// Cache the result (stores the markdown link, not the blob)
 		const cacheKey = await this.cacheService.generateKey(pipeType, prompt);
-		this.cacheService.set(cacheKey, result, pipeType);
+		this.cacheService.set(cacheKey, result);
 
 		return result;
 	}
@@ -425,12 +443,12 @@ export class AiService {
 		const pipeType = "generateSpeech" as const;
 
 		// Check cache first (unless skipCache)
-		if (!context.skipCache) {
+		if (!context.skipCache && context.cardPath) {
 			const cacheKey = await this.cacheService.generateKey(
 				pipeType,
 				text,
 			);
-			const cached = this.cacheService.get(cacheKey);
+			const cached = this.cacheService.get(context.cardPath, cacheKey);
 			if (cached) {
 				return cached.output;
 			}
@@ -479,7 +497,7 @@ export class AiService {
 
 		// Cache the result (stores the markdown link, not the blob)
 		const cacheKey = await this.cacheService.generateKey(pipeType, text);
-		this.cacheService.set(cacheKey, result, pipeType);
+		this.cacheService.set(cacheKey, result);
 
 		return result;
 	}

@@ -1,153 +1,23 @@
-import { App } from "obsidian";
+import { App, TFile, stringifyYaml } from "obsidian";
+import type { DynamicPipeCacheEntry, FlashcardFrontmatter } from "../types";
 
 /**
- * Cache entry storing the rendered output text for a dynamic pipe call.
- * We store only the rendered text (e.g., "![[image.png]]"), not the blob itself.
- * This means if the user deletes the attachment and regenerates, the cache hit
- * will return the old text reference. User can invalidate cache to re-generate.
- */
-export interface AiCacheEntry {
-	/** The rendered output text (what gets inserted into the template) */
-	output: string;
-	/** Timestamp when this entry was cached */
-	cachedAt: number;
-	/** The dynamic pipe type that generated this entry */
-	pipeType: "askAi" | "generateImage" | "generateSpeech";
-}
-
-/**
- * The cache structure stored in the plugin's data.json
- */
-export interface AiCacheData {
-	/** Version for future migrations */
-	version: 1;
-	/** Cache entries keyed by SHA-256 hash of (pipeType + input args) */
-	entries: Record<string, AiCacheEntry>;
-}
-
-const EMPTY_CACHE: AiCacheData = {
-	version: 1,
-	entries: {},
-};
-
-/**
- * Service for caching dynamic pipe outputs.
+ * Service for caching dynamic pipe outputs in flashcard frontmatter.
  *
  * Stores rendered text output (not blobs) keyed by hash of pipe inputs.
- * Uses plugin's data.json via loadData/saveData API.
+ * Cache is stored per-card in the `_cache` frontmatter property.
  */
 export class AiCacheService {
 	private app: App;
-	private cache: AiCacheData = EMPTY_CACHE;
-	private dirty = false;
-	private saveDebounceTimer: ReturnType<typeof setTimeout> | null = null;
 
-	// Callbacks for persisting cache - set by main plugin
-	private loadDataFn: (() => Promise<unknown>) | null = null;
-	private saveDataFn: ((data: unknown) => Promise<void>) | null = null;
+	/**
+	 * Pending cache writes during a single render operation.
+	 * Accumulated here and flushed to frontmatter after render completes.
+	 */
+	private pendingWrites: Map<string, DynamicPipeCacheEntry> = new Map();
 
 	constructor(app: App) {
 		this.app = app;
-	}
-
-	/**
-	 * Set the persistence callbacks from the main plugin.
-	 */
-	setPersistence(
-		loadData: () => Promise<unknown>,
-		saveData: (data: unknown) => Promise<void>,
-	): void {
-		this.loadDataFn = loadData;
-		this.saveDataFn = saveData;
-	}
-
-	/**
-	 * Load cache from plugin data.
-	 */
-	async load(): Promise<void> {
-		if (!this.loadDataFn) {
-			console.warn("AiCacheService: No loadData function set");
-			return;
-		}
-
-		try {
-			const data = (await this.loadDataFn()) as {
-				aiCache?: AiCacheData;
-			} | null;
-			if (data?.aiCache && data.aiCache.version === 1) {
-				this.cache = data.aiCache;
-			} else {
-				this.cache = { ...EMPTY_CACHE };
-			}
-		} catch (error) {
-			console.error("AiCacheService: Failed to load cache", error);
-			this.cache = { ...EMPTY_CACHE };
-		}
-	}
-
-	/**
-	 * Save cache to plugin data (debounced).
-	 */
-	async save(): Promise<void> {
-		if (!this.saveDataFn || !this.loadDataFn) {
-			console.warn("AiCacheService: No saveData function set");
-			return;
-		}
-
-		// Clear any pending debounce
-		if (this.saveDebounceTimer) {
-			clearTimeout(this.saveDebounceTimer);
-		}
-
-		// Debounce saves to avoid excessive writes
-		this.saveDebounceTimer = setTimeout(() => {
-			void (async () => {
-				try {
-					// Load current data to merge with
-					const currentData =
-						((await this.loadDataFn!()) as Record<
-							string,
-							unknown
-						>) || {};
-					await this.saveDataFn!({
-						...currentData,
-						aiCache: this.cache,
-					});
-					this.dirty = false;
-				} catch (error) {
-					console.error(
-						"AiCacheService: Failed to save cache",
-						error,
-					);
-				}
-			})();
-		}, 1000);
-	}
-
-	/**
-	 * Force immediate save (for shutdown).
-	 */
-	async forceSave(): Promise<void> {
-		if (this.saveDebounceTimer) {
-			clearTimeout(this.saveDebounceTimer);
-			this.saveDebounceTimer = null;
-		}
-
-		if (!this.dirty || !this.saveDataFn || !this.loadDataFn) {
-			return;
-		}
-
-		try {
-			const currentData =
-				((await this.loadDataFn()) as Record<string, unknown>) || {};
-			await this.saveDataFn({
-				...currentData,
-				aiCache: this.cache,
-			});
-			this.dirty = false;
-		} catch (error) {
-			console.error("AiCacheService: Failed to force save cache", error);
-		}
 	}
 
 	/**
@@ -167,63 +37,128 @@ export class AiCacheService {
 	}
 
 	/**
-	 * Get a cached entry if it exists.
+	 * Get a cached entry from a card's frontmatter.
+	 * @param cardPath Path to the flashcard file
+	 * @param key Cache key (hash)
+	 * @returns The cached entry or null if not found
 	 */
-	get(key: string): AiCacheEntry | null {
-		return this.cache.entries[key] ?? null;
+	get(cardPath: string, key: string): DynamicPipeCacheEntry | null {
+		// First check pending writes from current render
+		const pending = this.pendingWrites.get(key);
+		if (pending) {
+			return pending;
+		}
+
+		// Then check persisted frontmatter cache
+		const file = this.app.vault.getAbstractFileByPath(cardPath);
+		if (!(file instanceof TFile)) {
+			return null;
+		}
+
+		const cache = this.app.metadataCache.getFileCache(file);
+		const fm = cache?.frontmatter as FlashcardFrontmatter | undefined;
+		return fm?._cache?.[key] ?? null;
 	}
 
 	/**
-	 * Set a cache entry.
+	 * Queue a cache entry to be written after render completes.
+	 * @param key Cache key (hash)
+	 * @param output The rendered output text
 	 */
-	set(
-		key: string,
-		output: string,
-		pipeType: "askAi" | "generateImage" | "generateSpeech",
-	): void {
-		this.cache.entries[key] = {
+	set(key: string, output: string): void {
+		this.pendingWrites.set(key, {
 			output,
 			cachedAt: Date.now(),
-			pipeType,
-		};
-		this.dirty = true;
-		void this.save();
+		});
 	}
 
 	/**
-	 * Delete a specific cache entry.
+	 * Get all pending cache writes and clear them.
+	 * Called by CardService after render to merge into frontmatter.
 	 */
-	delete(key: string): boolean {
-		if (key in this.cache.entries) {
-			delete this.cache.entries[key];
-			this.dirty = true;
-			void this.save();
-			return true;
+	flushPendingWrites(): Map<string, DynamicPipeCacheEntry> {
+		const writes = this.pendingWrites;
+		this.pendingWrites = new Map();
+		return writes;
+	}
+
+	/**
+	 * Clear pending writes without flushing (e.g., on render error).
+	 */
+	clearPendingWrites(): void {
+		this.pendingWrites.clear();
+	}
+
+	/**
+	 * Clear cache for a specific card by removing `_cache` from its frontmatter.
+	 * @param file The flashcard file
+	 */
+	async clearForFile(file: TFile): Promise<void> {
+		const content = await this.app.vault.read(file);
+		const cache = this.app.metadataCache.getFileCache(file);
+		const fm = cache?.frontmatter as FlashcardFrontmatter | undefined;
+
+		if (!fm?._cache || Object.keys(fm._cache).length === 0) {
+			return; // No cache to clear
 		}
-		return false;
+
+		// Remove _cache from frontmatter
+		const updatedFm = { ...fm };
+		delete updatedFm._cache;
+
+		// Rebuild file content
+		const body = this.extractBody(content);
+		const newContent = this.buildFileContent(updatedFm, body);
+
+		await this.app.vault.modify(file, newContent);
 	}
 
 	/**
-	 * Clear all cache entries.
+	 * Clear cache from all flashcards in the vault.
+	 * @param getAllFlashcardPaths Function to get all flashcard file paths
 	 */
-	clearAll(): void {
-		this.cache = { ...EMPTY_CACHE };
-		this.dirty = true;
-		void this.save();
+	async clearAll(
+		getAllFlashcardPaths: () => string[],
+	): Promise<{ cleared: number; total: number }> {
+		const paths = getAllFlashcardPaths();
+		let cleared = 0;
+
+		for (const path of paths) {
+			const file = this.app.vault.getAbstractFileByPath(path);
+			if (file instanceof TFile) {
+				const cache = this.app.metadataCache.getFileCache(file);
+				const fm = cache?.frontmatter as
+					| FlashcardFrontmatter
+					| undefined;
+				if (fm?._cache && Object.keys(fm._cache).length > 0) {
+					await this.clearForFile(file);
+					cleared++;
+				}
+			}
+		}
+
+		return { cleared, total: paths.length };
 	}
 
 	/**
-	 * Get cache statistics.
+	 * Extract body content from a flashcard file (everything after frontmatter).
 	 */
-	getStats(): { entryCount: number; oldestEntry: number | null } {
-		const entries = Object.values(this.cache.entries);
-		const oldestEntry =
-			entries.length > 0
-				? Math.min(...entries.map((e) => e.cachedAt))
-				: null;
-		return {
-			entryCount: entries.length,
-			oldestEntry,
-		};
+	private extractBody(content: string): string {
+		const frontmatterMatch = content.match(/^---\n[\s\S]*?\n---\n?/);
+		if (frontmatterMatch) {
+			return content.slice(frontmatterMatch[0].length);
+		}
+		return content;
+	}
+
+	/**
+	 * Build file content from frontmatter and body.
+	 */
+	private buildFileContent(
+		frontmatter: Record<string, unknown>,
+		body: string,
+	): string {
+		const yamlContent = stringifyYaml(frontmatter);
+		return `---\n${yamlContent}---\n${body}`;
 	}
 }

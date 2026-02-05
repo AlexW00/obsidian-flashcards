@@ -60,6 +60,27 @@ export class TemplateService {
 	}
 
 	/**
+	 * Flush pending cache writes and return them.
+	 * Called by CardService after render to merge into frontmatter.
+	 */
+	flushPendingCacheWrites(): Map<
+		string,
+		{ output: string; cachedAt: number }
+	> {
+		if (!this.aiService) {
+			return new Map();
+		}
+		return this.aiService.flushPendingCacheWrites();
+	}
+
+	/**
+	 * Clear pending cache writes without flushing (e.g., on render error).
+	 */
+	clearPendingCacheWrites(): void {
+		this.aiService?.clearPendingCacheWrites();
+	}
+
+	/**
 	 * Register async AI filters with Nunjucks.
 	 * These filters call the AI service and are async.
 	 */
