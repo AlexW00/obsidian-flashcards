@@ -257,7 +257,16 @@ export interface FlashcardsPluginSettings {
 	imageSearchProviders: Record<string, ImageSearchProviderConfig>;
 	/** Provider selection for each dynamic pipe */
 	dynamicPipeProviders: Record<string, string | undefined>;
+	/** Whether the furigana pipe is enabled */
+	furiganaEnabled: boolean;
+	/** Format for furigana output */
+	furiganaFormat: FuriganaFormat;
 }
+
+/**
+ * Furigana output format options.
+ */
+export type FuriganaFormat = "curly" | "ruby" | "parentheses" | "brackets";
 
 /**
  * Plugin state that should persist but is not user-configurable.
@@ -343,6 +352,8 @@ export const DEFAULT_SETTINGS: FlashcardsPluginSettings = {
 	aiProviders: {},
 	imageSearchProviders: {},
 	dynamicPipeProviders: {},
+	furiganaEnabled: false,
+	furiganaFormat: "curly",
 };
 
 export const DEFAULT_STATE: FlashcardsPluginState = {

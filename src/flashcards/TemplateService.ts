@@ -1,8 +1,9 @@
 import { App, TFile, TFolder, parseYaml } from "obsidian";
 import nunjucks from "nunjucks";
-import type { FlashcardTemplate, TemplateVariable } from "../types";
+import type { FlashcardTemplate, TemplateVariable, FuriganaFormat } from "../types";
 import { DEFAULT_BASIC_TEMPLATE } from "../types";
 import type { AiService, DynamicPipeContext } from "../services/AiService";
+import type { FuriganaService } from "../services/FuriganaService";
 
 /**
  * Parsed template content with optional frontmatter.
@@ -34,6 +35,8 @@ export class TemplateService {
 	private readonly lineStartMarker = "__ANKER_LINE_START__";
 	private readonly lineEndMarker = "__ANKER_LINE_END__";
 	private aiService: AiService | null = null;
+	private furiganaService: FuriganaService | null = null;
+	private furiganaFormat: FuriganaFormat = "curly";
 	private currentRenderContext: DynamicPipeContext | null = null;
 
 	constructor(app: App, defaultTemplateContent?: string) {
@@ -57,6 +60,22 @@ export class TemplateService {
 	 */
 	setAiService(aiService: AiService): void {
 		this.aiService = aiService;
+	}
+
+	/**
+	 * Set the Furigana service for Japanese text conversion.
+	 * Must be called after construction if Furigana is enabled.
+	 */
+	setFuriganaService(furiganaService: FuriganaService, format: FuriganaFormat = "curly"): void {
+		this.furiganaService = furiganaService;
+		this.furiganaFormat = format;
+	}
+
+	/**
+	 * Update the furigana format setting.
+	 */
+	setFuriganaFormat(format: FuriganaFormat): void {
+		this.furiganaFormat = format;
 	}
 
 	/**
@@ -256,6 +275,41 @@ export class TemplateService {
 			},
 			true, // Mark as async filter
 		);
+
+		// furigana filter: {{ text | furigana }}
+		this.env.addFilter(
+			"furigana",
+			(
+				text: string,
+				callback: (err: Error | null, result?: string) => void,
+			) => {
+				const safeText = typeof text === "string" ? text : "";
+				if (safeText.trim().length === 0) {
+					callback(null, "");
+					return;
+				}
+				if (!this.furiganaService) {
+					// If furigana service not available, return original text
+					callback(null, safeText);
+					return;
+				}
+
+				// Notify status update
+				this.currentRenderContext?.onStatusUpdate?.(
+					"Converting to furigana...",
+				);
+
+				this.furiganaService
+					.convert(safeText, this.furiganaFormat)
+					.then((result) => callback(null, result))
+					.catch((err) =>
+						callback(
+							err instanceof Error ? err : new Error(String(err)),
+						),
+					);
+			},
+			true, // Mark as async filter
+		);
 	}
 
 	/**
@@ -383,7 +437,7 @@ export class TemplateService {
 	usesDynamicPipes(templateContent: string): boolean {
 		const { body } = this.parseTemplateContent(templateContent);
 		const contentWithoutComments = body.replace(/<!--[\s\S]*?-->/g, "");
-		return /\|\s*(askAi|generateImage|generateSpeech|searchImage)\b/.test(
+		return /\|\s*(askAi|generateImage|generateSpeech|searchImage|furigana)\b/.test(
 			contentWithoutComments,
 		);
 	}

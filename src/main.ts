@@ -30,6 +30,9 @@ import { OrphanAttachmentsModal } from "./ui/OrphanAttachmentsModal";
 import { CardErrorsModal, type CardError } from "./ui/CardErrorsModal";
 import { AnkiImportModal } from "./ui/AnkiImportModal";
 import { CardErrorsScopeModal } from "./ui/CardErrorsScopeModal";
+import { DictionaryManager } from "./services/DictionaryManager";
+import { FuriganaService } from "./services/FuriganaService";
+import { FuriganaDictModal } from "./ui/FuriganaDictModal";
 
 /** Key prefix for storing API keys in SecretStorage */
 const API_KEY_PREFIX = "anker-ai-api-key-";
@@ -52,6 +55,10 @@ export default class AnkerPlugin extends Plugin {
 	private aiService: AiService | null = null;
 	/** Service for caching AI responses */
 	private aiCacheService: AiCacheService | null = null;
+	/** Service for managing furigana dictionary */
+	private dictManager: DictionaryManager | null = null;
+	/** Service for Japanese furigana conversion */
+	private furiganaService: FuriganaService | null = null;
 
 	async onload() {
 		await this.loadSettings();
@@ -82,6 +89,25 @@ export default class AnkerPlugin extends Plugin {
 
 		// Connect AI service to template service
 		this.templateService.setAiService(this.aiService);
+
+		// Initialize Furigana services
+		this.dictManager = new DictionaryManager(
+			this.app,
+			this.manifest.dir ?? ".obsidian/plugins/anker",
+		);
+		this.furiganaService = new FuriganaService(this.app, this.dictManager);
+
+		// Connect furigana service to template service if enabled
+		if (this.settings.furiganaEnabled) {
+			void this.isDictionaryReady().then((ready) => {
+				if (ready && this.furiganaService) {
+					this.templateService.setFuriganaService(
+						this.furiganaService,
+						this.settings.furiganaFormat,
+					);
+				}
+			});
+		}
 
 		// Initialize card regeneration service
 		this.cardRegenService = new CardRegenService({
@@ -286,6 +312,45 @@ export default class AnkerPlugin extends Plugin {
 		}
 		// SecretStorage doesn't have deleteSecret, so set to empty string
 		secretStorage.setSecret(key, "");
+	}
+
+	/**
+	 * Check if furigana dictionary is downloaded and ready.
+	 * Called by settings UI to determine toggle state.
+	 */
+	async isDictionaryReady(): Promise<boolean> {
+		if (!this.dictManager) {
+			return false;
+		}
+		return this.dictManager.isDictionaryReady();
+	}
+
+	/**
+	 * Show the furigana dictionary download modal.
+	 * Called by settings UI when user enables furigana without dictionary.
+	 * @param onSuccess Optional callback called after successful download
+	 */
+	showFuriganaDictModal(onSuccess?: () => void): void {
+		if (!this.dictManager) {
+			return;
+		}
+
+		new FuriganaDictModal(this.app, this.dictManager, async () => {
+			// Dictionary downloaded successfully, enable furigana
+			this.settings.furiganaEnabled = true;
+			await this.saveSettings();
+
+			// Connect furigana service to template service
+			if (this.furiganaService) {
+				this.templateService.setFuriganaService(
+					this.furiganaService,
+					this.settings.furiganaFormat,
+				);
+			}
+
+			// Call success callback to update toggle UI
+			onSuccess?.();
+		}).open();
 	}
 
 	/**
@@ -780,41 +845,41 @@ export default class AnkerPlugin extends Plugin {
 				typeof rawError === "string"
 					? rawError
 					: (() => {
-							try {
-								return JSON.stringify(rawError);
-							} catch {
-								if (rawError instanceof Error) {
-									return rawError.message;
-								}
-								if (rawError === null) {
-									return "null";
-								}
-								switch (typeof rawError) {
-									case "string":
-										return rawError;
-									case "number":
-									case "boolean":
-									case "bigint":
-										return rawError.toString();
-									case "symbol":
-										return (
-											rawError.description ??
-											rawError.toString()
-										);
-									case "undefined":
-										return "undefined";
-									case "function":
-										return rawError.name
-											? `[function ${rawError.name}]`
-											: "[function]";
-									case "object":
-									default:
-										return Object.prototype.toString.call(
-											rawError,
-										);
-								}
+						try {
+							return JSON.stringify(rawError);
+						} catch {
+							if (rawError instanceof Error) {
+								return rawError.message;
 							}
-						})();
+							if (rawError === null) {
+								return "null";
+							}
+							switch (typeof rawError) {
+								case "string":
+									return rawError;
+								case "number":
+								case "boolean":
+								case "bigint":
+									return rawError.toString();
+								case "symbol":
+									return (
+										rawError.description ??
+										rawError.toString()
+									);
+								case "undefined":
+									return "undefined";
+								case "function":
+									return rawError.name
+										? `[function ${rawError.name}]`
+										: "[function]";
+								case "object":
+								default:
+									return Object.prototype.toString.call(
+										rawError,
+									);
+							}
+						}
+					})();
 			const trimmedError = errorMessage.trim();
 			if (!trimmedError) {
 				continue;

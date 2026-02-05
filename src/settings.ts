@@ -506,6 +506,74 @@ export class AnkerSettingTab extends PluginSettingTab {
 				});
 			});
 
+		// Furigana toggle - requires dictionary download
+		new Setting(container)
+			.setName("Enable Furigana")
+			.setDesc(
+				"Adds {{ text | furigana }} filter for Japanese text. Requires ~18MB dictionary download.",
+			)
+			.addToggle((toggle) => {
+				const pluginWithFurigana = this.plugin as unknown as {
+					isDictionaryReady?: () => Promise<boolean>;
+					showFuriganaDictModal?: (onSuccess?: () => void) => void;
+				};
+
+				// Check if dictionary is ready to set initial value
+				if (pluginWithFurigana.isDictionaryReady) {
+					void pluginWithFurigana.isDictionaryReady().then((ready) => {
+						toggle.setValue(
+							ready && this.plugin.settings.furiganaEnabled,
+						);
+					});
+				} else {
+					toggle.setValue(this.plugin.settings.furiganaEnabled);
+				}
+
+				toggle.onChange(async (value) => {
+					if (value) {
+						// Check if dictionary exists
+						const ready = pluginWithFurigana.isDictionaryReady
+							? await pluginWithFurigana.isDictionaryReady()
+							: false;
+
+						if (!ready) {
+							// Show download modal with callback to enable toggle
+							if (pluginWithFurigana.showFuriganaDictModal) {
+								pluginWithFurigana.showFuriganaDictModal(() => {
+									toggle.setValue(true);
+								});
+							}
+							// Reset toggle until download completes
+							toggle.setValue(false);
+							return;
+						}
+					}
+
+					this.plugin.settings.furiganaEnabled = value;
+					await this.plugin.saveSettings();
+					// Re-render to show/hide format dropdown
+					this.display();
+				});
+			});
+
+		// Furigana format dropdown (only show when enabled)
+		if (this.plugin.settings.furiganaEnabled) {
+			new Setting(container)
+				.setName("Furigana format")
+				.setDesc("How to format the furigana output")
+				.addDropdown((dropdown) => {
+					dropdown.addOption("curly", "{漢字|かんじ}");
+					dropdown.addOption("ruby", "<ruby>漢字<rt>かんじ</rt></ruby>");
+					dropdown.addOption("parentheses", "漢字(かんじ)");
+					dropdown.addOption("brackets", "漢字[かんじ]");
+					dropdown.setValue(this.plugin.settings.furiganaFormat);
+					dropdown.onChange(async (value) => {
+						this.plugin.settings.furiganaFormat = value as "curly" | "ruby" | "parentheses" | "brackets";
+						await this.plugin.saveSettings();
+					});
+				});
+		}
+
 		// Add provider button
 		new Setting(container)
 			.setName("Add provider")
@@ -547,13 +615,13 @@ export class AnkerSettingTab extends PluginSettingTab {
 								.onClick(async () => {
 									const id = `imgsearch_${Date.now()}`;
 									this.plugin.settings.imageSearchProviders =
-										{
-											...this.plugin.settings
-												.imageSearchProviders,
-											[id]: {
-												type: "pexels",
-											},
-										};
+									{
+										...this.plugin.settings
+											.imageSearchProviders,
+										[id]: {
+											type: "pexels",
+										},
+									};
 									await this.plugin.saveSettings();
 									this.renderAiProviderSettings(
 										container,
