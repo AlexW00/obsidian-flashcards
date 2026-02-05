@@ -34,7 +34,11 @@ export class DeckService {
 	isReviewDue(review: FlashcardFrontmatter["_review"]): boolean {
 		if (!review) return true;
 		const dueDate = new Date(review.due);
-		return this.isDueToday(dueDate);
+		const endOfToday = new Date();
+		endOfToday.setHours(23, 59, 59, 999);
+		const result = dueDate <= endOfToday;
+		console.debug(`[Anker:isReviewDue] due=${review.due}, dueDate=${dueDate.toISOString()}, endOfToday=${endOfToday.toISOString()}, isDue=${result}`);
+		return result;
 	}
 
 	/**
@@ -213,12 +217,14 @@ export class DeckService {
 	 */
 	getDueCards(deckPath: string): Flashcard[] {
 		const flashcards = this.getFlashcardsInFolder(deckPath);
+		console.debug(`[Anker:getDueCards] deckPath=${deckPath}, total flashcards=${flashcards.length}`);
 
 		const dueCards = flashcards.filter((card) => {
 			const review = card.frontmatter._review;
 			return this.isReviewDue(review);
 		});
 
+		console.debug(`[Anker:getDueCards] dueCards=${dueCards.length}: [${dueCards.map(c => c.path).join(', ')}]`);
 		return dueCards.sort(
 			(a, b) =>
 				this.getCardDueDate(a).getTime() -

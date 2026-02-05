@@ -86,37 +86,118 @@ describe("Review Progress & Settings", function () {
 	const revealAndRate = async (ratingClass: string) => {
 		// Capture progress BEFORE rating
 		const progressBefore = await getProgressText();
-		console.debug(`[DEBUG] Before reveal: progress="${progressBefore}"`);
+		console.debug(`[E2E] Before reveal: progress="${progressBefore}"`);
+
+		// Dump full DOM structure of controls area for debugging
+		const controlsDom = await browser.execute(() => {
+			const controls = document.querySelector(".flashcard-controls");
+			return controls?.innerHTML?.substring(0, 500) ?? "NO .flashcard-controls FOUND";
+		});
+		console.debug(`[E2E] Controls DOM before reveal:`, controlsDom);
 
 		// Reveal answer using WebDriver click
 		const revealButton = browser.$(
 			".flashcard-review .flashcard-btn-reveal",
 		);
 		await revealButton.waitForExist({ timeout: 5000 });
+
+		// Log reveal button details
+		const revealTag = await revealButton.getTagName();
+		const revealClass = await revealButton.getAttribute("class");
+		const revealDisplayed = await revealButton.isDisplayed();
+		const revealClickable = await revealButton.isClickable();
+		console.debug(`[E2E] Reveal button: tag=${revealTag}, class="${revealClass}", displayed=${revealDisplayed}, clickable=${revealClickable}`);
+
 		await revealButton.click();
+		console.debug(`[E2E] Reveal button clicked`);
 
 		// Wait for rating buttons container to appear
-		const ratingButtons = browser.$(".flashcard-rating-buttons");
-		await ratingButtons.waitForExist({ timeout: 5000 });
+		const ratingButtonsEl = browser.$(".flashcard-rating-buttons");
+		await ratingButtonsEl.waitForExist({ timeout: 5000 });
+		console.debug(`[E2E] Rating buttons container appeared`);
+
+		// Dump the rating buttons DOM
+		const ratingsDom = await browser.execute(() => {
+			const container = document.querySelector(".flashcard-rating-buttons");
+			if (!container) return "NO .flashcard-rating-buttons FOUND";
+			const buttons = container.querySelectorAll("button");
+			const info: string[] = [];
+			buttons.forEach((btn, i) => {
+				info.push(`btn[${i}]: tag=${btn.tagName}, class="${btn.className}", text="${btn.textContent?.trim()}", parent.class="${btn.parentElement?.className}"`);
+			});
+			return info.join(" | ");
+		});
+		console.debug(`[E2E] Rating buttons DOM:`, ratingsDom);
 
 		// Capture the QUESTION content AFTER reveal but BEFORE rating
-		// This is key: revealing adds the answer, so we need to compare questions
-		// to detect when we move to a new card
 		const questionBefore = await getCardQuestion();
-		console.debug(`[DEBUG] After reveal, before rating: question="${questionBefore.substring(0, 50)}...", clicking ${ratingClass}`);
+		console.debug(`[E2E] After reveal, before rating: question="${questionBefore.substring(0, 60)}"`);
 
-		// Click the rating button using WebDriver's click (not browser.execute)
-		// This is critical: Obsidian's ButtonComponent handlers require proper event dispatch
+		// Try to find the rating button with the specific class
 		const ratingButton = browser.$(`${ratingClass} button`);
 		const buttonExists = await ratingButton.isExisting();
-		console.debug(`[DEBUG] Rating button exists: ${buttonExists}`);
+		console.debug(`[E2E] Rating button "${ratingClass} button" exists: ${buttonExists}`);
+
+		if (buttonExists) {
+			const btnTag = await ratingButton.getTagName();
+			const btnClass = await ratingButton.getAttribute("class");
+			const btnText = await ratingButton.getText();
+			const btnDisplayed = await ratingButton.isDisplayed();
+			const btnClickable = await ratingButton.isClickable();
+			const btnLocation = await ratingButton.getLocation();
+			const btnSize = await ratingButton.getSize();
+			console.debug(`[E2E] Rating button details: tag=${btnTag}, class="${btnClass}", text="${btnText}", displayed=${btnDisplayed}, clickable=${btnClickable}, location=`, btnLocation, `size=`, btnSize);
+		}
 
 		if (!buttonExists) {
+			// Try alternative selectors
+			const altButton = browser.$(`.flashcard-rating-buttons button`);
+			const altExists = await altButton.isExisting();
+			console.debug(`[E2E] Fallback ".flashcard-rating-buttons button" exists: ${altExists}`);
 			throw new Error(`Rating button not found for selector: ${ratingClass} button`);
 		}
 
+		// Check plugin state BEFORE clicking
+		const preClickState = await browser.execute(() => {
+			const progressEl = document.querySelector(".flashcard-progress-text");
+			const question = document.querySelector(".flashcard-card .flashcard-card-content");
+			return {
+				progress: progressEl?.textContent ?? "N/A",
+				question: question?.textContent?.substring(0, 50) ?? "N/A",
+			};
+		});
+		console.debug(`[E2E] Pre-click state:`, preClickState);
+
 		await ratingButton.click();
-		console.debug(`[DEBUG] Rating button clicked via WebDriver`);
+		console.debug(`[E2E] Rating button clicked via WebDriver`);
+
+		// Immediately check state after click
+		await browser.pause(500);
+		const postClickState = await browser.execute(() => {
+			const progressEl = document.querySelector(".flashcard-progress-text");
+			const question = document.querySelector(".flashcard-card .flashcard-card-content");
+			const complete = document.querySelector(".flashcard-complete-state");
+			const ratingBtns = document.querySelector(".flashcard-rating-buttons");
+			const revealBtn = document.querySelector(".flashcard-btn-reveal");
+			return {
+				progress: progressEl?.textContent ?? "N/A",
+				question: question?.textContent?.substring(0, 50) ?? "N/A",
+				completeExists: !!complete,
+				ratingBtnsExist: !!ratingBtns,
+				revealBtnExists: !!revealBtn,
+			};
+		});
+		console.debug(`[E2E] Post-click state (500ms):`, postClickState);
+
+		// Check DOM state details
+		const domState = await browser.execute(() => {
+			const revealBtn = document.querySelector(".flashcard-btn-reveal");
+			return {
+				hasRevealBtn: !!revealBtn,
+				controlsHTML: document.querySelector(".flashcard-controls")?.innerHTML?.substring(0, 300) ?? "N/A"
+			};
+		});
+		console.debug(`[E2E] DOM state check:`, domState);
 
 		// Wait for actual state change: either completion, different question (new card), or progress update
 		await browser.waitUntil(
@@ -124,33 +205,33 @@ describe("Review Progress & Settings", function () {
 				// Check if session completed
 				const complete = browser.$(".flashcard-complete-state");
 				if (await complete.isExisting()) {
-					console.debug(`[DEBUG] Session completed`);
+					console.debug(`[E2E] Session completed`);
 					return true;
 				}
 
 				// Check if we moved to a new card (question changed)
 				const questionAfter = await getCardQuestion();
 				if (questionAfter !== questionBefore) {
-					console.debug(`[DEBUG] Card changed to: "${questionAfter.substring(0, 50)}..."`);
+					console.debug(`[E2E] Card changed to: "${questionAfter.substring(0, 50)}..."`);
 					return true;
 				}
 
 				// Check if progress text updated
 				const progressAfter = await getProgressText();
 				if (progressAfter !== progressBefore) {
-					console.debug(`[DEBUG] Progress updated: "${progressBefore}" -> "${progressAfter}"`);
+					console.debug(`[E2E] Progress updated: "${progressBefore}" -> "${progressAfter}"`);
 					return true;
 				}
 
 				return false;
 			},
-			{ timeout: 10000, interval: 100, timeoutMsg: `Rating did not cause state change. Question: "${questionBefore.substring(0, 50)}"` },
+			{ timeout: 10000, interval: 200, timeoutMsg: `Rating did not cause state change. Question: "${questionBefore.substring(0, 50)}"` },
 		);
 
 		// Additional small delay to ensure render completes
 		await browser.pause(100);
 		const progressAfter = await getProgressText();
-		console.debug(`[DEBUG] After rating settled: progress="${progressAfter}"`);
+		console.debug(`[E2E] After rating settled: progress="${progressAfter}"`);
 	};
 
 	/**
