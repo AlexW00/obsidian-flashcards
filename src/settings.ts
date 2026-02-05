@@ -1,8 +1,10 @@
-import { App, Plugin, PluginSettingTab, Setting, Notice } from "obsidian";
+import { App, Plugin, PluginSettingTab, Setting, Notice, Menu } from "obsidian";
 import type {
 	PluginWithSettings,
 	AiProviderType,
 	AiProviderConfig,
+	ImageSearchProviderType,
+	ImageSearchProviderConfig,
 } from "./types";
 import {
 	ALL_DECK_VIEW_COLUMNS,
@@ -477,26 +479,82 @@ export class AnkerSettingTab extends PluginSettingTab {
 				});
 			});
 
+		// Search image dropdown - uses image search providers
+		const imageSearchProviders =
+			this.plugin.settings.imageSearchProviders ?? {};
+		const imageSearchProviderIds = Object.keys(imageSearchProviders);
+
+		new Setting(container)
+			.setName("Search image provider")
+			.setDesc("Provider for {{ query | searchImage }} filter (Pexels)")
+			.addDropdown((dropdown) => {
+				const dynamicPipeProviders = this.getDynamicPipeProviders();
+				dropdown.addOption("", "Select provider...");
+				for (const id of imageSearchProviderIds) {
+					const config = imageSearchProviders[id];
+					dropdown.addOption(id, `${config?.type ?? "unknown"}`);
+				}
+				dropdown.setValue(dynamicPipeProviders.searchImage ?? "");
+				dropdown.onChange(async (value) => {
+					const currentDynamicPipeProviders =
+						this.getDynamicPipeProviders();
+					this.plugin.settings.dynamicPipeProviders = {
+						...currentDynamicPipeProviders,
+						searchImage: value || undefined,
+					};
+					await this.plugin.saveSettings();
+				});
+			});
+
 		// Add provider button
 		new Setting(container)
 			.setName("Add provider")
-			.setDesc("Add a new AI provider configuration")
+			.setDesc("Add a new AI or image search provider")
 			.addButton((button) =>
 				button
 					.setButtonText("Add provider")
 					.setCta()
-					.onClick(async () => {
-						// Generate unique ID
-						const id = `provider_${Date.now()}`;
-						this.plugin.settings.aiProviders = {
-							...this.plugin.settings.aiProviders,
-							[id]: {
-								type: "openai",
-								textModel: getDefaultTextModel("openai"),
-							},
-						};
-						await this.plugin.saveSettings();
-						this.renderAiProviderSettings(container, id);
+					.onClick((evt) => {
+						const menu = new Menu();
+
+						menu.addItem((item) =>
+							item
+								.setTitle("AI provider")
+								.setIcon("sparkles")
+								.onClick(async () => {
+									const id = `provider_${Date.now()}`;
+									this.plugin.settings.aiProviders = {
+										...this.plugin.settings.aiProviders,
+										[id]: {
+											type: "openai",
+											textModel:
+												getDefaultTextModel("openai"),
+										},
+									};
+									await this.plugin.saveSettings();
+									this.renderAiProviderSettings(container, id);
+								}),
+						);
+
+						menu.addItem((item) =>
+							item
+								// eslint-disable-next-line obsidianmd/ui/sentence-case
+								.setTitle("Image search provider (Pexels)")
+								.setIcon("image")
+								.onClick(async () => {
+									const id = `imgsearch_${Date.now()}`;
+									this.plugin.settings.imageSearchProviders = {
+										...this.plugin.settings.imageSearchProviders,
+										[id]: {
+											type: "pexels",
+										},
+									};
+									await this.plugin.saveSettings();
+									this.renderAiProviderSettings(container, id);
+								}),
+						);
+
+						menu.showAtMouseEvent(evt);
 					}),
 			);
 
@@ -510,6 +568,32 @@ export class AnkerSettingTab extends PluginSettingTab {
 			if (!config) continue;
 
 			const providerEl = this.renderSingleProvider(container, id, config);
+
+			// Scroll to newly added provider
+			if (scrollToId && id === scrollToId && providerEl) {
+				setTimeout(() => {
+					providerEl.scrollIntoView({
+						behavior: "smooth",
+						block: "start",
+					});
+				}, 50);
+			}
+		}
+
+		// Render image search providers
+		if (imageSearchProviderIds.length > 0 && providerIds.length === 0) {
+			container.createEl("hr");
+		}
+
+		for (const id of imageSearchProviderIds) {
+			const config = imageSearchProviders[id];
+			if (!config) continue;
+
+			const providerEl = this.renderSingleImageSearchProvider(
+				container,
+				id,
+				config,
+			);
 
 			// Scroll to newly added provider
 			if (scrollToId && id === scrollToId && providerEl) {
@@ -538,7 +622,7 @@ export class AnkerSettingTab extends PluginSettingTab {
 
 		// Provider header with delete button
 		new Setting(providerContainer)
-			.setName(`Provider: ${config.type}`)
+			.setName(`AI Provider: ${config.type}`)
 			.setDesc(this.getProviderCapabilitiesDescription(config.type))
 			.addButton((button) =>
 				button
@@ -576,7 +660,7 @@ export class AnkerSettingTab extends PluginSettingTab {
 
 		// Provider type
 		new Setting(providerContainer)
-			.setName("Provider type")
+			.setName("AI provider type")
 			.addDropdown((dropdown) => {
 				// eslint-disable-next-line obsidianmd/ui/sentence-case
 				dropdown.addOption("openai", "OpenAI");
@@ -854,6 +938,143 @@ export class AnkerSettingTab extends PluginSettingTab {
 		providerContainer.createEl("hr");
 
 		return providerContainer;
+	}
+
+	/**
+	 * Render settings for a single image search provider (e.g., Pexels).
+	 * @returns The provider container element
+	 */
+	private renderSingleImageSearchProvider(
+		container: HTMLElement,
+		id: string,
+		config: ImageSearchProviderConfig,
+	): HTMLElement {
+		const providerContainer = container.createDiv({
+			cls: "anker-ai-provider-settings",
+		});
+
+		// Provider header with delete button
+		new Setting(providerContainer)
+			.setName(`Image Search Provider: ${config.type}`)
+			.setDesc(this.getImageSearchProviderDescription(config.type))
+			.addButton((button) =>
+				button
+					.setButtonText("Delete")
+					.setWarning()
+					.onClick(async () => {
+						// Create new object without the deleted provider
+						const remainingProviders = Object.fromEntries(
+							Object.entries(
+								this.plugin.settings.imageSearchProviders,
+							).filter(([key]) => key !== id),
+						);
+						this.plugin.settings.imageSearchProviders =
+							remainingProviders;
+						// Clear dynamic pipe assignments that used this provider
+						const dynamicPipeProviders =
+							this.getDynamicPipeProviders();
+						if (dynamicPipeProviders.searchImage === id) {
+							dynamicPipeProviders.searchImage = undefined;
+						}
+						this.plugin.settings.dynamicPipeProviders =
+							dynamicPipeProviders;
+						// Delete API key from SecretStorage
+						await this.plugin.deleteApiKey(id);
+						await this.plugin.saveSettings();
+						// Re-render settings to ensure UI updates
+						this.display();
+					}),
+			);
+
+		// Provider type (only Pexels for now)
+		new Setting(providerContainer)
+			.setName("Image search provider type")
+			.addDropdown((dropdown) => {
+				dropdown.addOption("pexels", "Pexels");
+				dropdown.setValue(config.type);
+				dropdown.onChange(async (value) => {
+					// Check if provider was deleted
+					if (!this.plugin.settings.imageSearchProviders[id]) {
+						return;
+					}
+					const nextType = value as ImageSearchProviderType;
+					this.plugin.settings.imageSearchProviders[id] = {
+						...config,
+						type: nextType,
+					};
+					await this.plugin.saveSettings();
+					// Re-render to update header
+					this.display();
+				});
+			});
+
+		// API Key (uses SecretStorage)
+		new Setting(providerContainer)
+			.setName("API key")
+			.setDesc("Stored securely in Obsidian's secret storage")
+			.addText((text) => {
+				text.inputEl.type = "password";
+				// eslint-disable-next-line obsidianmd/ui/sentence-case
+				text.setPlaceholder("Enter Pexels API key...");
+
+				// Load current key status (async)
+				void this.plugin.getApiKey(id).then((key) => {
+					if (key) {
+						text.setValue("••••••••");
+						text.inputEl.placeholder = "API key set";
+					}
+				});
+
+				// Track blur to detect when user finishes editing
+				let pendingValue = "";
+
+				text.inputEl.addEventListener("focus", () => {
+					// Clear placeholder dots when focused
+					if (text.getValue() === "••••••••") {
+						text.setValue("");
+					}
+				});
+
+				text.onChange((value) => {
+					pendingValue = value;
+				});
+
+				text.inputEl.addEventListener("blur", () => {
+					if (pendingValue && pendingValue !== "••••••••") {
+						void (async () => {
+							await this.plugin.setApiKey(id, pendingValue);
+							text.setValue("••••••••");
+							new Notice("API key saved");
+						})();
+					}
+				});
+			})
+			.addButton((button) =>
+				button.setButtonText("Clear").onClick(async () => {
+					await this.plugin.deleteApiKey(id);
+					new Notice("API key cleared");
+					this.display();
+				}),
+			);
+
+		// Visual separator
+		providerContainer.createEl("hr");
+
+		return providerContainer;
+	}
+
+	/**
+	 * Get description for image search provider type.
+	 */
+	private getImageSearchProviderDescription(
+		type: ImageSearchProviderType,
+	): string {
+		switch (type) {
+			case "pexels":
+				return "Free stock photos. Rate limit: 200 requests/hour.";
+			default:
+				return "Image search provider.";
+		}
 	}
 
 	private formatSteps(steps: Array<string | number>): string {

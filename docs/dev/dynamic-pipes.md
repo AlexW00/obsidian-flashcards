@@ -2,23 +2,36 @@
 
 ## Overview
 
-Dynamic pipes enable dynamic content generation inside flashcard templates using Nunjucks filters. The implementation provides three filters:
+Dynamic pipes enable dynamic content generation inside flashcard templates using Nunjucks filters. The implementation provides four filters:
 
 - **askAi**: Generates text from a prompt.
 - **generateImage**: Generates an image from a prompt and inserts an attachment reference.
 - **generateSpeech**: Generates speech audio from text and inserts an attachment reference.
+- **searchImage**: Searches Pexels for a photo and inserts an attachment reference.
 
 All dynamic pipes are async and run during template rendering.
 
 ## Provider configuration
 
-Providers are configured in **Settings → AI providers**. Each provider includes:
+Providers are configured in **Settings → Dynamic pipes**.
+
+### AI Providers
+
+AI providers support text, image, and speech generation:
 
 - Provider type (OpenAI, Anthropic, Google, OpenRouter)
 - Text model (for askAi)
 - Image model (OpenAI only)
 - Speech model + voice (OpenAI only)
 - Optional custom base URL
+
+### Image Search Providers
+
+Image search providers support photo search and download:
+
+- Provider type (Pexels)
+- API key (free at pexels.com/api)
+- Rate limit: 200 requests/hour
 
 Per-pipe provider selection is configured in **Pipe assignments**.
 
@@ -50,6 +63,7 @@ AI calls are queued with bounded concurrency. Bulk regeneration from templates r
 ## Key components
 
 - **AiService**: Provider setup, dynamic pipe execution, parallel queue, attachment saving.
+- **PexelsService**: Pexels API integration for image search.
 - **AiCacheService**: Hash-based cache persistence.
 - **TemplateService**: Registers async Nunjucks filters and renders templates asynchronously.
 - **CardService / CardRegenService**: Propagate cache-bypass flags and parallel template regeneration.
@@ -61,3 +75,4 @@ Examples:
 - `{{ "Explain entropy" | askAi }}`
 - `{{ "A neon city at night" | generateImage }}`
 - `{{ "Bonjour" | generateSpeech }}`
+- `{{ "sunset landscape" | searchImage }}`

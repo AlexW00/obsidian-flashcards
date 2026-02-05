@@ -5,7 +5,11 @@ import { createOpenAI } from "@ai-sdk/openai";
 import { createAnthropic } from "@ai-sdk/anthropic";
 import { createGoogleGenerativeAI } from "@ai-sdk/google";
 import { createOpenRouter } from "@openrouter/ai-sdk-provider";
-import type { AiProviderConfig, FlashcardsPluginSettings } from "../types";
+import type {
+	AiProviderConfig,
+	FlashcardsPluginSettings,
+	ImageSearchProviderConfig,
+} from "../types";
 import { debugLog } from "../types";
 import type { AiCacheService } from "./AiCacheService";
 import {
@@ -13,6 +17,7 @@ import {
 	getDefaultSpeechModel,
 	getDefaultTextModel,
 } from "./aiModelDefaults";
+import { PexelsService } from "./PexelsService";
 
 /**
  * Custom fetch wrapper using Obsidian's requestUrl to bypass CORS restrictions.
@@ -130,6 +135,7 @@ export class AiService {
 	private settings: FlashcardsPluginSettings;
 	private cacheService: AiCacheService;
 	private getApiKey: (providerId: string) => Promise<string | null>;
+	private pexelsService: PexelsService;
 
 	// Parallel processing queue
 	private queue: QueueItem<unknown>[] = [];
@@ -146,6 +152,7 @@ export class AiService {
 		this.settings = settings;
 		this.cacheService = cacheService;
 		this.getApiKey = getApiKey;
+		this.pexelsService = new PexelsService();
 	}
 
 	/**
@@ -186,6 +193,34 @@ export class AiService {
 			return null;
 		}
 		const config = settings.aiProviders?.[providerId] ?? null;
+		debugLog(
+			"Dynamic pipe %s: providerId=%s type=%s",
+			pipeType,
+			providerId,
+			config?.type ?? "missing",
+		);
+		if (!config) {
+			return null;
+		}
+		return { id: providerId, config };
+	}
+
+	/**
+	 * Get the image search provider config for a specific dynamic pipe type.
+	 */
+	private getImageSearchProviderForDynamicPipe(
+		pipeType: "searchImage",
+	): { id: string; config: ImageSearchProviderConfig } | null {
+		const settings = this.settings as unknown as {
+			dynamicPipeProviders?: Record<string, string | undefined>;
+			imageSearchProviders?: Record<string, ImageSearchProviderConfig>;
+		};
+		const providerId = settings.dynamicPipeProviders?.[pipeType];
+		if (!providerId) {
+			debugLog("Dynamic pipe %s: no provider assigned", pipeType);
+			return null;
+		}
+		const config = settings.imageSearchProviders?.[providerId] ?? null;
 		debugLog(
 			"Dynamic pipe %s: providerId=%s type=%s",
 			pipeType,
@@ -509,6 +544,81 @@ export class AiService {
 	}
 
 	/**
+	 * Search for an image using Pexels and save it (searchImage dynamic pipe).
+	 *
+	 * @param query The search query (e.g., "sunset landscape")
+	 * @param context Dynamic pipe context (skipCache, cardPath)
+	 * @returns Markdown link to the downloaded image (e.g., "![[image.jpg]]")
+	 */
+	async searchImageDynamicPipe(
+		query: string,
+		context: DynamicPipeContext,
+	): Promise<string> {
+		const pipeType = "searchImage" as const;
+
+		// Check cache first (unless skipCache)
+		if (!context.skipCache && context.cardPath) {
+			const cacheKey = await this.cacheService.generateKey(
+				pipeType,
+				query,
+			);
+			const cached = await this.cacheService.get(
+				context.cardPath,
+				cacheKey,
+			);
+			if (cached) {
+				return cached;
+			}
+		}
+
+		// Get provider config
+		const providerResult = this.getImageSearchProviderForDynamicPipe(pipeType);
+		if (!providerResult) {
+			throw new Error(
+				"No provider configured for searchImage dynamic pipe. Add a Pexels provider and select it in the Search image provider dropdown.",
+			);
+		}
+		const { id: providerId, config } = providerResult;
+
+		// Get API key
+		const apiKey = await this.getApiKey(providerId);
+		if (!apiKey) {
+			throw new Error(
+				`No API key configured for image search provider: ${config.type}`,
+			);
+		}
+
+		// Enqueue the API call
+		const result = await this.enqueue(async () => {
+			if (config.type !== "pexels") {
+				throw new Error(
+					`Unsupported image search provider: ${String(config.type)}`,
+				);
+			}
+
+			const imageResult = await this.pexelsService.searchAndDownload(
+				query,
+				apiKey,
+			);
+
+			// Save the image to attachment folder
+			const filename = await this.saveAttachment(
+				imageResult.data,
+				imageResult.extension,
+				context.cardPath,
+			);
+
+			return `![[${filename}]]`;
+		});
+
+		// Cache the result (stores the markdown link, not the blob)
+		const cacheKey = await this.cacheService.generateKey(pipeType, query);
+		this.cacheService.set(cacheKey, result);
+
+		return result;
+	}
+
+	/**
 	 * Save binary data as an attachment file.
 	 *
 	 * @param data The binary data to save
@@ -552,8 +662,12 @@ export class AiService {
 	 * Check if a provider is configured for a dynamic pipe type.
 	 */
 	isProviderConfigured(
-		pipeType: "askAi" | "generateImage" | "generateSpeech",
+		pipeType: "askAi" | "generateImage" | "generateSpeech" | "searchImage",
 	): boolean {
+		if (pipeType === "searchImage") {
+			const config = this.getImageSearchProviderForDynamicPipe(pipeType);
+			return config !== null;
+		}
 		const config = this.getProviderForDynamicPipe(pipeType);
 		return config !== null;
 	}

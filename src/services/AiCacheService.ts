@@ -25,7 +25,7 @@ export class AiCacheService {
 	 * Uses SHA-256 hash of the concatenated inputs.
 	 */
 	async generateKey(
-		pipeType: "askAi" | "generateImage" | "generateSpeech",
+		pipeType: "askAi" | "generateImage" | "generateSpeech" | "searchImage",
 		...args: unknown[]
 	): Promise<string> {
 		const input = JSON.stringify({ pipeType, args });

@@ -185,6 +185,11 @@ export const ALL_DECK_VIEW_COLUMNS: DeckViewColumn[] = [
 export type AiProviderType = "openai" | "anthropic" | "google" | "openrouter";
 
 /**
+ * Supported image search provider types.
+ */
+export type ImageSearchProviderType = "pexels";
+
+/**
  * Configuration for a single AI provider.
  */
 export interface AiProviderConfig {
@@ -201,6 +206,13 @@ export interface AiProviderConfig {
 	speechVoice?: string;
 	/** Optional custom base URL */
 	baseUrl?: string;
+}
+
+/**
+ * Configuration for a single image search provider (e.g., Pexels).
+ */
+export interface ImageSearchProviderConfig {
+	type: ImageSearchProviderType;
 }
 
 /**
@@ -241,6 +253,8 @@ export interface FlashcardsPluginSettings {
 	fsrsWeights: number[];
 	/** Configured AI providers, keyed by user-defined ID */
 	aiProviders: Record<string, AiProviderConfig>;
+	/** Configured image search providers, keyed by user-defined ID */
+	imageSearchProviders: Record<string, ImageSearchProviderConfig>;
 	/** Provider selection for each dynamic pipe */
 	dynamicPipeProviders: Record<string, string | undefined>;
 }
@@ -327,6 +341,7 @@ export const DEFAULT_SETTINGS: FlashcardsPluginSettings = {
 	fsrsRelearningSteps: [...default_relearning_steps],
 	fsrsWeights: [...default_w],
 	aiProviders: {},
+	imageSearchProviders: {},
 	dynamicPipeProviders: {},
 };
 

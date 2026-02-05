@@ -211,6 +211,51 @@ export class TemplateService {
 			},
 			true, // Mark as async filter
 		);
+
+		// searchImage filter: {{ query | searchImage }}
+		this.env.addFilter(
+			"searchImage",
+			(
+				query: string,
+				callback: (err: Error | null, result?: string) => void,
+			) => {
+				const safeQuery = typeof query === "string" ? query : "";
+				if (safeQuery.trim().length === 0) {
+					callback(null, "");
+					return;
+				}
+				if (!this.aiService) {
+					callback(
+						new Error(
+							"AI service not configured. Please configure a Pexels provider in settings.",
+						),
+					);
+					return;
+				}
+				if (!this.currentRenderContext) {
+					callback(new Error("No render context available"));
+					return;
+				}
+
+				// Notify status update
+				this.currentRenderContext.onStatusUpdate?.(
+					"Searching image...",
+				);
+
+				this.aiService
+					.searchImageDynamicPipe(
+						safeQuery,
+						this.currentRenderContext,
+					)
+					.then((result) => callback(null, result))
+					.catch((err) =>
+						callback(
+							err instanceof Error ? err : new Error(String(err)),
+						),
+					);
+			},
+			true, // Mark as async filter
+		);
 	}
 
 	/**
@@ -338,7 +383,7 @@ export class TemplateService {
 	usesDynamicPipes(templateContent: string): boolean {
 		const { body } = this.parseTemplateContent(templateContent);
 		const contentWithoutComments = body.replace(/<!--[\s\S]*?-->/g, "");
-		return /\|\s*(askAi|generateImage|generateSpeech)\b/.test(
+		return /\|\s*(askAi|generateImage|generateSpeech|searchImage)\b/.test(
 			contentWithoutComments,
 		);
 	}
