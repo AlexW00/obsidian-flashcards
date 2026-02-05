@@ -138,9 +138,9 @@ describe("Review Progress & Settings", function () {
 		// The initial state should show "0 / N completed"
 		expect(initialText).toMatch(/^0\s*\/\s*\d+\s*completed$/);
 
-		// Rate the current card "Again" so it stays in the queue but
-		// the session advances to the next card
-		await revealAndRate(".flashcard-btn-again");
+		// Rate the current card "Easy" so it leaves the due queue entirely
+		// (bypasses learning steps and schedules for days later)
+		await revealAndRate(".flashcard-btn-easy");
 
 		// After rating, the review view should still exist (more cards remain)
 		const reviewView = browser.$(".flashcard-review");
@@ -176,8 +176,9 @@ describe("Review Progress & Settings", function () {
 		const initialCompleted = Number(initialMatch![1]);
 		const initialTotal = Number(initialMatch![2]);
 
-		// Rate the card "Good" so it leaves the due queue
-		await revealAndRate(".flashcard-btn-good");
+		// Rate the card "Easy" so it leaves the due queue (bypasses learning
+		// steps and schedules for days later, not just minutes)
+		await revealAndRate(".flashcard-btn-easy");
 
 		// Either: still reviewing with fewer cards, or session complete
 		const completeState = browser.$(".flashcard-complete-state");
