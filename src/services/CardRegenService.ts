@@ -5,6 +5,7 @@ import type { CardService } from "../flashcards/CardService";
 import type { DeckService } from "../flashcards/DeckService";
 import type { TemplateService } from "../flashcards/TemplateService";
 import { TemplateRegenModal } from "../ui/TemplateRegenModal";
+import { FailedCardsModal, type FailedCard } from "../ui/FailedCardsModal";
 
 /**
  * Configuration for the CardRegenService.
@@ -508,20 +509,46 @@ export class CardRegenService {
 				// Clear the regenerating flag when modal closes
 				this.isRegeneratingAll = false;
 
-				// Show completion notice
-				if (result.cancelled) {
-					new Notice(
-						`Regeneration cancelled. ${result.successCount} card${result.successCount !== 1 ? "s" : ""} regenerated.`,
-					);
-				} else if (result.failedCards.length === 0) {
+				// Show completion notice only for success
+				// FailedCardsModal handles failures (opened by TemplateRegenModal)
+				if (result.failedCards.length === 0) {
 					new Notice(
 						`Successfully regenerated ${result.successCount} card${result.successCount !== 1 ? "s" : ""}.`,
 					);
-				} else {
+				}
+				// Don't show notice for failures - FailedCardsModal handles that
+			},
+		);
+
+		modal.open();
+	}
+
+	/**
+	 * Open the FailedCardsModal to retry regenerating failed cards.
+	 * @param failedCards Array of failed cards to retry
+	 */
+	openFailedCardsModal(failedCards: FailedCard[]): void {
+		if (failedCards.length === 0) return;
+
+		// Mark as regenerating (will be cleared when modal closes)
+		this.isRegeneratingAll = true;
+
+		const modal = new FailedCardsModal(
+			this.app,
+			failedCards,
+			this.cardService,
+			(result) => {
+				// Clear the regenerating flag when modal closes
+				this.isRegeneratingAll = false;
+
+				// Show completion notice only for success, not for failures
+				// (FailedCardsModal handles showing itself again for remaining failures)
+				if (result.failedCards.length === 0) {
 					new Notice(
-						`Regenerated ${result.successCount} card${result.successCount !== 1 ? "s" : ""}, ${result.failedCards.length} failed.`,
+						`Successfully regenerated ${result.successCount} card${result.successCount !== 1 ? "s" : ""}.`,
 					);
 				}
+				// Don't show notice for failures - FailedCardsModal will open again
 			},
 		);
 

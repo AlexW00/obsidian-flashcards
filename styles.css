@@ -260,6 +260,15 @@ text-overflow: ellipsis;
 white-space: nowrap;
 }
 
+.selectable-list-item-name-clickable {
+cursor: pointer;
+color: var(--text-accent);
+}
+
+.selectable-list-item-name-clickable:hover {
+text-decoration: underline;
+}
+
 .selectable-list-item-secondary {
 color: var(--text-muted);
 font-size: var(--font-ui-small);
@@ -269,12 +278,19 @@ flex-shrink: 0;
 /* Virtual scrolling for large lists */
 .selectable-list-virtual {
 position: relative;
-height: var(--virtual-total-height, 300px);
+/* Container keeps its max-height constraint as the viewport */
 }
 
+/* Spacer element to establish total scrollable height */
+.selectable-list-spacer {
+width: 100%;
+pointer-events: none;
+}
+
+/* Visible items container - positioned absolutely over the spacer */
 .selectable-list-visible {
 position: absolute;
-top: var(--visible-items-top, 0);
+top: 0;
 left: 0;
 right: 0;
 }
@@ -804,10 +820,27 @@ padding: var(--size-4-4);
 }
 
 .flashcard-modal-sticky-footer {
-flex: 0 0 auto;
-padding: var(--size-4-4);
-border-top: 1px solid var(--background-modifier-border);
-background: var(--background-primary);
+  flex: 0 0 auto;
+  padding: var(--size-4-4);
+  border-top: 1px solid var(--background-modifier-border);
+  background: var(--background-primary);
+}
+
+/* Distinctive styling for Failed Cards Modal */
+.flashcard-failed-modal h2 {
+  color: var(--color-red);
+  display: flex;
+  align-items: center;
+  gap: var(--size-4-2);
+}
+
+.flashcard-failed-modal h2::before {
+  content: "⚠️";
+  font-size: 1em;
+}
+
+.flashcard-failed-modal .flashcard-failed-list {
+  border-left: 3px solid var(--color-red);
 }
 
 /* --------------------------------------------------------------------------

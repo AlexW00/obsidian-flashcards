@@ -22,6 +22,8 @@ export interface SelectableListOptions<T> {
 	virtualScrollThreshold?: number;
 	/** Callback when selection changes. */
 	onSelectionChange?: (selectedItems: T[]) => void;
+	/** Callback when an item's display name is clicked. */
+	onItemClick?: (item: T) => void;
 	/** Whether all items are initially selected. Defaults to true. */
 	initiallySelected?: boolean;
 	/** CSS class for the list container. */
@@ -150,6 +152,12 @@ export class SelectableListComponent<T> {
 		);
 		this.listEl.addClass("selectable-list-virtual");
 
+		// Create spacer to establish scrollable height
+		const spacer = this.listEl.createDiv({
+			cls: "selectable-list-spacer",
+		});
+		spacer.style.height = `${totalHeight}px`;
+
 		const visibleContainer = this.listEl.createDiv({
 			cls: "selectable-list-visible",
 		});
@@ -205,12 +213,9 @@ export class SelectableListComponent<T> {
 		visibleContainer.empty();
 		this.checkboxElements.clear();
 
-		// Position visible container
+		// Position visible container using transform for smooth scrolling
 		const topOffset = startIndex * itemHeight;
-		visibleContainer.style.setProperty(
-			"--visible-items-top",
-			`${topOffset}px`,
-		);
+		visibleContainer.style.transform = `translateY(${topOffset}px)`;
 
 		for (let i = startIndex; i <= endIndex; i++) {
 			this.renderItemRow(visibleContainer, i);
@@ -244,10 +249,19 @@ export class SelectableListComponent<T> {
 		}
 
 		const displayName = this.options.getDisplayName(selectableItem.item);
-		row.createSpan({
+		const nameEl = row.createSpan({
 			text: displayName,
 			cls: "selectable-list-item-name",
 		});
+
+		// Make name clickable if onItemClick is provided
+		if (this.options.onItemClick && !forMeasure) {
+			nameEl.addClass("selectable-list-item-name-clickable");
+			nameEl.addEventListener("click", (e) => {
+				e.stopPropagation();
+				this.options.onItemClick?.(selectableItem.item);
+			});
+		}
 
 		if (this.options.getSecondaryText) {
 			const secondaryText = this.options.getSecondaryText(

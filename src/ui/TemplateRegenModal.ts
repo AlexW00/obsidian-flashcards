@@ -30,6 +30,7 @@ export class TemplateRegenModal extends Modal {
 
 	private isRegenerating = false;
 	private isCancelled = false;
+	private isClosed = false; // Whether modal has been closed
 	private useCache = true; // Whether to use AI cache (checked by default)
 	private didComplete = false; // Whether onComplete was already called
 
@@ -90,6 +91,7 @@ export class TemplateRegenModal extends Modal {
 					: fileName;
 			},
 			onSelectionChange: () => this.updateRegenerateButton(),
+			onItemClick: (card) => this.openCard(card),
 			initiallySelected: true,
 			containerClass: "template-regen-card-list",
 			showCount: true,
@@ -127,6 +129,12 @@ export class TemplateRegenModal extends Modal {
 	}
 
 	onClose() {
+		// Guard against multiple close calls
+		if (this.isClosed) {
+			return;
+		}
+		this.isClosed = true;
+
 		// If regeneration is in progress, mark as cancelled
 		if (this.isRegenerating) {
 			this.isCancelled = true;
@@ -143,6 +151,17 @@ export class TemplateRegenModal extends Modal {
 		}
 
 		this.contentEl.empty();
+	}
+
+	/**
+	 * Open a card file in the editor.
+	 */
+	private openCard(card: Flashcard): void {
+		const file = this.app.vault.getAbstractFileByPath(card.path);
+		if (file instanceof TFile) {
+			void this.app.workspace.getLeaf().openFile(file);
+			this.close();
+		}
 	}
 
 	/**
@@ -265,13 +284,22 @@ export class TemplateRegenModal extends Modal {
 				cancelled: this.isCancelled,
 			};
 
-			this.didComplete = true;
-			this.onComplete?.(result);
+			// Guard against double-invocation (can happen if modal closed while regenerating)
+			if (!this.didComplete) {
+				this.didComplete = true;
+				this.onComplete?.(result);
+			}
 			this.close();
 
-			// Show result modal if there were failures
-			if (failedCards.length > 0) {
-				new FailedCardsModal(this.app, failedCards).open();
+			// Show result modal if there were failures AND not cancelled
+			// (if cancelled, user explicitly closed the modal so don't show another)
+			// Note: use result.cancelled, not this.isCancelled, because close() sets isCancelled=true
+			if (failedCards.length > 0 && !result.cancelled) {
+				new FailedCardsModal(
+					this.app,
+					failedCards,
+					this.cardService,
+				).open();
 			}
 		}
 	}
