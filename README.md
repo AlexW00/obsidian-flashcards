@@ -207,6 +207,9 @@ npm run test:e2e:latest
 
 # Beta (uses .env)
 npm run test:e2e:beta
+
+# Release
+npm run release -- 1.2.3
 ```
 
 ### Environment Variables
