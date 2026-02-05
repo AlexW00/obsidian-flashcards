@@ -144,7 +144,7 @@ export const config: WebdriverIO.Config = {
 				`${sanitizeVersion(test.title)} - ${timestamp}.png`,
 			);
 			await mkdir("errorShots", { recursive: true });
-			await browser.saveScreenshot(screenshotPath);
+			await (browser as any).saveScreenshot(screenshotPath);
 			console.log(`Saved screenshot: ${screenshotPath}`);
 		}
 	},
