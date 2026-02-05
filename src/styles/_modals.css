@@ -3,9 +3,9 @@
    ========================================================================== */
 
 .flashcard-template-name-modal .flashcard-modal-buttons {
-margin-top: var(--size-4-4);
-padding-top: var(--size-4-4);
-border-top: 1px solid var(--background-modifier-border);
+   margin-top: var(--size-4-4);
+   padding-top: var(--size-4-4);
+   border-top: 1px solid var(--background-modifier-border);
 }
 
 /* ==========================================================================
@@ -13,33 +13,33 @@ border-top: 1px solid var(--background-modifier-border);
    ========================================================================== */
 
 .flashcard-orphan-modal {
-width: 100%;
-max-width: 620px;
+   width: 100%;
+   max-width: 620px;
 }
 
 .flashcard-orphan-list {
-max-height: 300px;
-overflow: auto;
-margin: var(--size-4-2) 0;
-padding: var(--size-2-2) var(--size-4-4) var(--size-2-2) var(--size-4-6);
-border: 1px solid var(--background-modifier-border);
-border-radius: var(--radius-s);
-background: var(--background-secondary);
-box-sizing: border-box;
+   max-height: 300px;
+   overflow: auto;
+   margin: var(--size-4-2) 0;
+   padding: var(--size-2-2) var(--size-4-4) var(--size-2-2) var(--size-4-6);
+   border: 1px solid var(--background-modifier-border);
+   border-radius: var(--radius-s);
+   background: var(--background-secondary);
+   box-sizing: border-box;
 }
 
 .flashcard-orphan-list li {
-margin: var(--size-2-1) 0;
-color: var(--text-normal);
+   margin: var(--size-2-1) 0;
+   color: var(--text-normal);
 }
 
 .flashcard-orphan-link {
-color: var(--text-accent);
-text-decoration: none;
+   color: var(--text-accent);
+   text-decoration: none;
 }
 
 .flashcard-orphan-link:hover {
-text-decoration: underline;
+   text-decoration: underline;
 }
 
 /* ==========================================================================
@@ -48,53 +48,57 @@ text-decoration: underline;
 
 /* Distinctive styling for Card Errors Modal */
 .flashcard-error-modal h2 {
-  color: var(--color-red);
-  display: flex;
-  align-items: center;
-  gap: var(--size-4-2);
+   color: var(--color-red);
+   display: flex;
+   align-items: center;
+   gap: var(--size-4-2);
 }
 
 .flashcard-error-modal h2::before {
-  content: "⚠️";
-  font-size: 1em;
+   content: "⚠️";
+   font-size: 1em;
 }
 
 .flashcard-error-modal .flashcard-error-list {
-  border-left: 3px solid var(--color-red);
+   border-left: 3px solid var(--color-red);
+}
+
+.flashcard-error-list-container {
+   margin-bottom: var(--size-4-4);
 }
 
 .flashcard-error-list {
-max-height: 300px;
-overflow: auto;
-margin: var(--size-4-2) 0;
-padding: var(--size-2-2) var(--size-4-4) var(--size-2-2) var(--size-4-6);
-border: 1px solid var(--background-modifier-border);
-border-radius: var(--radius-s);
-background: var(--background-secondary);
-box-sizing: border-box;
+   max-height: 300px;
+   overflow: auto;
+   margin: var(--size-4-2) 0;
+   padding: var(--size-2-2) var(--size-4-4) var(--size-2-2) var(--size-4-6);
+   border: 1px solid var(--background-modifier-border);
+   border-radius: var(--radius-s);
+   background: var(--background-secondary);
+   box-sizing: border-box;
 }
 
 .flashcard-error-list li {
-margin: var(--size-2-1) 0;
-color: var(--text-normal);
+   margin: var(--size-2-1) 0;
+   color: var(--text-normal);
 }
 
 .flashcard-error-link {
-color: var(--text-accent);
-text-decoration: none;
+   color: var(--text-accent);
+   text-decoration: none;
 }
 
 .flashcard-error-link:hover {
-text-decoration: underline;
+   text-decoration: underline;
 }
 
 .flashcard-error-name {
-color: var(--text-muted);
+   color: var(--text-muted);
 }
 
 .flashcard-error-hint {
-color: var(--text-muted);
-font-size: var(--font-ui-smaller);
+   color: var(--text-muted);
+   font-size: var(--font-ui-smaller);
 }
 
 /* ==========================================================================
@@ -102,121 +106,121 @@ font-size: var(--font-ui-smaller);
    ========================================================================== */
 
 .anki-import-modal {
-min-width: 450px;
+   min-width: 450px;
 }
 
 .anki-import-modal h2 {
-text-align: center;
+   text-align: center;
 }
 
 .anki-import-file-input-hidden {
-display: none;
+   display: none;
 }
 
 .anki-import-file-section {
-margin-bottom: var(--size-4-4);
+   margin-bottom: var(--size-4-4);
 }
 
 .anki-import-filename {
-color: var(--text-muted);
-font-size: var(--font-ui-small);
+   color: var(--text-muted);
+   font-size: var(--font-ui-small);
 }
 
 .anki-import-separator {
-width: 100%;
-border-top: 1px solid var(--background-modifier-border);
-margin: var(--size-4-4) 0;
+   width: 100%;
+   border-top: 1px solid var(--background-modifier-border);
+   margin: var(--size-4-4) 0;
 }
 
 .anki-import-deck-list {
-margin: var(--size-4-4) 0;
-padding: 0;
+   margin: var(--size-4-4) 0;
+   padding: 0;
 }
 
 .anki-import-deck-list-hidden {
-display: none;
+   display: none;
 }
 
 .anki-import-controls {
-display: flex;
-gap: var(--size-4-2);
-padding: var(--size-4-2);
-border-bottom: 1px solid var(--background-modifier-border);
-position: sticky;
-top: 0;
-background-color: var(--background-primary);
-z-index: 1;
+   display: flex;
+   gap: var(--size-4-2);
+   padding: var(--size-4-2);
+   border-bottom: 1px solid var(--background-modifier-border);
+   position: sticky;
+   top: 0;
+   background-color: var(--background-primary);
+   z-index: 1;
 }
 
 .anki-import-decks {
-display: flex;
-flex-direction: column;
-gap: var(--size-4-1);
-padding: var(--size-4-2);
+   display: flex;
+   flex-direction: column;
+   gap: var(--size-4-1);
+   padding: var(--size-4-2);
 }
 
 .anki-import-deck-row {
-display: flex;
-align-items: center;
-gap: var(--size-4-2);
-padding: var(--size-4-1) var(--size-4-2);
-border-radius: var(--radius-s);
+   display: flex;
+   align-items: center;
+   gap: var(--size-4-2);
+   padding: var(--size-4-1) var(--size-4-2);
+   border-radius: var(--radius-s);
 }
 
 .anki-import-deck-row:hover {
-background: var(--background-modifier-hover);
+   background: var(--background-modifier-hover);
 }
 
 .anki-import-checkbox {
-margin: 0;
+   margin: 0;
 }
 
 .anki-import-deck-name {
-flex: 1;
+   flex: 1;
 }
 
 .anki-import-deck-count {
-color: var(--text-muted);
-font-size: var(--font-ui-smaller);
+   color: var(--text-muted);
+   font-size: var(--font-ui-smaller);
 }
 
 .anki-import-folder-section {
-margin: var(--size-4-4) 0;
+   margin: var(--size-4-4) 0;
 }
 
 .anki-import-file-section .setting-item {
-align-items: center;
-justify-content: space-between;
-width: 100%;
+   align-items: center;
+   justify-content: space-between;
+   width: 100%;
 }
 
 .anki-import-file-section .setting-item-info {
-flex: 1;
+   flex: 1;
 }
 
 .anki-import-file-section .setting-item-control {
-flex: 0 0 auto;
+   flex: 0 0 auto;
 }
 
 .anki-import-file-control {
-display: flex;
-flex-direction: column;
-align-items: flex-end;
-justify-content: center;
-gap: var(--size-4-1);
-text-align: right;
+   display: flex;
+   flex-direction: column;
+   align-items: flex-end;
+   justify-content: center;
+   gap: var(--size-4-1);
+   text-align: right;
 }
 
 .anki-import-loading,
 .anki-import-empty,
 .anki-import-error {
-color: var(--text-muted);
-text-align: center;
-padding: var(--size-4-4);
+   color: var(--text-muted);
+   text-align: center;
+   padding: var(--size-4-4);
 }
 
 .anki-import-error {
-color: var(--text-error);
+   color: var(--text-error);
 }
 
 /* ==========================================================================
@@ -224,86 +228,90 @@ color: var(--text-error);
    ========================================================================== */
 
 .template-regen-modal {
-width: 100%;
-max-width: 550px;
+   width: 100%;
+   max-width: 550px;
 }
 
 .template-regen-description {
-color: var(--text-muted);
-font-size: var(--font-ui-small);
-margin: 0 0 var(--size-4-3) 0;
+   color: var(--text-muted);
+   font-size: var(--font-ui-small);
+   margin: 0 0 var(--size-4-3) 0;
 }
 
 .template-regen-controls {
-display: flex;
-align-items: center;
-gap: var(--size-4-2);
-margin-bottom: var(--size-4-2);
+   display: flex;
+   align-items: center;
+   gap: var(--size-4-2);
+   margin-bottom: var(--size-4-2);
 }
 
 .template-regen-count {
-margin-left: auto;
-font-size: var(--font-ui-smaller);
-color: var(--text-muted);
+   margin-left: auto;
+   font-size: var(--font-ui-smaller);
+   color: var(--text-muted);
+}
+
+.template-regen-list-container {
+   margin-bottom: var(--size-4-4);
 }
 
 .template-regen-card-list {
-max-height: 300px;
-overflow-y: auto;
-border: 1px solid var(--background-modifier-border);
-border-radius: var(--radius-s);
-background: var(--background-secondary);
-margin-bottom: var(--size-4-4);
+   max-height: 300px;
+   overflow-y: auto;
+   border: 1px solid var(--background-modifier-border);
+   border-radius: var(--radius-s);
+   background: var(--background-secondary);
+   margin-bottom: var(--size-4-4);
 }
 
 .template-regen-cards,
 .template-regen-visible-items {
-width: 100%;
+   width: 100%;
 }
 
 .template-regen-card-row {
-display: flex;
-align-items: center;
-gap: var(--size-4-2);
-padding: var(--size-2-2) var(--size-4-3);
-border-bottom: 1px solid var(--background-modifier-border);
+   display: flex;
+   align-items: center;
+   gap: var(--size-4-2);
+   padding: var(--size-2-2) var(--size-4-3);
+   border-bottom: 1px solid var(--background-modifier-border);
 }
 
 .template-regen-card-row:last-child {
-border-bottom: none;
+   border-bottom: none;
 }
 
 .template-regen-card-row:hover {
-background: var(--background-modifier-hover);
+   background: var(--background-modifier-hover);
 }
 
 .template-regen-checkbox {
-flex-shrink: 0;
-margin: 0;
+   flex-shrink: 0;
+   margin: 0;
 }
 
 .template-regen-card-name {
-flex: 1;
-overflow: hidden;
-text-overflow: ellipsis;
-white-space: nowrap;
-font-size: var(--font-ui-small);
+   flex: 1;
+   overflow: hidden;
+   text-overflow: ellipsis;
+   white-space: nowrap;
+   font-size: var(--font-ui-small);
 }
 
 .template-regen-progress {
-margin-top: var(--size-4-4);
-margin-bottom: var(--size-4-3);
+   margin-top: var(--size-4-4);
+   margin-bottom: var(--size-4-3);
 }
 
 .template-regen-virtual-scroll {
-width: 100%;
-height: var(--virtual-scroll-height, auto);
-position: relative;
+   width: 100%;
+   height: var(--virtual-scroll-height, auto);
+   position: relative;
 }
 
 .template-regen-visible-items {
-position: absolute;
-left: 0;
-right: 0;
-top: var(--visible-items-top, 0);
+   position: absolute;
+   left: 0;
+   right: 0;
+   top: var(--visible-items-top, 0);
 }

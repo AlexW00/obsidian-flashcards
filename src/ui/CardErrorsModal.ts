@@ -75,8 +75,11 @@ export class CardErrorsModal extends Modal {
 		});
 
 		// Selectable list with cards
+		const listContainer = contentEl.createDiv({
+			cls: "flashcard-error-list-container",
+		});
 		this.selectableList = new SelectableListComponent<CardError>(
-			contentEl,
+			listContainer,
 			{
 				items: this.cardErrors,
 				getDisplayName: (item) => {
@@ -106,16 +109,16 @@ export class CardErrorsModal extends Modal {
 		// Button row with cache checkbox and regenerate button
 		const checkboxes: CheckboxConfig[] = this.showCacheCheckbox
 			? [
-					{
-						label: "Cache AI results",
-						checked: this.useCache,
-						onChange: (checked: boolean) => {
-							this.useCache = checked;
-						},
-						tooltip:
-							"When enabled, AI filter results are cached and reused. Disable to force fresh AI generation.",
+				{
+					label: "Cache AI results",
+					checked: this.useCache,
+					onChange: (checked: boolean) => {
+						this.useCache = checked;
 					},
-				]
+					tooltip:
+						"When enabled, AI filter results are cached and reused. Disable to force fresh AI generation.",
+				},
+			]
 			: [];
 
 		this.buttonRow = new ButtonRowComponent(contentEl, {
