@@ -31,7 +31,7 @@ export interface FileListOptions {
 
 /**
  * Reusable file list component with clickable links and secondary text.
- * Used for displaying lists of files (e.g., failed cards, orphan attachments).
+ * Used for displaying lists of files (e.g., card errors, orphan attachments).
  */
 export class FileListComponent {
 	private app: App;

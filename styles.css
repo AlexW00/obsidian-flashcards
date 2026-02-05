@@ -493,13 +493,13 @@ color: var(--color-red);
 color: var(--color-green);
 }
 
-.flashcard-stat-failed {
+.flashcard-stat-error {
 color: var(--text-on-accent);
 background-color: var(--color-red);
 border-color: var(--color-red);
 }
 
-.flashcard-stat-failed:hover {
+.flashcard-stat-error:hover {
 background-color: var(--color-red);
 opacity: 0.9;
 text-decoration: underline;
@@ -838,20 +838,20 @@ padding: var(--size-4-4);
   background: var(--background-primary);
 }
 
-/* Distinctive styling for Failed Cards Modal */
-.flashcard-failed-modal h2 {
+/* Distinctive styling for Card Errors Modal */
+.flashcard-error-modal h2 {
   color: var(--color-red);
   display: flex;
   align-items: center;
   gap: var(--size-4-2);
 }
 
-.flashcard-failed-modal h2::before {
+.flashcard-error-modal h2::before {
   content: "⚠️";
   font-size: 1em;
 }
 
-.flashcard-failed-modal .flashcard-failed-list {
+.flashcard-error-modal .flashcard-error-list {
   border-left: 3px solid var(--color-red);
 }
 
@@ -975,10 +975,10 @@ text-decoration: underline;
 }
 
 /* ==========================================================================
-   Failed Cards Modal
+   Card Errors Modal
    ========================================================================== */
 
-.flashcard-failed-list {
+.flashcard-error-list {
 max-height: 300px;
 overflow: auto;
 margin: var(--size-4-2) 0;
@@ -989,25 +989,25 @@ background: var(--background-secondary);
 box-sizing: border-box;
 }
 
-.flashcard-failed-list li {
+.flashcard-error-list li {
 margin: var(--size-2-1) 0;
 color: var(--text-normal);
 }
 
-.flashcard-failed-link {
+.flashcard-error-link {
 color: var(--text-accent);
 text-decoration: none;
 }
 
-.flashcard-failed-link:hover {
+.flashcard-error-link:hover {
 text-decoration: underline;
 }
 
-.flashcard-failed-name {
+.flashcard-error-name {
 color: var(--text-muted);
 }
 
-.flashcard-failed-error-hint {
+.flashcard-error-hint {
 color: var(--text-muted);
 font-size: var(--font-ui-smaller);
 }

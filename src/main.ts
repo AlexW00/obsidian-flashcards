@@ -27,9 +27,9 @@ import {
 	showCardEditModal,
 } from "./ui/CardCreationFlow";
 import { OrphanAttachmentsModal } from "./ui/OrphanAttachmentsModal";
-import { FailedCardsModal, type FailedCard } from "./ui/FailedCardsModal";
+import { CardErrorsModal, type CardError } from "./ui/CardErrorsModal";
 import { AnkiImportModal } from "./ui/AnkiImportModal";
-import { FailedCardsScopeModal } from "./ui/FailedCardsScopeModal";
+import { CardErrorsScopeModal } from "./ui/CardErrorsScopeModal";
 
 /** Key prefix for storing API keys in SecretStorage */
 const API_KEY_PREFIX = "anker-ai-api-key-";
@@ -384,8 +384,8 @@ export default class AnkerPlugin extends Plugin {
 
 		this.addCommand({
 			id: "open-failed-cards",
-			name: "Show failed cards",
-			callback: () => this.openFailedCardsCommand(),
+			name: "Show card errors",
+			callback: () => this.openCardErrorsCommand(),
 		});
 	}
 
@@ -633,31 +633,31 @@ export default class AnkerPlugin extends Plugin {
 	}
 
 	/**
-	 * Command entry: open failed cards with smart defaults and scope selection.
+	 * Command entry: open card errors with smart defaults and scope selection.
 	 */
-	private openFailedCardsCommand(): void {
+	private openCardErrorsCommand(): void {
 		const activeFile = this.app.workspace.getActiveFile();
 		if (activeFile) {
 			if (this.isDeckBaseFile(activeFile)) {
 				const deckPath = activeFile.parent?.path;
 				if (deckPath) {
-					this.openFailedCardsForDeck(deckPath);
+					this.openCardErrorsForDeck(deckPath);
 					return;
 				}
 			}
 			if (this.isTemplateFile(activeFile)) {
-				this.openFailedCardsForTemplate(activeFile.path);
+				this.openCardErrorsForTemplate(activeFile.path);
 				return;
 			}
 		}
 
-		new FailedCardsScopeModal(this.app, this.deckService, (scope) => {
+		new CardErrorsScopeModal(this.app, this.deckService, (scope) => {
 			if (scope.type === "all") {
-				this.openFailedCardsForAll();
+				this.openCardErrorsForAll();
 				return;
 			}
 			if (scope.type === "deck") {
-				this.openFailedCardsForDeck(scope.path);
+				this.openCardErrorsForDeck(scope.path);
 				return;
 			}
 
@@ -671,59 +671,59 @@ export default class AnkerPlugin extends Plugin {
 						return;
 					}
 					new TemplateSelectorModal(this.app, templates, (template) =>
-						this.openFailedCardsForTemplate(template.path),
+						this.openCardErrorsForTemplate(template.path),
 					).open();
 				});
 		}).open();
 	}
 
-	private openFailedCardsForAll(): void {
+	private openCardErrorsForAll(): void {
 		const cards = this.deckService.getAllFlashcards();
-		this.openFailedCardsFromCards(cards, "Zero failed cards found");
+		this.openCardErrorsFromCards(cards, "No card errors found");
 	}
 
-	private openFailedCardsForDeck(deckPath: string): void {
+	private openCardErrorsForDeck(deckPath: string): void {
 		const cards = this.deckService.getFlashcardsInFolder(deckPath);
-		this.openFailedCardsFromCards(
+		this.openCardErrorsFromCards(
 			cards,
-			`Zero failed cards found in "${deckPath}"`,
+			`No card errors found in "${deckPath}"`,
 		);
 	}
 
-	private openFailedCardsForTemplate(templatePath: string): void {
+	private openCardErrorsForTemplate(templatePath: string): void {
 		const cards = this.deckService.getFlashcardsByTemplate(templatePath);
-		this.openFailedCardsFromCards(
+		this.openCardErrorsFromCards(
 			cards,
-			"Zero failed cards found for this template",
+			"No card errors found for this template",
 		);
 	}
 
 	/**
-	 * Build and open FailedCardsModal from a set of flashcards.
+	 * Build and open CardErrorsModal from a set of flashcards.
 	 */
-	private openFailedCardsFromCards(
+	private openCardErrorsFromCards(
 		cards: Flashcard[],
 		emptyMessage: string,
 	): void {
-		const failedCards = this.buildFailedCards(cards);
+		const cardErrors = this.buildCardErrors(cards);
 
-		if (failedCards.length === 0) {
+		if (cardErrors.length === 0) {
 			new Notice(emptyMessage);
 			return;
 		}
 
-		failedCards.sort((a, b) => (a.path ?? "").localeCompare(b.path ?? ""));
+		cardErrors.sort((a, b) => (a.path ?? "").localeCompare(b.path ?? ""));
 
 		if (this.cardRegenService) {
-			this.cardRegenService.openFailedCardsModal(failedCards);
+			this.cardRegenService.openCardErrorsModal(cardErrors);
 			return;
 		}
 
-		new FailedCardsModal(this.app, failedCards, this.cardService).open();
+		new CardErrorsModal(this.app, cardErrors, this.cardService).open();
 	}
 
-	private buildFailedCards(cards: Flashcard[]): FailedCard[] {
-		const failedCards: FailedCard[] = [];
+	private buildCardErrors(cards: Flashcard[]): CardError[] {
+		const cardErrors: CardError[] = [];
 
 		for (const card of cards) {
 			const rawError = (card.frontmatter as Record<string, unknown>)
@@ -747,13 +747,13 @@ export default class AnkerPlugin extends Plugin {
 			}
 
 			const file = this.app.vault.getAbstractFileByPath(card.path);
-			failedCards.push({
+			cardErrors.push({
 				file: file instanceof TFile ? file : null,
 				path: card.path,
 				error: trimmedError,
 			});
 		}
 
-		return failedCards;
+		return cardErrors;
 	}
 }

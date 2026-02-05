@@ -1,7 +1,7 @@
 import { App, Modal, TFile } from "obsidian";
 import type { Flashcard, FlashcardTemplate } from "../types";
 import type { CardService } from "../flashcards/CardService";
-import { FailedCardsModal, type FailedCard } from "./FailedCardsModal";
+import { CardErrorsModal, type CardError } from "./CardErrorsModal";
 import {
 	ButtonRowComponent,
 	ProgressBarComponent,
@@ -14,7 +14,7 @@ import {
  */
 export interface RegenResult {
 	successCount: number;
-	failedCards: FailedCard[];
+	cardErrors: CardError[];
 	cancelled: boolean;
 }
 
@@ -145,7 +145,7 @@ export class TemplateRegenModal extends Modal {
 			this.didComplete = true;
 			this.onComplete?.({
 				successCount: 0,
-				failedCards: [],
+				cardErrors: [],
 				cancelled: true,
 			});
 		}
@@ -210,7 +210,7 @@ export class TemplateRegenModal extends Modal {
 		this.setRegenerating(true);
 
 		let successCount = 0;
-		const failedCards: FailedCard[] = [];
+		const cardErrors: CardError[] = [];
 
 		// Show progress
 		this.progressBar?.show();
@@ -233,7 +233,7 @@ export class TemplateRegenModal extends Modal {
 				this.progressBar?.setFraction(progress);
 
 				if (!(file instanceof TFile)) {
-					failedCards.push({
+					cardErrors.push({
 						file: null,
 						path: cardPath,
 						error: `File not found: ${cardPath}`,
@@ -263,7 +263,7 @@ export class TemplateRegenModal extends Modal {
 				} catch (error) {
 					const errorMessage =
 						error instanceof Error ? error.message : String(error);
-					console.error(`Failed to regenerate ${cardPath}:`, error);
+					console.error(`Regeneration error for ${cardPath}:`, error);
 
 					// Write error to card frontmatter
 					try {
@@ -274,13 +274,13 @@ export class TemplateRegenModal extends Modal {
 							writeError,
 						);
 					}
-					failedCards.push({ file, error: errorMessage });
+					cardErrors.push({ file, error: errorMessage });
 				}
 			}
 		} finally {
 			const result: RegenResult = {
 				successCount,
-				failedCards,
+				cardErrors,
 				cancelled: this.isCancelled,
 			};
 
@@ -291,13 +291,13 @@ export class TemplateRegenModal extends Modal {
 			}
 			this.close();
 
-			// Show result modal if there were failures AND not cancelled
+			// Show result modal if there were errors AND not cancelled
 			// (if cancelled, user explicitly closed the modal so don't show another)
 			// Note: use result.cancelled, not this.isCancelled, because close() sets isCancelled=true
-			if (failedCards.length > 0 && !result.cancelled) {
-				new FailedCardsModal(
+			if (cardErrors.length > 0 && !result.cancelled) {
+				new CardErrorsModal(
 					this.app,
-					failedCards,
+					cardErrors,
 					this.cardService,
 				).open();
 			}

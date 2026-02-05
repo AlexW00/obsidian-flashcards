@@ -7,10 +7,10 @@ import {
 	debounce,
 } from "obsidian";
 import type AnkerPlugin from "../main";
-import type { Deck, Flashcard } from "../types";
+import type { Deck } from "../types";
 import { showCardCreationModal } from "./CardCreationFlow";
 import { DeckBaseViewService, type StateFilter } from "./DeckBaseViewService";
-import { FailedCardsModal, type FailedCard } from "./FailedCardsModal";
+import { CardErrorsModal, type CardError } from "./CardErrorsModal";
 
 export const DASHBOARD_VIEW_TYPE = "anker-dashboard";
 
@@ -285,25 +285,25 @@ export class DashboardView extends ItemView {
 				"review",
 			);
 
-			// Failed cards badge
-			const failedCards = this.getFailedCardsInDeck(deck.path);
-			if (failedCards.length > 0) {
-				const failedBadge = statsEl.createSpan({
-					text: `⚠️ ${failedCards.length} failed`,
-					cls: "flashcard-stat flashcard-stat-failed flashcard-stat-clickable",
+			// Card errors badge
+			const cardErrors = this.getCardErrorsInDeck(deck.path);
+			if (cardErrors.length > 0) {
+				const errorBadge = statsEl.createSpan({
+					text: `⚠️ ${cardErrors.length} ${cardErrors.length === 1 ? "error" : "errors"}`,
+					cls: "flashcard-stat flashcard-stat-error flashcard-stat-clickable",
 				});
-				failedBadge.setAttr("role", "button");
-				failedBadge.setAttr("tabindex", "0");
-				failedBadge.setAttr("title", "View failed cards");
-				failedBadge.setAttr("aria-label", "View failed cards");
-				failedBadge.addEventListener("click", (event) => {
+				errorBadge.setAttr("role", "button");
+				errorBadge.setAttr("tabindex", "0");
+				errorBadge.setAttr("title", "View card errors");
+				errorBadge.setAttr("aria-label", "View card errors");
+				errorBadge.addEventListener("click", (event) => {
 					event.stopPropagation();
-					this.openFailedCardsModal(failedCards);
+					this.openCardErrorsModal(cardErrors);
 				});
-				failedBadge.addEventListener("keydown", (event) => {
+				errorBadge.addEventListener("keydown", (event) => {
 					if (event.key === "Enter" || event.key === " ") {
 						event.preventDefault();
-						this.openFailedCardsModal(failedCards);
+						this.openCardErrorsModal(cardErrors);
 					}
 				});
 			}
@@ -366,11 +366,11 @@ export class DashboardView extends ItemView {
 	}
 
 	/**
-	 * Get failed cards in a deck (cards with _error in frontmatter).
+	 * Get card errors in a deck (cards with _error in frontmatter).
 	 */
-	private getFailedCardsInDeck(deckPath: string): FailedCard[] {
+	private getCardErrorsInDeck(deckPath: string): CardError[] {
 		const cards = this.plugin.deckService.getFlashcardsInFolder(deckPath);
-		const failedCards: FailedCard[] = [];
+		const cardErrors: CardError[] = [];
 
 		for (const card of cards) {
 			const fm = card.frontmatter as unknown as Record<string, unknown>;
@@ -394,25 +394,25 @@ export class DashboardView extends ItemView {
 			}
 
 			const file = this.app.vault.getAbstractFileByPath(card.path);
-			failedCards.push({
+			cardErrors.push({
 				file: file instanceof TFile ? file : null,
 				path: card.path,
 				error: trimmedError,
 			});
 		}
 
-		return failedCards;
+		return cardErrors;
 	}
 
 	/**
-	 * Open the FailedCardsModal for a set of failed cards.
+	 * Open the CardErrorsModal for a set of card errors.
 	 */
-	private openFailedCardsModal(failedCards: FailedCard[]): void {
-		if (failedCards.length === 0) return;
+	private openCardErrorsModal(cardErrors: CardError[]): void {
+		if (cardErrors.length === 0) return;
 
-		new FailedCardsModal(
+		new CardErrorsModal(
 			this.app,
-			failedCards,
+			cardErrors,
 			this.plugin.cardService,
 			() => {
 				// Refresh dashboard after modal closes

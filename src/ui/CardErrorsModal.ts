@@ -8,10 +8,10 @@ import {
 } from "./components";
 
 /**
- * Represents a failed card with its file and error message.
+ * Represents a card with a regeneration error.
  * file can be null if the file was not found.
  */
-export interface FailedCard {
+export interface CardError {
 	file: TFile | null;
 	error: string;
 	/** Path to the file (useful when file is null) */
@@ -21,22 +21,22 @@ export interface FailedCard {
 /**
  * Result of a regeneration operation from this modal.
  */
-export interface FailedCardsRegenResult {
+export interface CardErrorsRegenResult {
 	successCount: number;
-	failedCards: FailedCard[];
+	cardErrors: CardError[];
 	cancelled: boolean;
 }
 
 /**
- * Modal that displays a list of cards that failed to regenerate.
+ * Modal that displays a list of cards with regeneration errors.
  * Users can select which cards to retry, and clicking a card name opens it.
  */
-export class FailedCardsModal extends Modal {
-	private failedCards: FailedCard[];
+export class CardErrorsModal extends Modal {
+	private cardErrors: CardError[];
 	private cardService: CardService;
-	private onComplete?: (result: FailedCardsRegenResult) => void;
+	private onComplete?: (result: CardErrorsRegenResult) => void;
 
-	private selectableList: SelectableListComponent<FailedCard> | null = null;
+	private selectableList: SelectableListComponent<CardError> | null = null;
 	private buttonRow: ButtonRowComponent | null = null;
 	private progressBar: ProgressBarComponent | null = null;
 	private statusText: StatusTextComponent | null = null;
@@ -49,12 +49,12 @@ export class FailedCardsModal extends Modal {
 
 	constructor(
 		app: App,
-		failedCards: FailedCard[],
+		cardErrors: CardError[],
 		cardService: CardService,
-		onComplete?: (result: FailedCardsRegenResult) => void,
+		onComplete?: (result: CardErrorsRegenResult) => void,
 	) {
 		super(app);
-		this.failedCards = failedCards;
+		this.cardErrors = cardErrors;
 		this.cardService = cardService;
 		this.onComplete = onComplete;
 	}
@@ -62,20 +62,21 @@ export class FailedCardsModal extends Modal {
 	onOpen() {
 		const { contentEl } = this;
 		contentEl.empty();
-		contentEl.addClass("flashcard-failed-modal");
+		contentEl.addClass("flashcard-error-modal");
 
-		contentEl.createEl("h2", { text: "Failed cards" });
+		contentEl.createEl("h2", { text: "Card errors" });
 
-		const cardLabel = this.failedCards.length === 1 ? "card" : "cards";
+		const cardLabel =
+			this.cardErrors.length === 1 ? "card has" : "cards have";
 		contentEl.createEl("p", {
-			text: `The following ${this.failedCards.length} ${cardLabel} failed to regenerate. Select which ones to retry.`,
+			text: `The following ${this.cardErrors.length} ${cardLabel} regeneration errors. Select which ones to retry.`,
 		});
 
 		// Selectable list with cards
-		this.selectableList = new SelectableListComponent<FailedCard>(
+		this.selectableList = new SelectableListComponent<CardError>(
 			contentEl,
 			{
-				items: this.failedCards,
+				items: this.cardErrors,
 				getDisplayName: (item) => {
 					if (item.file) {
 						return item.file.basename;
@@ -94,7 +95,7 @@ export class FailedCardsModal extends Modal {
 				onSelectionChange: () => this.updateButtonState(),
 				onItemClick: (item) => this.openCard(item),
 				initiallySelected: true,
-				containerClass: "flashcard-failed-list",
+				containerClass: "flashcard-error-list",
 			},
 		);
 
@@ -143,7 +144,7 @@ export class FailedCardsModal extends Modal {
 			this.didComplete = true;
 			this.onComplete?.({
 				successCount: 0,
-				failedCards: [],
+				cardErrors: [],
 				cancelled: true,
 			});
 		}
@@ -154,7 +155,7 @@ export class FailedCardsModal extends Modal {
 	/**
 	 * Open a card file in the editor.
 	 */
-	private openCard(item: FailedCard): void {
+	private openCard(item: CardError): void {
 		if (item.file) {
 			void this.app.workspace.getLeaf().openFile(item.file);
 			this.close();
@@ -209,7 +210,7 @@ export class FailedCardsModal extends Modal {
 		this.progressBar?.show();
 
 		let successCount = 0;
-		const failedCards: FailedCard[] = [];
+		const cardErrors: CardError[] = [];
 
 		try {
 			for (let i = 0; i < selectedItems.length; i++) {
@@ -236,7 +237,7 @@ export class FailedCardsModal extends Modal {
 				}
 
 				if (!file) {
-					failedCards.push({
+					cardErrors.push({
 						file: null,
 						path: item.path,
 						error: `File not found: ${item.path ?? "unknown"}`,
@@ -263,7 +264,10 @@ export class FailedCardsModal extends Modal {
 				} catch (error) {
 					const errorMessage =
 						error instanceof Error ? error.message : String(error);
-					console.error(`Failed to regenerate ${file.path}:`, error);
+					console.error(
+						`Regeneration error for ${file.path}:`,
+						error,
+					);
 
 					try {
 						await this.cardService.setCardError(file, errorMessage);
@@ -273,17 +277,17 @@ export class FailedCardsModal extends Modal {
 							writeError,
 						);
 					}
-					failedCards.push({ file, error: errorMessage });
+					cardErrors.push({ file, error: errorMessage });
 				}
 			}
 		} finally {
-			const result: FailedCardsRegenResult = {
+			const result: CardErrorsRegenResult = {
 				successCount,
-				failedCards,
+				cardErrors,
 				cancelled: this.isCancelled,
 			};
 
-			if (!result.cancelled && failedCards.length === 0) {
+			if (!result.cancelled && cardErrors.length === 0) {
 				new Notice(
 					`Successfully regenerated ${successCount} card${successCount !== 1 ? "s" : ""}.`,
 				);
@@ -296,13 +300,13 @@ export class FailedCardsModal extends Modal {
 			}
 			this.close();
 
-			// If there are still failures, open a new modal to show them
+			// If there are still errors, open a new modal to show them
 			// Only if not cancelled (user explicitly closed, so don't show another)
 			// Note: use result.cancelled, not this.isCancelled, because close() sets isCancelled=true
-			if (failedCards.length > 0 && !result.cancelled) {
-				new FailedCardsModal(
+			if (cardErrors.length > 0 && !result.cancelled) {
+				new CardErrorsModal(
 					this.app,
-					failedCards,
+					cardErrors,
 					this.cardService,
 				).open();
 			}

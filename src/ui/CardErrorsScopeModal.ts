@@ -1,29 +1,29 @@
 import { App, FuzzySuggestModal } from "obsidian";
-import type { Deck, FlashcardFrontmatter } from "../types";
+import type { Deck } from "../types";
 import { DeckService } from "../flashcards/DeckService";
 
-type FailedCardsScopeOption =
+type CardErrorsScopeOption =
 	| { type: "deck"; path: string; display: string }
 	| { type: "all"; display: string }
 	| { type: "template"; display: string };
 
-export type FailedCardsScopeResult =
+export type CardErrorsScopeResult =
 	| { type: "deck"; path: string }
 	| { type: "all" }
 	| { type: "template" };
 
 /**
- * Modal for selecting which scope to show failed cards for.
+ * Modal for selecting which scope to show card errors for.
  */
-export class FailedCardsScopeModal extends FuzzySuggestModal<FailedCardsScopeOption> {
+export class CardErrorsScopeModal extends FuzzySuggestModal<CardErrorsScopeOption> {
 	private deckService: DeckService;
 	private decks: Deck[];
-	private onChoose: (scope: FailedCardsScopeResult) => void;
+	private onChoose: (scope: CardErrorsScopeResult) => void;
 
 	constructor(
 		app: App,
 		deckService: DeckService,
-		onChoose: (scope: FailedCardsScopeResult) => void,
+		onChoose: (scope: CardErrorsScopeResult) => void,
 	) {
 		super(app);
 		this.deckService = deckService;
@@ -33,9 +33,9 @@ export class FailedCardsScopeModal extends FuzzySuggestModal<FailedCardsScopeOpt
 	}
 
 	/**
-	 * Count failed cards in a deck (cards with _error in frontmatter).
+	 * Count card errors in a deck (cards with _error in frontmatter).
 	 */
-	private countFailedCards(deckPath: string): number {
+	private countCardErrors(deckPath: string): number {
 		const cards = this.deckService.getFlashcardsInFolder(deckPath);
 		return cards.filter((card) => {
 			const fm = card.frontmatter as unknown as Record<string, unknown>;
@@ -48,19 +48,19 @@ export class FailedCardsScopeModal extends FuzzySuggestModal<FailedCardsScopeOpt
 		}).length;
 	}
 
-	getItems(): FailedCardsScopeOption[] {
-		const deckOptions: FailedCardsScopeOption[] = this.decks.map((deck) => {
-			const failedCount = this.countFailedCards(deck.path);
-			const failedText =
-				failedCount === 0
-					? "0 failed cards"
-					: failedCount === 1
-						? "1 failed card"
-						: `${failedCount} failed cards`;
+	getItems(): CardErrorsScopeOption[] {
+		const deckOptions: CardErrorsScopeOption[] = this.decks.map((deck) => {
+			const errorCount = this.countCardErrors(deck.path);
+			const errorText =
+				errorCount === 0
+					? "no errors"
+					: errorCount === 1
+						? "1 error"
+						: `${errorCount} errors`;
 			return {
 				type: "deck",
 				path: deck.path,
-				display: `${deck.path} (${failedText})`,
+				display: `${deck.path} (${errorText})`,
 			};
 		});
 
@@ -71,12 +71,12 @@ export class FailedCardsScopeModal extends FuzzySuggestModal<FailedCardsScopeOpt
 		];
 	}
 
-	getItemText(item: FailedCardsScopeOption): string {
+	getItemText(item: CardErrorsScopeOption): string {
 		return item.display;
 	}
 
 	onChooseItem(
-		item: FailedCardsScopeOption,
+		item: CardErrorsScopeOption,
 		_evt: MouseEvent | KeyboardEvent,
 	): void {
 		if (item.type === "deck") {

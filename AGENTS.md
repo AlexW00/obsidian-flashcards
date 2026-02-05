@@ -12,6 +12,7 @@
 - **Docs**: [docs/dev/](docs/dev/)
 - **Build config**: [esbuild.config.mjs](esbuild.config.mjs)
 - **Plugin metadata**: [manifest.json](manifest.json), [versions.json](versions.json)
+- **Resources**: `resources/` - mainly contains data used for testing like e.g. an anki export package.
 
 ## Project overview
 
@@ -22,6 +23,7 @@ Obsidian community plugin for spaced repetition flashcards using FSRS. The plugi
 - Card creation writes frontmatter and regenerates body from templates.
 - Reviews update scheduling in frontmatter.
 - Template changes regenerate body.
+- No database - all data is stored in Markdown files (mainly frontmatter).
 
 ## Hooks (run after changes)
 
@@ -35,21 +37,17 @@ Obsidian community plugin for spaced repetition flashcards using FSRS. The plugi
 - Template variables use Nunjucks `{{ variable }}` syntax.
 - Generated content starts with `<!-- flashcard-content: DO NOT EDIT BELOW -->`.
 
-## Best practices (non-obvious)
+## Best practices
 
 - Keep [src/main.ts](src/main.ts) minimal (lifecycle + registration only).
 - Prefer Obsidian UI components (modals, settings, inputs) over custom HTML/CSS when possible.
 - Use `this.register*` helpers to clean up listeners and intervals.
 - Avoid unnecessary network calls. If required, document and provide opt-in.
 - Keep changes mobile-safe
+- Use Obsidian CSS variables for colors, fonts, spacing, etc. - don't create a "theme" for the plugin - it should look like a built in plugin.
+- Create re-usable components for repeated UI patterns (e.g. lists etc) so that the plugin looks consistent and shares code.
 
 ## Obsidian API reference
 
-- API docs: https://docs.obsidian.md
+- API docs: https://docs.obsidian.md (see for components, functions etc.)
 - When unsure about an API or UI pattern, consult the docs and reuse official components before building custom UI.
-
-## Commands and releases
-
-- Add user-facing commands via `this.addCommand(...)` with stable IDs.
-- Bump `manifest.json` version and update `versions.json` together.
-- Release artifacts: `main.js`, `manifest.json`, optional `styles.css`.

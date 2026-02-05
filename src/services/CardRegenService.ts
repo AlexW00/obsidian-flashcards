@@ -5,7 +5,7 @@ import type { CardService } from "../flashcards/CardService";
 import type { DeckService } from "../flashcards/DeckService";
 import type { TemplateService } from "../flashcards/TemplateService";
 import { TemplateRegenModal } from "../ui/TemplateRegenModal";
-import { FailedCardsModal, type FailedCard } from "../ui/FailedCardsModal";
+import { CardErrorsModal, type CardError } from "../ui/CardErrorsModal";
 
 /**
  * Configuration for the CardRegenService.
@@ -510,13 +510,13 @@ export class CardRegenService {
 				this.isRegeneratingAll = false;
 
 				// Show completion notice only for success
-				// FailedCardsModal handles failures (opened by TemplateRegenModal)
-				if (result.failedCards.length === 0) {
+				// CardErrorsModal handles errors (opened by TemplateRegenModal)
+				if (result.cardErrors.length === 0) {
 					new Notice(
 						`Successfully regenerated ${result.successCount} card${result.successCount !== 1 ? "s" : ""}.`,
 					);
 				}
-				// Don't show notice for failures - FailedCardsModal handles that
+				// Don't show notice for errors - CardErrorsModal handles that
 			},
 		);
 
@@ -524,18 +524,18 @@ export class CardRegenService {
 	}
 
 	/**
-	 * Open the FailedCardsModal to retry regenerating failed cards.
-	 * @param failedCards Array of failed cards to retry
+	 * Open the CardErrorsModal to retry regenerating cards with errors.
+	 * @param cardErrors Array of card errors to retry
 	 */
-	openFailedCardsModal(failedCards: FailedCard[]): void {
-		if (failedCards.length === 0) return;
+	openCardErrorsModal(cardErrors: CardError[]): void {
+		if (cardErrors.length === 0) return;
 
 		// Mark as regenerating (will be cleared when modal closes)
 		this.isRegeneratingAll = true;
 
-		const modal = new FailedCardsModal(
+		const modal = new CardErrorsModal(
 			this.app,
-			failedCards,
+			cardErrors,
 			this.cardService,
 			(result) => {
 				// Clear the regenerating flag when modal closes
