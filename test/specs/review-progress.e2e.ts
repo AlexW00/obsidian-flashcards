@@ -8,6 +8,17 @@ describe("Review Progress & Settings", function () {
 	beforeEach(async function () {
 		await obsidianPage.resetVault();
 		await waitForVaultReady();
+
+		// Ensure deterministic scheduling for E2E (avoid short-term steps).
+		await browser.executeObsidian(async ({ app }) => {
+			const obsidianApp = app as ObsidianAppLike;
+			const plugin = obsidianApp.plugins?.getPlugin?.("anker");
+			if (!plugin) return;
+			plugin.settings.fsrsEnableShortTerm = false;
+			plugin.settings.fsrsLearningSteps = [];
+			plugin.settings.fsrsRelearningSteps = [];
+			await plugin.saveSettings();
+		});
 	});
 
 	/**

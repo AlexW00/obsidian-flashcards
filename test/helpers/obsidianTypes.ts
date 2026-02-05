@@ -1,6 +1,9 @@
 export type AnkerPluginLike = {
 	settings: {
 		templateFolder: string;
+		fsrsEnableShortTerm?: boolean;
+		fsrsLearningSteps?: Array<string | number>;
+		fsrsRelearningSteps?: Array<string | number>;
 	};
 	saveSettings: () => Promise<void>;
 	startReview?: (deckPath: string) => void | Promise<void>;
