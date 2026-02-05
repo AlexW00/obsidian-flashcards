@@ -135,8 +135,8 @@ describe("Review Progress & Settings", function () {
 		const initialText = await getProgressText();
 		const initialWidth = await getProgressFillWidth();
 
-		// The first card should show "1 / N"
-		expect(initialText).toMatch(/^1\s*\/\s*\d+$/);
+		// The initial state should show "0 / N completed"
+		expect(initialText).toMatch(/^0\s*\/\s*\d+\s*completed$/);
 
 		// Rate the current card "Again" so it stays in the queue but
 		// the session advances to the next card
@@ -169,8 +169,11 @@ describe("Review Progress & Settings", function () {
 
 		// Read total card count from the initial progress text
 		const initialText = await getProgressText();
-		const initialMatch = initialText.match(/(\d+)\s*\/\s*(\d+)/);
+		const initialMatch = initialText.match(
+			/(\d+)\s*\/\s*(\d+)\s*completed/,
+		);
 		expect(initialMatch).not.toBe(null);
+		const initialCompleted = Number(initialMatch![1]);
 		const initialTotal = Number(initialMatch![2]);
 
 		// Rate the card "Good" so it leaves the due queue
@@ -182,12 +185,16 @@ describe("Review Progress & Settings", function () {
 
 		if (!isComplete) {
 			const afterText = await getProgressText();
-			const afterMatch = afterText.match(/(\d+)\s*\/\s*(\d+)/);
+			const afterMatch = afterText.match(
+				/(\d+)\s*\/\s*(\d+)\s*completed/,
+			);
 			expect(afterMatch).not.toBe(null);
+			const afterCompleted = Number(afterMatch![1]);
 			const afterTotal = Number(afterMatch![2]);
 
-			// The total should have decreased (card left the due queue)
-			expect(afterTotal).toBeLessThan(initialTotal);
+			// The total should stay stable; completed should increase
+			expect(afterTotal).toEqual(initialTotal);
+			expect(afterCompleted).toBeGreaterThan(initialCompleted);
 		}
 		// If complete, that's fine — all cards were reviewed
 	});

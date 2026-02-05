@@ -40,6 +40,12 @@ jobs:
     needs: lint
     if: github.event.pull_request.head.repo.full_name == github.repository || github.event_name == 'push'
     runs-on: ubuntu-latest
+    strategy:
+      fail-fast: false
+      matrix:
+        version:
+          - latest
+          - beta
     steps:
       - name: Checkout
         uses: actions/checkout@v4
@@ -56,8 +62,10 @@ jobs:
           # Delete the cache created by wdio.conf.mts so it doesn't conflict with restore
           rm -rf .obsidian-cache
         env:
-          OBSIDIAN_EMAIL: ${{ secrets.OBSIDIAN_EMAIL }}
-          OBSIDIAN_PASSWORD: ${{ secrets.OBSIDIAN_PASSWORD }}
+          OBSIDIAN_VERSIONS: ${{ matrix.version == 'beta' && 'latest-beta/latest' || 'latest/latest' }}
+          OBSIDIAN_INCLUDE_BETA: ${{ matrix.version == 'beta' && 'true' || 'false' }}
+          OBSIDIAN_EMAIL: ${{ matrix.version == 'beta' && secrets.OBSIDIAN_EMAIL || '' }}
+          OBSIDIAN_PASSWORD: ${{ matrix.version == 'beta' && secrets.OBSIDIAN_PASSWORD || '' }}
       - name: Cache Obsidian
         uses: actions/cache@v4
         with:
@@ -71,9 +79,10 @@ jobs:
       - name: Run E2E Tests
         uses: GabrielBB/xvfb-action@v1
         with:
-          run: npm run test:e2e
+          run: npm run test:e2e:${{ matrix.version }}
         env:
           # Use headless mode if supported or implied by xvfb-action
           CI: true
-          OBSIDIAN_EMAIL: ${{ secrets.OBSIDIAN_EMAIL }}
-          OBSIDIAN_PASSWORD: ${{ secrets.OBSIDIAN_PASSWORD }}
+          OBSIDIAN_VERSIONS: ${{ matrix.version == 'beta' && 'latest-beta/latest' || 'latest/latest' }}
+          OBSIDIAN_EMAIL: ${{ matrix.version == 'beta' && secrets.OBSIDIAN_EMAIL || '' }}
+          OBSIDIAN_PASSWORD: ${{ matrix.version == 'beta' && secrets.OBSIDIAN_PASSWORD || '' }}

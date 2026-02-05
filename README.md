@@ -203,8 +203,11 @@ npm run lint
 
 # Run E2E Tests (requires Linux or macOS)
 # Note: On Linux, requires xvfb (see .github/workflows/e2e.yml)
-npm run test:e2e
-npm run test:e2e
+# Latest stable
+npm run test:e2e:latest
+
+# Beta (uses .env)
+npm run test:e2e:beta
 ```
 
 ### Environment Variables
@@ -217,6 +220,8 @@ Create a `.env` file (copy from `.env.example`) and add:
 ```sh
 OBSIDIAN_EMAIL=your-email@example.com
 OBSIDIAN_PASSWORD=your-password
+OBSIDIAN_INCLUDE_BETA=true
+OBSIDIAN_VERSIONS=latest-beta/latest
 ```
 
 **CI/CD (GitHub Actions):**
