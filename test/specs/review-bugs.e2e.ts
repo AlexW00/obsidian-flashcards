@@ -209,9 +209,7 @@ describe("Review Bugs", function () {
 				if (await completeEl.isExisting()) return true;
 
 				// Check if progress updated
-				const progressText = browser.$(
-					".flashcard-progress-text",
-				);
+				const progressText = browser.$(".flashcard-progress-text");
 				if (await progressText.isExisting()) {
 					const text = await progressText.getText();
 					const match = text.match(/(\d+)\s*\/\s*(\d+)/);
