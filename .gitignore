@@ -26,4 +26,5 @@ coverage/
 
 # E2E test cache (downloaded Obsidian versions)
 .obsidian-cache/
+.wdio-vaults/
 .env
