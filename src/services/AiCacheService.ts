@@ -1,7 +1,7 @@
 import { App } from "obsidian";
 
 /**
- * Cache entry storing the rendered output text for an AI pipe call.
+ * Cache entry storing the rendered output text for a dynamic pipe call.
  * We store only the rendered text (e.g., "![[image.png]]"), not the blob itself.
  * This means if the user deletes the attachment and regenerates, the cache hit
  * will return the old text reference. User can invalidate cache to re-generate.
@@ -11,7 +11,7 @@ export interface AiCacheEntry {
 	output: string;
 	/** Timestamp when this entry was cached */
 	cachedAt: number;
-	/** The pipe type that generated this entry */
+	/** The dynamic pipe type that generated this entry */
 	pipeType: "askAi" | "generateImage" | "generateSpeech";
 }
 
@@ -31,7 +31,7 @@ const EMPTY_CACHE: AiCacheData = {
 };
 
 /**
- * Service for caching AI pipe outputs.
+ * Service for caching dynamic pipe outputs.
  *
  * Stores rendered text output (not blobs) keyed by hash of pipe inputs.
  * Uses plugin's data.json via loadData/saveData API.

@@ -2,6 +2,37 @@ import { App, FuzzySuggestModal } from "obsidian";
 import type { Deck } from "../types";
 import { DeckService } from "../flashcards/DeckService";
 
+function stringifyErrorValue(value: unknown): string {
+	if (typeof value === "string") {
+		return value;
+	}
+	try {
+		return JSON.stringify(value);
+	} catch {
+		if (value instanceof Error) {
+			return value.message;
+		}
+		if (value === null) {
+			return "null";
+		}
+		switch (typeof value) {
+			case "number":
+			case "boolean":
+			case "bigint":
+				return value.toString();
+			case "symbol":
+				return value.description ?? value.toString();
+			case "undefined":
+				return "undefined";
+			case "function":
+				return value.name ? `[function ${value.name}]` : "[function]";
+			case "object":
+			default:
+				return Object.prototype.toString.call(value);
+		}
+	}
+}
+
 type CardErrorsScopeOption =
 	| { type: "deck"; path: string; display: string }
 	| { type: "all"; display: string }
@@ -43,7 +74,7 @@ export class CardErrorsScopeModal extends FuzzySuggestModal<CardErrorsScopeOptio
 			return (
 				error !== undefined &&
 				error !== null &&
-				String(error).trim() !== ""
+				stringifyErrorValue(error).trim() !== ""
 			);
 		}).length;
 	}

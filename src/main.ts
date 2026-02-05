@@ -375,10 +375,10 @@ export default class AnkerPlugin extends Plugin {
 
 		this.addCommand({
 			id: "clear-ai-cache",
-			name: "Clear AI response cache",
+			name: "Clear dynamic pipe cache",
 			callback: () => {
 				this.aiCacheService?.clearAll();
-				new Notice("AI response cache cleared");
+				new Notice("Dynamic pipe cache cleared");
 			},
 		});
 
@@ -738,7 +738,31 @@ export default class AnkerPlugin extends Plugin {
 							try {
 								return JSON.stringify(rawError);
 							} catch {
-								return String(rawError);
+								if (rawError instanceof Error) {
+									return rawError.message;
+								}
+								if (rawError === null) {
+									return "null";
+								}
+								switch (typeof rawError) {
+									case "string":
+										return rawError;
+									case "number":
+									case "boolean":
+									case "bigint":
+										return rawError.toString();
+									case "symbol":
+										return rawError.description ?? rawError.toString();
+									case "undefined":
+										return "undefined";
+									case "function":
+										return rawError.name
+											? `[function ${rawError.name}]`
+											: "[function]";
+									case "object":
+									default:
+										return Object.prototype.toString.call(rawError);
+								}
 							}
 						})();
 			const trimmedError = errorMessage.trim();

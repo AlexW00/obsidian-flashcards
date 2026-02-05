@@ -2,7 +2,7 @@ import { App, TFile, TFolder, parseYaml } from "obsidian";
 import nunjucks from "nunjucks";
 import type { FlashcardTemplate, TemplateVariable } from "../types";
 import { DEFAULT_BASIC_TEMPLATE } from "../types";
-import type { AiService, AiPipeContext } from "../services/AiService";
+import type { AiService, DynamicPipeContext } from "../services/AiService";
 
 /**
  * Parsed template content with optional frontmatter.
@@ -34,7 +34,7 @@ export class TemplateService {
 	private readonly lineStartMarker = "__ANKER_LINE_START__";
 	private readonly lineEndMarker = "__ANKER_LINE_END__";
 	private aiService: AiService | null = null;
-	private currentRenderContext: AiPipeContext | null = null;
+	private currentRenderContext: DynamicPipeContext | null = null;
 
 	constructor(app: App, defaultTemplateContent?: string) {
 		this.app = app;
@@ -47,7 +47,7 @@ export class TemplateService {
 			lstripBlocks: true,
 		});
 
-		// Register AI pipe filters (async filters)
+		// Register dynamic pipe filters (async filters)
 		this.registerAiFilters();
 	}
 
@@ -135,7 +135,10 @@ export class TemplateService {
 				);
 
 				this.aiService
-					.generateImagePipe(safePrompt, this.currentRenderContext)
+					.generateImageDynamicPipe(
+						safePrompt,
+						this.currentRenderContext,
+					)
 					.then((result) => callback(null, result))
 					.catch((err) =>
 						callback(
@@ -177,7 +180,10 @@ export class TemplateService {
 				);
 
 				this.aiService
-					.generateSpeechPipe(safeText, this.currentRenderContext)
+					.generateSpeechDynamicPipe(
+						safeText,
+						this.currentRenderContext,
+					)
 					.then((result) => callback(null, result))
 					.catch((err) =>
 						callback(
@@ -306,7 +312,7 @@ export class TemplateService {
 
 	/**
 	 * Synchronous render for templates without AI filters.
-	 * Use this when you know the template doesn't use AI pipes.
+	 * Use this when you know the template doesn't use dynamic pipes.
 	 */
 	renderSync(
 		templateContent: string,

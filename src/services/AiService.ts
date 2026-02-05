@@ -94,9 +94,9 @@ async function obsidianFetch(
 }
 
 /**
- * Context passed to AI pipe filters during rendering.
+ * Context passed to dynamic pipe filters during rendering.
  */
-export interface AiPipeContext {
+export interface DynamicPipeContext {
 	/** Skip cache and force fresh generation */
 	skipCache: boolean;
 	/** Card file path for context (used for attachment saving) */
@@ -115,13 +115,13 @@ interface QueueItem<T> {
 }
 
 /**
- * Service for AI-powered template pipes.
+ * Service for AI-powered template dynamic pipes.
  *
  * Provides:
  * - Provider management (OpenAI, Anthropic, Google)
- * - Text generation (askAi pipe)
- * - Image generation (generateImage pipe)
- * - Speech generation (generateSpeech pipe)
+ * - Text generation (askAi dynamic pipe)
+ * - Image generation (generateImage dynamic pipe)
+ * - Speech generation (generateSpeech dynamic pipe)
  * - Parallel queue with concurrency control
  * - Integration with cache service
  */
@@ -156,19 +156,23 @@ export class AiService {
 	}
 
 	/**
-	 * Get the provider config for a specific pipe type.
+	 * Get the provider config for a specific dynamic pipe type.
 	 */
-	private getProviderForPipe(
+	private getProviderForDynamicPipe(
 		pipeType: "askAi" | "generateImage" | "generateSpeech",
 	): { id: string; config: AiProviderConfig } | null {
-		const providerId = this.settings.aiPipeProviders?.[pipeType];
+		const settings = this.settings as unknown as {
+			dynamicPipeProviders?: Record<string, string | undefined>;
+			aiProviders?: Record<string, AiProviderConfig>;
+		};
+		const providerId = settings.dynamicPipeProviders?.[pipeType];
 		if (!providerId) {
-			debugLog("AI pipe %s: no provider assigned", pipeType);
+			debugLog("Dynamic pipe %s: no provider assigned", pipeType);
 			return null;
 		}
-		const config = this.settings.aiProviders?.[providerId] ?? null;
+		const config = settings.aiProviders?.[providerId] ?? null;
 		debugLog(
-			"AI pipe %s: providerId=%s type=%s",
+			"Dynamic pipe %s: providerId=%s type=%s",
 			pipeType,
 			providerId,
 			config?.type ?? "missing",
@@ -271,16 +275,16 @@ export class AiService {
 	}
 
 	/**
-	 * Generate text using AI (askAi pipe).
+	 * Generate text using AI (askAi dynamic pipe).
 	 *
 	 * @param prompt The prompt to send to the AI
-	 * @param context Pipe context (skipCache, cardPath)
+	 * @param context Dynamic pipe context (skipCache, cardPath)
 	 * @returns The generated text
 	 */
-	async askAi(prompt: string, context: AiPipeContext): Promise<string> {
+	async askAi(prompt: string, context: DynamicPipeContext): Promise<string> {
 		const pipeType = "askAi" as const;
 		const systemPrompt =
-			this.getProviderForPipe(pipeType)?.config.systemPrompt;
+			this.getProviderForDynamicPipe(pipeType)?.config.systemPrompt;
 
 		// Check cache first (unless skipCache)
 		if (!context.skipCache) {
@@ -296,9 +300,9 @@ export class AiService {
 		}
 
 		// Get provider config
-		const providerResult = this.getProviderForPipe(pipeType);
+		const providerResult = this.getProviderForDynamicPipe(pipeType);
 		if (!providerResult) {
-			throw new Error("No provider configured for askAi pipe");
+			throw new Error("No provider configured for askAi dynamic pipe");
 		}
 		const { id: providerId, config } = providerResult;
 
@@ -337,15 +341,15 @@ export class AiService {
 	}
 
 	/**
-	 * Generate an image using AI (generateImage pipe).
+	 * Generate an image using AI (generateImage dynamic pipe).
 	 *
 	 * @param prompt The prompt describing the image
-	 * @param context Pipe context (skipCache, cardPath)
+	 * @param context Dynamic pipe context (skipCache, cardPath)
 	 * @returns Markdown link to the generated image (e.g., "![[image.png]]")
 	 */
-	async generateImagePipe(
+	async generateImageDynamicPipe(
 		prompt: string,
-		context: AiPipeContext,
+		context: DynamicPipeContext,
 	): Promise<string> {
 		const pipeType = "generateImage" as const;
 
@@ -362,9 +366,11 @@ export class AiService {
 		}
 
 		// Get provider config
-		const providerResult = this.getProviderForPipe(pipeType);
+		const providerResult = this.getProviderForDynamicPipe(pipeType);
 		if (!providerResult) {
-			throw new Error("No provider configured for generateImage pipe");
+			throw new Error(
+				"No provider configured for generateImage dynamic pipe",
+			);
 		}
 		const { id: providerId, config } = providerResult;
 
@@ -406,15 +412,15 @@ export class AiService {
 	}
 
 	/**
-	 * Generate speech using AI (generateSpeech pipe).
+	 * Generate speech using AI (generateSpeech dynamic pipe).
 	 *
 	 * @param text The text to convert to speech
-	 * @param context Pipe context (skipCache, cardPath)
+	 * @param context Dynamic pipe context (skipCache, cardPath)
 	 * @returns Markdown link to the generated audio (e.g., "![[audio.mp3]]")
 	 */
-	async generateSpeechPipe(
+	async generateSpeechDynamicPipe(
 		text: string,
-		context: AiPipeContext,
+		context: DynamicPipeContext,
 	): Promise<string> {
 		const pipeType = "generateSpeech" as const;
 
@@ -431,9 +437,11 @@ export class AiService {
 		}
 
 		// Get provider config
-		const providerResult = this.getProviderForPipe(pipeType);
+		const providerResult = this.getProviderForDynamicPipe(pipeType);
 		if (!providerResult) {
-			throw new Error("No provider configured for generateSpeech pipe");
+			throw new Error(
+				"No provider configured for generateSpeech dynamic pipe",
+			);
 		}
 		const { id: providerId, config } = providerResult;
 
@@ -517,12 +525,12 @@ export class AiService {
 	}
 
 	/**
-	 * Check if a provider is configured for a pipe type.
+	 * Check if a provider is configured for a dynamic pipe type.
 	 */
 	isProviderConfigured(
 		pipeType: "askAi" | "generateImage" | "generateSpeech",
 	): boolean {
-		const config = this.getProviderForPipe(pipeType);
+		const config = this.getProviderForDynamicPipe(pipeType);
 		return config !== null;
 	}
 

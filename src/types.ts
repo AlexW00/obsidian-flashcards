@@ -202,17 +202,6 @@ export interface AiProviderConfig {
 	baseUrl?: string;
 }
 
-/**
- * Per-pipe provider selection.
- */
-export interface AiPipeProviders {
-	/** Provider ID for askAi pipe */
-	askAi?: string;
-	/** Provider ID for generateImage pipe */
-	generateImage?: string;
-	/** Provider ID for generateSpeech pipe */
-	generateSpeech?: string;
-}
 
 /**
  * Plugin settings interface.
@@ -252,8 +241,8 @@ export interface FlashcardsPluginSettings {
 	fsrsWeights: number[];
 	/** Configured AI providers, keyed by user-defined ID */
 	aiProviders: Record<string, AiProviderConfig>;
-	/** Provider selection for each AI pipe */
-	aiPipeProviders: AiPipeProviders;
+	/** Provider selection for each dynamic pipe */
+	dynamicPipeProviders: Record<string, string | undefined>;
 }
 
 /**
@@ -338,7 +327,7 @@ export const DEFAULT_SETTINGS: FlashcardsPluginSettings = {
 	fsrsRelearningSteps: [...default_relearning_steps],
 	fsrsWeights: [...default_w],
 	aiProviders: {},
-	aiPipeProviders: {},
+	dynamicPipeProviders: {},
 };
 
 export const DEFAULT_STATE: FlashcardsPluginState = {

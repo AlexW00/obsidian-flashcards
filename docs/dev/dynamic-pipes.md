@@ -1,14 +1,14 @@
-# AI pipes (high-level)
+# Dynamic pipes (high-level)
 
 ## Overview
 
-AI pipes enable dynamic content generation inside flashcard templates using Nunjucks filters. The implementation provides three filters:
+Dynamic pipes enable dynamic content generation inside flashcard templates using Nunjucks filters. The implementation provides three filters:
 
 - **askAi**: Generates text from a prompt.
 - **generateImage**: Generates an image from a prompt and inserts an attachment reference.
 - **generateSpeech**: Generates speech audio from text and inserts an attachment reference.
 
-All pipes are async and run during template rendering.
+All dynamic pipes are async and run during template rendering.
 
 ## Provider configuration
 
@@ -37,7 +37,7 @@ Cache invalidation is supported via commands:
 
 - **Regenerate current card (no cache)**
 - **Regenerate all cards from template (no cache)**
-- **Clear AI response cache**
+- **Clear dynamic pipe cache**
 
 ## Attachments
 
@@ -49,7 +49,7 @@ AI calls are queued with bounded concurrency. Bulk regeneration from templates r
 
 ## Key components
 
-- **AiService**: Provider setup, pipe execution, parallel queue, attachment saving.
+- **AiService**: Provider setup, dynamic pipe execution, parallel queue, attachment saving.
 - **AiCacheService**: Hash-based cache persistence.
 - **TemplateService**: Registers async Nunjucks filters and renders templates asynchronously.
 - **CardService / CardRegenService**: Propagate cache-bypass flags and parallel template regeneration.

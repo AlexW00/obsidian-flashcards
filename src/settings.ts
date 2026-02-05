@@ -319,8 +319,8 @@ export class AnkerSettingTab extends PluginSettingTab {
 				}),
 			);
 
-		// AI Pipes section
-		new Setting(containerEl).setName("AI pipes").setHeading();
+		// Dynamic pipes section
+		new Setting(containerEl).setName("Dynamic pipes").setHeading();
 
 		// Render AI provider settings
 		const aiContainer = containerEl.createDiv();
@@ -336,6 +336,13 @@ export class AnkerSettingTab extends PluginSettingTab {
 
 		const columnsContainer = containerEl.createDiv();
 		this.renderColumnSettings(columnsContainer);
+	}
+
+	private getDynamicPipeProviders(): Record<string, string | undefined> {
+		const settings = this.plugin.settings as unknown as {
+			dynamicPipeProviders?: Record<string, string | undefined>;
+		};
+		return settings.dynamicPipeProviders ?? {};
 	}
 
 	/**
@@ -384,15 +391,16 @@ export class AnkerSettingTab extends PluginSettingTab {
 		const providerIds = Object.keys(providers);
 
 		new Setting(container)
-			.setName("About AI pipes")
+			.setName("About dynamic pipes")
 			.setDesc(
-				"AI pipes can be used to generate dynamic content in your flashcards using AI.",
+				"Dynamic pipes can be used to generate dynamic content in your flashcards.",
 			);
 
 		new Setting(container)
 			.setName("Ask AI provider")
 			.setDesc("Provider for {{ prompt | askAi }} filter")
 			.addDropdown((dropdown) => {
+				const dynamicPipeProviders = this.getDynamicPipeProviders();
 				dropdown.addOption("", "Select provider...");
 				for (const id of providerIds) {
 					const config = providers[id];
@@ -401,12 +409,12 @@ export class AnkerSettingTab extends PluginSettingTab {
 						`${config?.type ?? "unknown"} (${config?.textModel ?? "default"})`,
 					);
 				}
-				dropdown.setValue(
-					this.plugin.settings.aiPipeProviders?.askAi ?? "",
-				);
+				dropdown.setValue(dynamicPipeProviders.askAi ?? "");
 				dropdown.onChange(async (value) => {
-					this.plugin.settings.aiPipeProviders = {
-						...this.plugin.settings.aiPipeProviders,
+					const currentDynamicPipeProviders =
+						this.getDynamicPipeProviders();
+					this.plugin.settings.dynamicPipeProviders = {
+						...currentDynamicPipeProviders,
 						askAi: value || undefined,
 					};
 					await this.plugin.saveSettings();
@@ -417,6 +425,7 @@ export class AnkerSettingTab extends PluginSettingTab {
 			.setName("Generate image provider")
 			.setDesc("Provider for {{ prompt | generateImage }} filter")
 			.addDropdown((dropdown) => {
+				const dynamicPipeProviders = this.getDynamicPipeProviders();
 				dropdown.addOption("", "Select provider...");
 				for (const id of providerIds) {
 					const config = providers[id];
@@ -428,12 +437,12 @@ export class AnkerSettingTab extends PluginSettingTab {
 						);
 					}
 				}
-				dropdown.setValue(
-					this.plugin.settings.aiPipeProviders?.generateImage ?? "",
-				);
+				dropdown.setValue(dynamicPipeProviders.generateImage ?? "");
 				dropdown.onChange(async (value) => {
-					this.plugin.settings.aiPipeProviders = {
-						...this.plugin.settings.aiPipeProviders,
+					const currentDynamicPipeProviders =
+						this.getDynamicPipeProviders();
+					this.plugin.settings.dynamicPipeProviders = {
+						...currentDynamicPipeProviders,
 						generateImage: value || undefined,
 					};
 					await this.plugin.saveSettings();
@@ -444,6 +453,7 @@ export class AnkerSettingTab extends PluginSettingTab {
 			.setName("Generate speech provider")
 			.setDesc("Provider for {{ text | generateSpeech }} filter")
 			.addDropdown((dropdown) => {
+				const dynamicPipeProviders = this.getDynamicPipeProviders();
 				dropdown.addOption("", "Select provider...");
 				for (const id of providerIds) {
 					const config = providers[id];
@@ -455,12 +465,12 @@ export class AnkerSettingTab extends PluginSettingTab {
 						);
 					}
 				}
-				dropdown.setValue(
-					this.plugin.settings.aiPipeProviders?.generateSpeech ?? "",
-				);
+				dropdown.setValue(dynamicPipeProviders.generateSpeech ?? "");
 				dropdown.onChange(async (value) => {
-					this.plugin.settings.aiPipeProviders = {
-						...this.plugin.settings.aiPipeProviders,
+					const currentDynamicPipeProviders =
+						this.getDynamicPipeProviders();
+					this.plugin.settings.dynamicPipeProviders = {
+						...currentDynamicPipeProviders,
 						generateSpeech: value || undefined,
 					};
 					await this.plugin.saveSettings();
@@ -535,34 +545,27 @@ export class AnkerSettingTab extends PluginSettingTab {
 					.setButtonText("Delete")
 					.setWarning()
 					.onClick(async () => {
-								// Create new object without the deleted provider
-								const remainingProviders = Object.fromEntries(
-									Object.entries(
-										this.plugin.settings.aiProviders,
-									).filter(([key]) => key !== id),
-								);
+						// Create new object without the deleted provider
+						const remainingProviders = Object.fromEntries(
+							Object.entries(
+								this.plugin.settings.aiProviders,
+							).filter(([key]) => key !== id),
+						);
 						this.plugin.settings.aiProviders = remainingProviders;
-						// Clear pipe assignments that used this provider
-						if (
-							this.plugin.settings.aiPipeProviders?.askAi === id
-						) {
-							this.plugin.settings.aiPipeProviders.askAi =
-								undefined;
+						// Clear dynamic pipe assignments that used this provider
+						const dynamicPipeProviders =
+							this.getDynamicPipeProviders();
+						if (dynamicPipeProviders.askAi === id) {
+							dynamicPipeProviders.askAi = undefined;
 						}
-						if (
-							this.plugin.settings.aiPipeProviders
-								?.generateImage === id
-						) {
-							this.plugin.settings.aiPipeProviders.generateImage =
-								undefined;
+						if (dynamicPipeProviders.generateImage === id) {
+							dynamicPipeProviders.generateImage = undefined;
 						}
-						if (
-							this.plugin.settings.aiPipeProviders
-								?.generateSpeech === id
-						) {
-							this.plugin.settings.aiPipeProviders.generateSpeech =
-								undefined;
+						if (dynamicPipeProviders.generateSpeech === id) {
+							dynamicPipeProviders.generateSpeech = undefined;
 						}
+						this.plugin.settings.dynamicPipeProviders =
+							dynamicPipeProviders;
 						// Delete API key from SecretStorage
 						await this.plugin.deleteApiKey(id);
 						await this.plugin.saveSettings();
@@ -575,12 +578,12 @@ export class AnkerSettingTab extends PluginSettingTab {
 		new Setting(providerContainer)
 			.setName("Provider type")
 			.addDropdown((dropdown) => {
-					// eslint-disable-next-line obsidianmd/ui/sentence-case
-					dropdown.addOption("openai", "OpenAI");
+				// eslint-disable-next-line obsidianmd/ui/sentence-case
+				dropdown.addOption("openai", "OpenAI");
 				dropdown.addOption("anthropic", "Anthropic");
 				dropdown.addOption("google", "Google");
-					// eslint-disable-next-line obsidianmd/ui/sentence-case
-					dropdown.addOption("openrouter", "OpenRouter");
+				// eslint-disable-next-line obsidianmd/ui/sentence-case
+				dropdown.addOption("openrouter", "OpenRouter");
 				dropdown.setValue(config.type);
 				dropdown.onChange(async (value) => {
 					// Check if provider was deleted
@@ -723,9 +726,10 @@ export class AnkerSettingTab extends PluginSettingTab {
 
 		let currentTextModel = config.textModel ?? "";
 		let pendingTextModel = currentTextModel;
-		const textModelInput = providerContainer.querySelector<HTMLInputElement>(
-			"input[type='text']",
-		);
+		const textModelInput =
+			providerContainer.querySelector<HTMLInputElement>(
+				"input[type='text']",
+			);
 		if (textModelInput) {
 			textModelInput.addEventListener("keydown", (event) => {
 				if (event.key === "Enter") {
@@ -859,11 +863,11 @@ export class AnkerSettingTab extends PluginSettingTab {
 	private getProviderCapabilitiesDescription(type: AiProviderType): string {
 		switch (type) {
 			case "openai":
-				return "Text, image, and speech (supports all pipes).";
+				return "Text, image, and speech (supports all dynamic pipes).";
 			case "anthropic":
 			case "google":
 			case "openrouter":
-				return "Text only (not available for image or speech pipes).";
+				return "Text only (not available for image or speech dynamic pipes).";
 			default:
 				return "Text only.";
 		}
