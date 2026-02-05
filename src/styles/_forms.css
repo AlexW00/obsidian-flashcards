@@ -1,0 +1,117 @@
+/* ==========================================================================
+   Card Form Modal
+   ========================================================================== */
+
+.flashcard-card-modal {
+display: flex;
+flex-direction: column;
+min-width: 500px;
+max-height: 55vh;
+padding: 0 !important;
+overflow: hidden;
+}
+
+.flashcard-modal-sticky-header {
+flex: 0 0 auto;
+padding: var(--size-4-4);
+padding-right: 50px;
+border-bottom: 1px solid var(--background-modifier-border);
+background: var(--background-primary);
+}
+
+.flashcard-modal-sticky-header .flashcard-modal-header-row {
+margin-bottom: 0;
+}
+
+.flashcard-modal-scroll-content {
+flex: 1 1 auto;
+overflow-y: auto;
+padding: var(--size-4-4);
+}
+
+.flashcard-modal-sticky-footer {
+  flex: 0 0 auto;
+  padding: var(--size-4-4);
+  border-top: 1px solid var(--background-modifier-border);
+  background: var(--background-primary);
+}
+
+.flashcard-card-progress {
+margin-top: var(--size-4-4);
+margin-bottom: var(--size-4-2);
+}
+
+/* --------------------------------------------------------------------------
+   Form Fields
+   -------------------------------------------------------------------------- */
+.flashcard-field-row {
+display: flex;
+align-items: flex-start;
+gap: var(--size-4-3);
+margin-bottom: var(--size-4-3);
+}
+
+.flashcard-field-label-inline {
+flex-shrink: 0;
+width: 80px;
+font-weight: var(--font-medium);
+color: var(--text-muted);
+padding-top: var(--size-4-2);
+text-align: right;
+}
+
+.flashcard-textarea-container {
+flex: 1;
+position: relative;
+}
+
+.flashcard-textarea-container .flashcard-textarea-full-width {
+width: 100%;
+padding-right: var(--size-4-8);
+padding-bottom: var(--size-4-6);
+resize: vertical;
+}
+
+.flashcard-textarea-full-width {
+width: 100%;
+}
+
+/* --------------------------------------------------------------------------
+   Attachment Button
+   -------------------------------------------------------------------------- */
+.flashcard-attach-btn {
+position: absolute;
+bottom: var(--size-4-2);
+right: var(--size-4-2);
+width: 24px;
+height: 24px;
+display: flex;
+align-items: center;
+justify-content: center;
+cursor: pointer;
+color: var(--text-faint);
+border-radius: var(--radius-s);
+transition: color 0.1s ease, background 0.1s ease;
+}
+
+.flashcard-attach-btn:hover {
+color: var(--text-normal);
+background: var(--background-modifier-hover);
+}
+
+.flashcard-attach-btn svg {
+width: 16px;
+height: 16px;
+}
+
+.flashcard-hidden-input {
+display: none;
+}
+
+/* --------------------------------------------------------------------------
+   Deck Suggest Note
+   -------------------------------------------------------------------------- */
+.flashcard-deck-suggest-note {
+font-size: var(--font-ui-small);
+color: var(--text-muted);
+}

@@ -1,0 +1,21 @@
+/* ==========================================================================
+   Settings
+   ========================================================================== */
+
+.flashcard-settings-template-textarea {
+width: 100%;
+min-height: 140px;
+height: 140px;
+resize: vertical;
+font-family: var(--font-monospace);
+font-size: var(--font-ui-smaller);
+}
+
+.flashcard-settings-system-prompt {
+width: 100%;
+height: 80px;
+min-height: 80px;
+resize: vertical;
+font-family: var(--font-monospace);
+font-size: var(--font-ui-smaller);
+}

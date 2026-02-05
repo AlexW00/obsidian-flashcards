@@ -1,0 +1,31 @@
+/* ==========================================================================
+   Notice Components
+   ========================================================================== */
+
+.flashcard-notice-container {
+display: flex;
+flex-direction: column;
+gap: var(--size-4-2);
+}
+
+.flashcard-notice-buttons {
+display: flex;
+gap: var(--size-4-2);
+}
+
+.flashcard-template-notice {
+padding: var(--size-4-2) !important;
+}
+
+.flashcard-notice-row {
+display: flex;
+align-items: center;
+justify-content: space-between;
+gap: var(--size-4-4);
+width: 100%;
+}
+
+.flashcard-notice-actions {
+display: flex;
+align-items: center;
+}

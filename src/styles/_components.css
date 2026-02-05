@@ -1,0 +1,225 @@
+/* --------------------------------------------------------------------------
+   Inline Dropdown & Search
+   -------------------------------------------------------------------------- */
+.flashcard-inline-dropdown {
+font-size: var(--font-ui-medium);
+font-weight: var(--font-semibold);
+color: var(--text-accent);
+margin: 0 var(--size-2-1);
+}
+
+.flashcard-inline-search {
+font-size: var(--font-ui-medium);
+font-weight: var(--font-semibold);
+color: var(--text-accent);
+margin: 0 var(--size-2-1);
+min-width: 150px;
+padding: var(--size-2-1) var(--size-4-2);
+border: 1px solid var(--background-modifier-border);
+border-radius: var(--radius-s);
+background: var(--background-primary);
+}
+
+/* --------------------------------------------------------------------------
+   Sticky List Container (shared)
+   -------------------------------------------------------------------------- */
+.flashcard-sticky-list {
+max-height: 300px;
+overflow-y: auto;
+border: 1px solid var(--background-modifier-border);
+border-radius: var(--radius-s);
+background: var(--background-secondary);
+}
+
+.flashcard-sticky-list-header {
+position: sticky;
+top: 0;
+z-index: 1;
+background: var(--background-secondary);
+border-bottom: 1px solid var(--background-modifier-border);
+padding: var(--size-4-2) var(--size-4-3);
+}
+
+.flashcard-sticky-list-content {
+display: flex;
+flex-direction: column;
+}
+
+/* --------------------------------------------------------------------------
+   SelectableListComponent
+   -------------------------------------------------------------------------- */
+.selectable-list-controls {
+display: flex;
+align-items: center;
+gap: var(--size-4-2);
+}
+
+.selectable-list-count {
+margin-left: auto;
+font-size: var(--font-ui-small);
+color: var(--text-muted);
+}
+
+.selectable-list {
+/* Scroll container styles come from .flashcard-sticky-list */
+}
+
+.selectable-list-items {
+/* Item container inside the scrollable list */
+}
+
+.selectable-list-item {
+display: flex;
+align-items: center;
+gap: var(--size-4-2);
+padding: var(--size-4-2) var(--size-4-3);
+padding-left: calc(var(--size-4-3) + var(--sl-indent, 0) * 16px);
+border-bottom: 1px solid var(--background-modifier-border);
+}
+
+.selectable-list-item:last-child {
+border-bottom: none;
+}
+
+.selectable-list-item input[type="checkbox"] {
+flex-shrink: 0;
+}
+
+.selectable-list-item-name {
+flex: 1;
+overflow: hidden;
+text-overflow: ellipsis;
+white-space: nowrap;
+}
+
+.selectable-list-item-name-clickable {
+cursor: pointer;
+color: var(--text-accent);
+}
+
+.selectable-list-item-name-clickable:hover {
+text-decoration: underline;
+}
+
+.selectable-list-item-secondary {
+	color: var(--text-muted);
+	font-size: var(--font-ui-small);
+	flex-shrink: 0;
+}
+
+.selectable-list-item-disabled {
+	color: var(--text-muted);
+}
+
+.selectable-list-item-disabled .selectable-list-item-name {
+	font-style: italic;
+}
+
+.selectable-list-checkbox-hidden {
+	visibility: hidden;
+}
+
+/* Virtual scrolling for large lists */
+.selectable-list-virtual {
+position: relative;
+display: block;
+}
+
+/* Spacer element to establish total scrollable height */
+.selectable-list-spacer {
+width: 100%;
+pointer-events: none;
+}
+
+/* Visible items container - positioned absolutely over the spacer */
+.selectable-list-visible {
+position: absolute;
+top: 0;
+left: 0;
+right: 0;
+}
+
+.selectable-list-measure {
+position: absolute;
+visibility: hidden;
+}
+
+/* --------------------------------------------------------------------------
+   FileListComponent
+   -------------------------------------------------------------------------- */
+.file-list {
+max-height: 300px;
+overflow-y: auto;
+border: 1px solid var(--background-modifier-border);
+border-radius: var(--radius-s);
+background: var(--background-secondary);
+list-style: none;
+padding: 0;
+margin: 0 0 var(--size-4-4) 0;
+}
+
+.file-list-item {
+padding: var(--size-4-2) var(--size-4-3);
+border-bottom: 1px solid var(--background-modifier-border);
+}
+
+.file-list-item:last-child {
+border-bottom: none;
+}
+
+.file-list-link {
+color: var(--text-accent);
+text-decoration: none;
+cursor: pointer;
+}
+
+.file-list-link:hover {
+text-decoration: underline;
+}
+
+.file-list-name {
+color: var(--text-normal);
+}
+
+.file-list-secondary {
+color: var(--text-muted);
+font-size: var(--font-ui-small);
+}
+
+/* ==========================================================================
+   Textarea Suggest Popover
+   ========================================================================== */
+
+.flashcard-suggest-container {
+position: fixed;
+left: var(--flashcard-suggest-left, 0px);
+top: var(--flashcard-suggest-top, 0px);
+width: var(--flashcard-suggest-width, 240px);
+z-index: var(--layer-menu);
+background: var(--background-primary);
+border: 1px solid var(--background-modifier-border);
+border-radius: var(--radius-m);
+box-shadow: var(--shadow-s);
+max-height: 300px;
+overflow-y: auto;
+}
+
+.flashcard-suggest-container .suggestion-item {
+padding: var(--size-4-2) var(--size-4-3);
+cursor: pointer;
+}
+
+.flashcard-suggest-container .suggestion-item:hover,
+.flashcard-suggest-container .suggestion-item.is-selected {
+background: var(--background-modifier-hover);
+}
+
+.flashcard-suggest-container .suggestion-title {
+font-weight: var(--font-medium);
+color: var(--text-normal);
+}
+
+.flashcard-suggest-container .suggestion-note {
+font-size: var(--font-ui-smaller);
+color: var(--text-muted);
+}

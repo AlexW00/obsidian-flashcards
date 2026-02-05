@@ -1,0 +1,11 @@
+/* Flashcards Plugin Styles */
+
+@import "./_base.css";
+@import "./_components.css";
+@import "./_dashboard.css";
+@import "./_review.css";
+@import "./_forms.css";
+@import "./_modals.css";
+@import "./_settings.css";
+@import "./_notices.css";
+@import "./_responsive.css";

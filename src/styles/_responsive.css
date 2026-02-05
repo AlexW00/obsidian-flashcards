@@ -1,0 +1,256 @@
+/* ==========================================================================
+   Responsive: Tablet (< 1024px)
+   ========================================================================== */
+
+@media (max-width: 1024px) {
+  /* Unlock fixed modal widths so they can shrink */
+  .flashcard-card-modal {
+    min-width: 90vw;
+    max-width: 95vw;
+  }
+
+  .anki-import-modal {
+    min-width: 85vw;
+  }
+
+  .template-regen-modal {
+    max-width: 90vw;
+  }
+
+  .flashcard-orphan-modal {
+    max-width: 90vw;
+  }
+
+  /* Allow more vertical space for modals */
+  .flashcard-modal,
+  .flashcard-card-modal {
+    max-height: 75vh;
+  }
+}
+
+/* ==========================================================================
+   Responsive: Mobile (< 600px)
+   ========================================================================== */
+
+@media (max-width: 600px) {
+  /* --------------------------------------------------------------------------
+     Modal Sizing
+     -------------------------------------------------------------------------- */
+  .flashcard-card-modal,
+  .anki-import-modal,
+  .template-regen-modal,
+  .flashcard-orphan-modal {
+    min-width: unset;
+    width: 95vw;
+    max-width: 95vw;
+  }
+
+  .flashcard-modal,
+  .flashcard-card-modal {
+    max-height: 85vh;
+  }
+
+  /* Reduce modal padding on mobile */
+  .flashcard-modal-header,
+  .flashcard-modal-sticky-header {
+    padding: var(--size-4-3);
+    padding-right: 44px;
+  }
+
+  .flashcard-modal-content,
+  .flashcard-modal-scroll-content {
+    padding: var(--size-4-3);
+  }
+
+  .flashcard-modal-footer,
+  .flashcard-modal-sticky-footer {
+    padding: var(--size-4-3);
+  }
+
+  /* --------------------------------------------------------------------------
+     Dashboard Header: Stack title and toolbar
+     -------------------------------------------------------------------------- */
+  .flashcard-dashboard-header {
+    flex-direction: column;
+    align-items: stretch;
+    gap: var(--size-4-2);
+  }
+
+  .flashcard-dashboard-toolbar {
+    justify-content: flex-start;
+  }
+
+  /* --------------------------------------------------------------------------
+     Deck Items: Advanced Layout (Name/Action top, Stats bottom scroll)
+     -------------------------------------------------------------------------- */
+  .flashcard-deck-item {
+    display: flex;
+    flex-wrap: wrap;
+    align-items: center;
+    gap: var(--size-4-2);
+    padding-right: var(--size-4-2); /* Ensure right padding for button */
+  }
+
+  /* Unwrap the info container so we can reorder children independently */
+  .flashcard-deck-info {
+    display: contents;
+  }
+
+  /* 1. Deck Name (Top Left) */
+  .flashcard-deck-name {
+    order: 1;
+    flex: 1 1 auto;
+    min-width: 0; /* Allow truncation */
+    overflow: hidden;
+  }
+
+  .flashcard-deck-name-link {
+    overflow: hidden;
+    text-overflow: ellipsis;
+    white-space: nowrap;
+  }
+
+  /* 2. Actions (Top Right) */
+  .flashcard-deck-actions {
+    order: 2;
+    flex: 0 0 auto;
+    width: auto;
+    justify-content: flex-end;
+  }
+
+  /* 3. Stats (Bottom Full Width, Scrollable) */
+  .flashcard-deck-stats {
+    order: 3;
+    width: 100%;
+    flex-wrap: nowrap;
+    overflow-x: auto;
+    gap: var(--size-4-2);
+    margin: 0;
+    padding-bottom: 2px; /* Space for scrollbar if any */
+    
+    /* Fade out effect on the right */
+    mask-image: linear-gradient(to right, black 85%, transparent 100%);
+    -webkit-mask-image: linear-gradient(to right, black 85%, transparent 100%);
+    
+    /* Hide scrollbar */
+    scrollbar-width: none;
+    -ms-overflow-style: none;
+  }
+  
+  .flashcard-deck-stats::-webkit-scrollbar {
+    display: none;
+  }
+
+  .flashcard-stat {
+    flex-shrink: 0;
+  }
+
+  /* --------------------------------------------------------------------------
+     Form Fields: Stack label above input
+     -------------------------------------------------------------------------- */
+  .flashcard-field-row {
+    flex-direction: column;
+    gap: var(--size-2-2);
+  }
+
+  .flashcard-field-label-inline {
+    width: 100%;
+    text-align: left;
+    padding-top: 0;
+  }
+
+  .flashcard-textarea-container {
+    width: 100%;
+  }
+
+  /* --------------------------------------------------------------------------
+     Modal Header Row: Allow wrapping
+     -------------------------------------------------------------------------- */
+  .flashcard-modal-header-row {
+    flex-direction: column;
+    align-items: center;
+    gap: var(--size-2-2);
+  }
+  
+  .flashcard-header-group {
+    width: 100%;
+    justify-content: center;
+  }
+
+  .flashcard-inline-search {
+    min-width: 120px;
+    width: auto;
+    flex: 1 1 auto;
+  }
+
+  /* --------------------------------------------------------------------------
+     Modal Buttons: Stack when needed
+     -------------------------------------------------------------------------- */
+  .flashcard-modal-buttons {
+    flex-wrap: wrap;
+    gap: var(--size-4-2);
+  }
+
+  .flashcard-buttons-left,
+  .flashcard-buttons-right {
+    flex-wrap: wrap;
+  }
+
+  /* --------------------------------------------------------------------------
+     Review View
+     -------------------------------------------------------------------------- */
+  .flashcard-review {
+    padding: var(--size-4-3);
+  }
+
+  .flashcard-review-progress {
+    gap: var(--size-4-2);
+  }
+
+  .flashcard-card {
+    padding: var(--size-4-4);
+  }
+
+  .flashcard-card-container {
+    padding: var(--size-4-3);
+  }
+
+  /* Rating buttons: Allow wrapping on very small screens */
+  .flashcard-rating-buttons {
+    gap: var(--size-2-2);
+  }
+
+  .flashcard-rating-buttons button {
+    min-width: 60px;
+    padding: var(--size-4-2) var(--size-4-3);
+  }
+
+  /* --------------------------------------------------------------------------
+     Selectable List Items
+     -------------------------------------------------------------------------- */
+  .selectable-list-item {
+    padding: var(--size-4-2);
+  }
+
+  /* --------------------------------------------------------------------------
+     Anki Import
+     -------------------------------------------------------------------------- */
+  .anki-import-deck-row {
+    flex-wrap: wrap;
+  }
+
+  .anki-import-file-section .setting-item {
+    flex-direction: column;
+    align-items: stretch;
+    gap: var(--size-4-2);
+  }
+
+  .anki-import-file-section .setting-item-control {
+    width: 100%;
+  }
+
+  .anki-import-file-control {
+    align-items: stretch;
+    text-align: left;
+  }
+}

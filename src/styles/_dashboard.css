@@ -1,0 +1,192 @@
+/* ==========================================================================
+   Dashboard View
+   ========================================================================== */
+
+.flashcard-dashboard {
+padding: var(--size-4-4);
+background-color: var(--background-primary);
+min-height: 100%;
+}
+
+.flashcard-dashboard > * {
+max-width: 800px;
+margin-left: auto;
+margin-right: auto;
+}
+
+.flashcard-dashboard-header {
+display: flex;
+justify-content: space-between;
+align-items: center;
+margin-bottom: var(--size-4-4);
+padding-bottom: var(--size-4-2);
+border-bottom: 1px solid var(--background-modifier-border);
+}
+
+.flashcard-dashboard-toolbar {
+display: flex;
+gap: var(--size-4-2);
+}
+
+/* --------------------------------------------------------------------------
+   Deck List
+   -------------------------------------------------------------------------- */
+.flashcard-deck-list {
+display: flex;
+flex-direction: column;
+gap: var(--size-4-1);
+}
+
+.flashcard-deck-item {
+display: flex;
+justify-content: space-between;
+align-items: center;
+padding: var(--size-4-2) var(--size-4-3);
+border-radius: var(--radius-s);
+transition: background 0.1s ease;
+}
+
+.flashcard-deck-item:hover {
+background: var(--background-modifier-hover);
+}
+
+.flashcard-deck-info {
+display: flex;
+align-items: center;
+gap: var(--size-4-3);
+flex: 1;
+}
+
+.flashcard-deck-name {
+display: flex;
+align-items: center;
+gap: var(--size-4-1);
+font-weight: var(--font-medium);
+}
+
+.flashcard-deck-toggle {
+display: inline-flex;
+align-items: center;
+justify-content: center;
+cursor: pointer;
+color: var(--text-muted);
+}
+
+.flashcard-deck-toggle:hover {
+color: var(--text-accent);
+}
+
+.flashcard-deck-toggle:focus-visible {
+outline: 2px solid var(--background-modifier-border-focus);
+outline-offset: 2px;
+border-radius: var(--radius-s);
+}
+
+.flashcard-deck-toggle-disabled {
+cursor: default;
+color: var(--text-faint);
+}
+
+.flashcard-deck-toggle-disabled:hover {
+color: var(--text-faint);
+}
+
+.flashcard-deck-name-link {
+cursor: pointer;
+text-decoration: none;
+}
+
+.flashcard-deck-name-link:hover {
+color: var(--text-accent);
+text-decoration: underline;
+text-decoration-thickness: 1px;
+text-underline-offset: 2px;
+}
+
+.flashcard-deck-stats {
+display: flex;
+gap: var(--size-4-2);
+}
+
+.flashcard-stat {
+padding: var(--size-2-2) var(--size-4-3);
+border-radius: var(--radius-m);
+font-size: var(--font-ui-smaller);
+font-weight: var(--font-medium);
+background-color: var(--background-primary-alt);
+border: 1px solid var(--background-modifier-border);
+}
+
+.flashcard-stat-clickable {
+cursor: pointer;
+text-decoration: none;
+transition: background-color 0.1s ease;
+}
+
+.flashcard-stat-clickable:hover {
+text-decoration: underline;
+background-color: var(--background-modifier-hover);
+}
+
+.flashcard-stat-clickable:focus-visible {
+outline: 2px solid var(--background-modifier-border-focus);
+outline-offset: 2px;
+}
+
+.flashcard-stat-new {
+color: var(--color-blue);
+}
+
+.flashcard-stat-learning {
+color: var(--color-orange);
+}
+
+.flashcard-stat-relearn {
+color: var(--color-red);
+}
+
+.flashcard-stat-due {
+color: var(--color-green);
+}
+
+.flashcard-stat-error {
+color: var(--text-on-accent);
+background-color: var(--color-red);
+border-color: var(--color-red);
+}
+
+.flashcard-stat-error:hover {
+background-color: var(--color-red);
+opacity: 0.9;
+text-decoration: underline;
+}
+
+.flashcard-deck-actions {
+display: flex;
+gap: var(--size-4-2);
+}
+
+/* --------------------------------------------------------------------------
+   Empty State
+   -------------------------------------------------------------------------- */
+.flashcard-empty-state {
+text-align: center;
+padding: var(--size-4-8);
+color: var(--text-muted);
+display: flex;
+flex-direction: column;
+align-items: center;
+gap: var(--size-4-4);
+}
+
+.flashcard-empty-state p {
+margin: 0;
+}
+
+/* --------------------------------------------------------------------------
+   Small Button Modifier
+   -------------------------------------------------------------------------- */
+.flashcard-btn-small {
+padding: var(--size-2-1) var(--size-4-2) !important;
+font-size: var(--font-ui-smaller) !important;
+}

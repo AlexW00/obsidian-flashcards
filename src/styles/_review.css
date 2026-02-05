@@ -1,0 +1,264 @@
+/* ==========================================================================
+   Review View
+   ========================================================================== */
+
+.flashcard-review {
+display: flex;
+flex-direction: column;
+height: 100%;
+padding: var(--size-4-4);
+background-color: var(--background-primary);
+}
+
+.flashcard-review-progress {
+display: flex;
+align-items: center;
+gap: var(--size-4-3);
+margin-bottom: var(--size-4-4);
+max-width: 700px;
+width: 100%;
+margin-left: auto;
+margin-right: auto;
+flex-shrink: 0;
+}
+
+.flashcard-review-menu {
+margin-left: auto;
+display: inline-flex;
+align-items: center;
+justify-content: center;
+width: 28px;
+height: 28px;
+border-radius: var(--radius-s);
+color: var(--text-muted);
+cursor: pointer;
+}
+
+.flashcard-review-menu:hover {
+background: var(--background-modifier-hover);
+color: var(--text-normal);
+}
+
+.flashcard-review-menu:focus-visible {
+outline: 2px solid var(--background-modifier-border-focus);
+outline-offset: 2px;
+}
+
+/* --------------------------------------------------------------------------
+   Scroll Wrapper with Fades
+   -------------------------------------------------------------------------- */
+.flashcard-scroll-wrapper {
+flex: 1;
+position: relative;
+width: 100%;
+margin-bottom: var(--size-4-4);
+overflow: hidden;
+display: flex;
+flex-direction: column;
+}
+
+.flashcard-fade-top {
+position: absolute;
+top: 0;
+left: 0;
+right: 0;
+height: 40px;
+background: linear-gradient(to bottom, var(--background-primary), transparent);
+pointer-events: none;
+z-index: 2;
+}
+
+.flashcard-fade-bottom {
+position: absolute;
+bottom: 0;
+left: 0;
+right: 0;
+height: 40px;
+background: linear-gradient(to top, var(--background-primary), transparent);
+pointer-events: none;
+z-index: 2;
+}
+
+/* --------------------------------------------------------------------------
+   Card Display
+   -------------------------------------------------------------------------- */
+.flashcard-card-container {
+flex: 1;
+display: flex;
+justify-content: center;
+align-items: flex-start;
+overflow-y: auto;
+padding: var(--size-4-6);
+scroll-behavior: smooth;
+}
+
+.flashcard-card {
+width: 100%;
+max-width: 700px;
+background: var(--background-secondary);
+border-radius: var(--radius-m);
+padding: var(--size-4-6);
+box-shadow: var(--shadow-s);
+}
+
+.theme-dark .flashcard-card {
+border: 1px solid var(--background-modifier-border);
+}
+
+.flashcard-card-content {
+font-size: var(--font-text-size);
+line-height: var(--line-height-normal);
+}
+
+.flashcard-card-content p:first-child {
+margin-top: 0;
+}
+
+.flashcard-card-content p:last-child {
+margin-bottom: 0;
+}
+
+.flashcard-side-separator {
+margin: var(--size-4-4) 0;
+border: none;
+max-width: 700px;
+margin-left: auto;
+margin-right: auto;
+border-top: 2px dashed var(--background-modifier-border);
+}
+
+/* --------------------------------------------------------------------------
+   Review Controls
+   -------------------------------------------------------------------------- */
+.flashcard-controls {
+display: flex;
+align-items: center;
+justify-content: space-between;
+gap: var(--size-4-2);
+width: 100%;
+flex-shrink: 0;
+}
+
+.flashcard-actions {
+display: flex;
+flex-direction: column;
+align-items: center;
+gap: var(--size-4-2);
+flex: 1;
+}
+
+.flashcard-btn-reveal {
+padding: var(--size-4-3) var(--size-4-6) !important;
+font-size: var(--font-ui-medium) !important;
+}
+
+.flashcard-hint {
+font-size: var(--font-ui-smaller);
+color: var(--text-faint);
+}
+
+/* --------------------------------------------------------------------------
+   Rating Buttons
+   -------------------------------------------------------------------------- */
+.flashcard-rating-buttons {
+display: flex;
+gap: var(--size-4-2);
+flex-wrap: wrap;
+justify-content: center;
+}
+
+.flashcard-rating-buttons > div {
+display: flex;
+flex-direction: column;
+align-items: center;
+gap: var(--size-2-1);
+}
+
+.flashcard-rating-buttons button {
+min-width: 70px;
+}
+
+.flashcard-interval {
+font-size: var(--font-ui-smaller);
+color: var(--text-muted);
+margin-top: var(--size-2-1);
+}
+
+.flashcard-btn-again button {
+color: var(--color-red);
+border-color: var(--color-red);
+background-color: hsla(var(--color-red-hsl), 0.1);
+}
+
+.flashcard-btn-again button:hover {
+background-color: hsla(var(--color-red-hsl), 0.2);
+box-shadow: 0 0 8px hsla(var(--color-red-hsl), 0.5);
+}
+
+.flashcard-btn-hard button {
+color: var(--color-yellow);
+border-color: var(--color-yellow);
+background-color: hsla(var(--color-yellow-hsl), 0.1);
+}
+
+.flashcard-btn-hard button:hover {
+background-color: hsla(var(--color-yellow-hsl), 0.2);
+box-shadow: 0 0 8px hsla(var(--color-yellow-hsl), 0.5);
+}
+
+.flashcard-btn-good button {
+color: var(--color-green);
+border-color: var(--color-green);
+background-color: hsla(var(--color-green-hsl), 0.1);
+}
+
+.flashcard-btn-good button:hover {
+background-color: hsla(var(--color-green-hsl), 0.2);
+box-shadow: 0 0 8px hsla(var(--color-green-hsl), 0.5);
+}
+
+.flashcard-btn-easy button {
+color: var(--color-blue);
+border-color: var(--color-blue);
+background-color: hsla(var(--color-blue-hsl), 0.1);
+}
+
+.flashcard-btn-easy button:hover {
+background-color: hsla(var(--color-blue-hsl), 0.2);
+box-shadow: 0 0 8px hsla(var(--color-blue-hsl), 0.5);
+}
+
+.flashcard-rating-hints {
+display: flex;
+gap: var(--size-4-4);
+font-size: var(--font-ui-smaller);
+color: var(--text-faint);
+}
+
+/* --------------------------------------------------------------------------
+   Edit Button & Complete State
+   -------------------------------------------------------------------------- */
+.flashcard-btn-edit {
+position: static;
+}
+
+.flashcard-btn-edit.clickable-icon {
+background: transparent;
+border: none;
+}
+
+.flashcard-complete-state {
+text-align: center;
+padding: var(--size-4-8);
+}
+
+.flashcard-complete-icon {
+font-size: 48px;
+color: var(--color-green);
+margin-bottom: var(--size-4-4);
+}
+
+.flashcard-complete-icon svg {
+width: 48px;
+height: 48px;
+}
