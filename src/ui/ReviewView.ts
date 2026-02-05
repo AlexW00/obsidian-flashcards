@@ -466,11 +466,20 @@ export class ReviewView extends ItemView {
 		let newState: ReviewState | null = null;
 
 		if (file instanceof TFile) {
-			newState = this.plugin.scheduler.review(
+			const reviewResult = this.plugin.scheduler.review(
 				card.frontmatter._review,
 				rating,
 			);
-			await this.plugin.cardService.updateReviewState(file, newState);
+			newState = reviewResult.state;
+			await this.plugin.cardService.updateReviewState(
+				file,
+				reviewResult.state,
+			);
+			// Persist review log entry to centralized store
+			await this.plugin.reviewLogStore.addEntry(
+				card.path,
+				reviewResult.logEntry,
+			);
 		}
 
 		let nextDueCards = this.plugin.deckService.getDueCards(

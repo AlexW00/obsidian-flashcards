@@ -14,6 +14,7 @@ import {
 	debugLog,
 } from "./types";
 import { getDefaultTextModel } from "./services/aiModelDefaults";
+import type { OptimizationResult } from "./srs/FsrsOptimizerService";
 
 export { DEFAULT_SETTINGS } from "./types";
 export type { FlashcardsPluginSettings } from "./types";
@@ -25,6 +26,16 @@ export interface PluginWithSettingsAndSecrets extends PluginWithSettings {
 	getApiKey(providerId: string): Promise<string | null>;
 	setApiKey(providerId: string, key: string): Promise<void>;
 	deleteApiKey(providerId: string): Promise<void>;
+	optimizeFsrsParameters(
+		enableShortTerm: boolean,
+	): Promise<OptimizationResult>;
+	getReviewStats(): {
+		cardsWithHistory: number;
+		totalCards: number;
+		totalReviews: number;
+		canOptimize: boolean;
+	};
+	resetReviewHistory(): Promise<number>;
 }
 
 export class AnkerSettingTab extends PluginSettingTab {
@@ -294,6 +305,10 @@ export class AnkerSettingTab extends PluginSettingTab {
 				text.inputEl.rows = 3;
 			});
 
+		// Optimize parameters button
+		const optimizeContainer = containerEl.createDiv();
+		this.renderOptimizeButton(optimizeContainer);
+
 		new Setting(containerEl)
 			.setName("Reset fsrs parameters")
 			.setDesc("Restore default scheduling parameters.")
@@ -345,6 +360,89 @@ export class AnkerSettingTab extends PluginSettingTab {
 			dynamicPipeProviders?: Record<string, string | undefined>;
 		};
 		return settings.dynamicPipeProviders ?? {};
+	}
+
+	/**
+	 * Render the optimize parameters button with stats.
+	 */
+	private renderOptimizeButton(container: HTMLElement): void {
+		container.empty();
+
+		const stats = this.plugin.getReviewStats();
+
+		const minReviews = 50;
+		const canOptimize = stats.totalReviews >= minReviews;
+		const statsSummary = `Found ${stats.totalReviews} reviews from ${stats.cardsWithHistory} cards (of ${stats.totalCards} total).`;
+		const noHistoryNote =
+			stats.cardsWithHistory === 0
+				? "No review history detected yet. Start reviewing cards to collect data."
+				: "";
+		const statsDesc = `Analyze your review history to calculate optimal parameters. ${statsSummary}${noHistoryNote ? ` ${noHistoryNote}` : ""}`;
+
+		const setting = new Setting(container)
+			.setName("Optimize parameters")
+			.setDesc(
+				canOptimize
+					? statsDesc
+					: `${statsDesc} Need at least ${minReviews} reviews to optimize.`,
+			);
+
+		setting.addButton((button) => {
+			button
+				.setButtonText("Optimize")
+				.setDisabled(!canOptimize)
+				.onClick(async () => {
+					button.setButtonText("Optimizing...");
+					button.setDisabled(true);
+
+					try {
+						const result = await this.plugin.optimizeFsrsParameters(
+							this.plugin.settings.fsrsEnableShortTerm,
+						);
+
+						// Update weights in settings
+						this.plugin.settings.fsrsWeights = result.weights;
+						await this.plugin.saveSettings();
+
+						new Notice(
+							`Optimized FSRS parameters using ${result.reviewsUsed} reviews from ${result.cardsUsed} cards.`,
+						);
+
+						// Refresh the settings display to show new weights
+						this.display();
+					} catch (error) {
+						const message =
+							error instanceof Error
+								? error.message
+								: String(error);
+						new Notice(`Optimization failed: ${message}`);
+						button.setButtonText("Optimize");
+						button.setDisabled(!canOptimize);
+					}
+				});
+		});
+
+		// Reset review history button
+		if (stats.totalReviews > 0) {
+			new Setting(container)
+				.setName("Reset review history")
+				.setDesc(
+					"Delete all stored review history. This does not affect card scheduling, only the data used for parameter optimization.",
+				)
+				.addButton((button) =>
+					button
+						.setButtonText("Reset")
+						.setWarning()
+						.onClick(async () => {
+							const count =
+								await this.plugin.resetReviewHistory();
+							new Notice(
+								`Cleared review history for ${count} cards.`,
+							);
+							this.renderOptimizeButton(container);
+						}),
+				);
+		}
 	}
 
 	/**

@@ -163,9 +163,9 @@ describe("Scheduler", () => {
 			const result = scheduler.review(state, Rating.Again);
 
 			// Again increases lapses
-			expect(result.lapses).toBe(state.lapses + 1);
+			expect(result.state.lapses).toBe(state.lapses + 1);
 			// State changes to Relearning
-			expect(result.state).toBe(State.Relearning);
+			expect(result.state.state).toBe(State.Relearning);
 		});
 
 		it("should process Good rating correctly", () => {
@@ -173,9 +173,10 @@ describe("Scheduler", () => {
 			const result = scheduler.review(state, Rating.Good);
 
 			// Reps should increase
-			expect(result.reps).toBe(state.reps + 1);
+			expect(result.state.reps).toBe(state.reps + 1);
 			// Due date should be in the future
-			expect(new Date(result.due).getTime()).toBeGreaterThan(
+			const dueDate = new Date(String(result.state.due));
+			expect(dueDate.getTime()).toBeGreaterThan(
 				new Date().getTime() - 1000,
 			);
 		});
@@ -185,9 +186,9 @@ describe("Scheduler", () => {
 			const result = scheduler.review(state, Rating.Easy);
 
 			// Reps should increase
-			expect(result.reps).toBe(state.reps + 1);
+			expect(result.state.reps).toBe(state.reps + 1);
 			// Easy on new card should transition to Review state
-			expect(result.state).toBe(State.Review);
+			expect(result.state.state).toBe(State.Review);
 		});
 
 		it("should set last_review timestamp", () => {
@@ -196,12 +197,33 @@ describe("Scheduler", () => {
 			const result = scheduler.review(state, Rating.Good);
 			const after = new Date();
 
-			expect(result.last_review).toBeDefined();
-			const lastReview = new Date(result.last_review!);
+			expect(result.state.last_review).toBeDefined();
+			const lastReview = new Date(String(result.state.last_review));
 			expect(lastReview.getTime()).toBeGreaterThanOrEqual(
 				before.getTime() - 1000,
 			);
 			expect(lastReview.getTime()).toBeLessThanOrEqual(
+				after.getTime() + 1000,
+			);
+		});
+
+		it("should return log entry with review data", () => {
+			const state = createReviewCardState();
+			state.elapsed_days = 7;
+			const before = new Date();
+			const result = scheduler.review(state, Rating.Good);
+			const after = new Date();
+
+			// Log entry should capture the review
+			expect(result.logEntry).toBeDefined();
+			expect(result.logEntry.rating).toBe(Rating.Good);
+			expect(result.logEntry.elapsed_days).toBe(7);
+
+			const logTime = new Date(result.logEntry.timestamp);
+			expect(logTime.getTime()).toBeGreaterThanOrEqual(
+				before.getTime() - 1000,
+			);
+			expect(logTime.getTime()).toBeLessThanOrEqual(
 				after.getTime() + 1000,
 			);
 		});
@@ -256,7 +278,7 @@ describe("Scheduler", () => {
 
 			const result = scheduler.review(state, Rating.Good);
 			// With short-term scheduling enabled, Good on New goes to Learning
-			expect([State.Learning, State.Review]).toContain(result.state);
+			expect([State.Learning, State.Review]).toContain(result.state.state);
 		});
 
 		it("Learning -> Review (after graduating)", () => {
@@ -276,7 +298,8 @@ describe("Scheduler", () => {
 			// Multiple Good ratings should eventually graduate to Review
 			let current = learningState;
 			for (let i = 0; i < 5; i++) {
-				current = scheduler.review(current, Rating.Easy);
+				const result = scheduler.review(current, Rating.Easy);
+				current = result.state;
 				if (current.state === State.Review) break;
 			}
 
@@ -289,8 +312,8 @@ describe("Scheduler", () => {
 			expect(state.state).toBe(State.Review);
 
 			const result = scheduler.review(state, Rating.Again);
-			expect(result.state).toBe(State.Relearning);
-			expect(result.lapses).toBe(state.lapses + 1);
+			expect(result.state.state).toBe(State.Relearning);
+			expect(result.state.lapses).toBe(state.lapses + 1);
 		});
 	});
 });

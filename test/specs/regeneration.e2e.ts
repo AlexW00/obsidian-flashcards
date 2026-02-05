@@ -2,6 +2,7 @@ import { describe, it, before } from "mocha";
 import { browser, expect } from "@wdio/globals";
 import { obsidianPage } from "wdio-obsidian-service";
 import { waitForVaultReady } from "../helpers/waitForVaultReady";
+import type { ObsidianAppLike } from "../helpers/obsidianTypes";
 
 describe("Template Regeneration", function () {
     before(async function () {
@@ -9,13 +10,14 @@ describe("Template Regeneration", function () {
         await obsidianPage.resetVault();
 
         // Configure settings to match test vault
-        await browser.executeObsidian(async ({ app }) => {
-            const plugin = (app as any).plugins.getPlugin("anker");
-            if (plugin) {
-                plugin.settings.templateFolder = "templates";
-                await plugin.saveSettings();
-            }
-        });
+            await browser.executeObsidian(async ({ app }) => {
+                const obsidianApp = app as ObsidianAppLike;
+                const plugin = obsidianApp.plugins?.getPlugin?.("anker");
+                if (plugin) {
+                    plugin.settings.templateFolder = "templates";
+                    await plugin.saveSettings();
+                }
+            });
 
         await waitForVaultReady();
     });
@@ -38,9 +40,9 @@ describe("Template Regeneration", function () {
         );
 
         // The card should contain the rendered front/back content
-        await expect(cardContent).not.toBe(null);
-        await expect(cardContent).toContain("France");
-        await expect(cardContent).toContain("Paris");
+        expect(cardContent).not.toBe(null);
+        expect(cardContent).toContain("France");
+        expect(cardContent).toContain("Paris");
     });
 
     it("regenerates card when triggered manually", async function () {
@@ -67,8 +69,8 @@ describe("Template Regeneration", function () {
         );
 
         // Content should still be valid
-        await expect(cardContent).not.toBe(null);
-        await expect(cardContent).toContain("France");
+        expect(cardContent).not.toBe(null);
+        expect(cardContent).toContain("France");
     });
 
     it("template modification triggers card update", async function () {
@@ -82,7 +84,7 @@ describe("Template Regeneration", function () {
             "templates/basic.md"
         );
 
-        await expect(originalTemplate).not.toBe(null);
+        expect(originalTemplate).not.toBe(null);
 
         // Modify the template by adding a marker
         const modifiedContent = (originalTemplate as string).replace(
@@ -107,9 +109,9 @@ describe("Template Regeneration", function () {
 
         // The card should reflect the template change
         // (depends on auto-regen being enabled, so we check both scenarios)
-        await expect(cardContent).not.toBe(null);
+        expect(cardContent).not.toBe(null);
         // Either the old or new format should be valid
-        await expect(
+        expect(
             (cardContent as string).includes("France")
         ).toBe(true);
 

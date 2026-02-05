@@ -52,6 +52,19 @@ export interface ReviewState {
 }
 
 /**
+ * A single review log entry for FSRS parameter optimization.
+ * Stored in a centralized JSONL file in the plugin folder.
+ */
+export interface ReviewLogEntry {
+	/** ISO timestamp when the review occurred */
+	timestamp: string;
+	/** Rating given (1=Again, 2=Hard, 3=Good, 4=Easy) */
+	rating: number;
+	/** Days elapsed since previous review (0 for first review) */
+	elapsed_days: number;
+}
+
+/**
  * Flashcard frontmatter structure.
  * This is the source of truth for all card data.
  *

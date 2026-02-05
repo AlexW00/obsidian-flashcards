@@ -128,6 +128,17 @@ Paris
 
 **Important:** Edit the `fields` in frontmatter, not the body content. The body is regenerated from the template.
 
+### Data storage
+
+| Data | Location |
+| --- | --- |
+| Card content & scheduling | Markdown files (frontmatter) |
+| Plugin settings | `.obsidian/plugins/anker/data.json` |
+| Review history (for optimization) | `.obsidian/plugins/anker/review-history.jsonl` |
+| API keys | Obsidian SecretStorage |
+
+Review history is stored outside of card files so frontmatter stays clean. It can be reset from Settings → Scheduling.
+
 ## Template Syntax
 
 Templates use [Nunjucks](https://mozilla.github.io/nunjucks/) syntax:

@@ -6,7 +6,19 @@ import {
 	generatorParameters,
 	type Steps,
 } from "ts-fsrs";
-import type { FlashcardsPluginSettings, ReviewState } from "../types";
+import type {
+	FlashcardsPluginSettings,
+	ReviewState,
+	ReviewLogEntry,
+} from "../types";
+
+/**
+ * Result of a review operation, including new state and log entry.
+ */
+export interface ReviewResult {
+	state: ReviewState;
+	logEntry: ReviewLogEntry;
+}
 
 /**
  * FSRS scheduler wrapper for flashcard reviews.
@@ -131,9 +143,9 @@ export class Scheduler {
 	}
 
 	/**
-	 * Process a review with the given rating and return the new state.
+	 * Process a review with the given rating and return the new state plus log entry.
 	 */
-	review(currentState: ReviewState, rating: Rating): ReviewState {
+	review(currentState: ReviewState, rating: Rating): ReviewResult {
 		const card = this.toFsrsCard(currentState);
 		const now = new Date();
 		const scheduling = this.fsrs.repeat(card, now);
@@ -157,7 +169,16 @@ export class Scheduler {
 				throw new Error(`Invalid rating: ${rating}`);
 		}
 
-		return this.toReviewState(result.card);
+		const newState = this.toReviewState(result.card);
+
+		// Create log entry for optimization
+		const logEntry: ReviewLogEntry = {
+			timestamp: now.toISOString(),
+			rating: rating, // Rating enum: 1=Again, 2=Hard, 3=Good, 4=Easy
+			elapsed_days: currentState.elapsed_days,
+		};
+
+		return { state: newState, logEntry };
 	}
 
 	/**

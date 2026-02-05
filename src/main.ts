@@ -13,6 +13,8 @@ import { TemplateService } from "./flashcards/TemplateService";
 import { CardService } from "./flashcards/CardService";
 import { DeckService } from "./flashcards/DeckService";
 import { Scheduler } from "./srs/Scheduler";
+import { FsrsOptimizerService } from "./srs/FsrsOptimizerService";
+import { ReviewLogStore } from "./srs/ReviewLogStore";
 import { CardRegenService } from "./services/CardRegenService";
 import { AttachmentCleanupService } from "./services/AttachmentCleanupService";
 import { AiCacheService } from "./services/AiCacheService";
@@ -59,6 +61,10 @@ export default class AnkerPlugin extends Plugin {
 	private dictManager: DictionaryManager | null = null;
 	/** Service for Japanese furigana conversion */
 	private furiganaService: FuriganaService | null = null;
+	/** Service for FSRS parameter optimization */
+	private fsrsOptimizerService: FsrsOptimizerService | null = null;
+	/** Centralized store for review history (persisted in plugin folder) */
+	reviewLogStore: ReviewLogStore;
 
 	async onload() {
 		await this.loadSettings();
@@ -75,6 +81,10 @@ export default class AnkerPlugin extends Plugin {
 		this.deckService = new DeckService(this.app);
 		this.scheduler = new Scheduler(this.settings);
 		this.attachmentCleanupService = new AttachmentCleanupService(this.app);
+
+		// Initialize review log store
+		this.reviewLogStore = new ReviewLogStore(this.app, this.manifest.id);
+		await this.reviewLogStore.load();
 
 		// Initialize AI cache service
 		this.aiCacheService = new AiCacheService(this.app);
@@ -312,6 +322,50 @@ export default class AnkerPlugin extends Plugin {
 		}
 		// SecretStorage doesn't have deleteSecret, so set to empty string
 		secretStorage.setSecret(key, "");
+	}
+
+	/**
+	 * Get all flashcards in the vault.
+	 */
+	getAllFlashcards(): Flashcard[] {
+		return this.deckService.getAllFlashcards();
+	}
+
+	/**
+	 * Optimize FSRS parameters based on review history.
+	 * Used by settings UI.
+	 */
+	async optimizeFsrsParameters(
+		enableShortTerm: boolean,
+	): Promise<{ weights: number[]; cardsUsed: number; reviewsUsed: number }> {
+		if (!this.fsrsOptimizerService) {
+			this.fsrsOptimizerService = new FsrsOptimizerService();
+		}
+		return this.fsrsOptimizerService.optimize(
+			this.reviewLogStore.getAllData(),
+			enableShortTerm,
+		);
+	}
+
+	/**
+	 * Get review statistics for optimization eligibility.
+	 * Used by settings UI.
+	 */
+	getReviewStats(): {
+		cardsWithHistory: number;
+		totalCards: number;
+		totalReviews: number;
+		canOptimize: boolean;
+	} {
+		const totalCards = this.deckService.getAllFlashcards().length;
+		return this.reviewLogStore.getStats(totalCards);
+	}
+
+	/**
+	 * Reset all review history. Returns number of cards cleared.
+	 */
+	async resetReviewHistory(): Promise<number> {
+		return this.reviewLogStore.reset();
 	}
 
 	/**

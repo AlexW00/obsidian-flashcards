@@ -30,12 +30,12 @@ describe("Card Creation", function () {
 		await browser.executeObsidianCommand("anker:create-card");
 
 		// Wait for the modal to appear
-		const modal = await browser.$(".modal-container .modal");
+		const modal = browser.$(".modal-container .modal");
 		await modal.waitForExist({ timeout: 10000 });
 		await expect(modal).toExist();
 
 		// Verify it's the card form modal by looking for a form element
-		const formContent = await browser.$(".modal-container .modal-content");
+		const formContent = browser.$(".modal-container .modal-content");
 		await expect(formContent).toExist();
 	});
 
@@ -44,14 +44,14 @@ describe("Card Creation", function () {
 		await browser.executeObsidianCommand("anker:create-card");
 
 		// Wait for modal to load
-		const modal = await browser.$(".modal-container .modal");
+		const modal = browser.$(".modal-container .modal");
 		await modal.waitForExist({ timeout: 5000 });
 
 		// Note: We rely on the default deck/template selection here.
 		// The test vault has a "flashcards" folder which should be auto-selected.
 
 		// Find and fill the "front" field
-		const frontInput = await browser.$(
+		const frontInput = browser.$(
 			'.modal-container textarea[placeholder*="front"], .modal-container input[placeholder*="front"]',
 		);
 		if (await frontInput.isExisting()) {
@@ -59,7 +59,7 @@ describe("Card Creation", function () {
 		}
 
 		// Find and fill the "back" field
-		const backInput = await browser.$(
+		const backInput = browser.$(
 			'.modal-container textarea[placeholder*="back"], .modal-container input[placeholder*="back"]',
 		);
 		if (await backInput.isExisting()) {
@@ -67,7 +67,7 @@ describe("Card Creation", function () {
 		}
 
 		// Click create button using JS to avoid interception
-		const createButton = await browser.$(
+		const createButton = browser.$(
 			".modal-container .flashcard-buttons-right button.mod-cta",
 		);
 		if (await createButton.isExisting()) {
@@ -88,6 +88,6 @@ describe("Card Creation", function () {
 		});
 
 		// The vault should contain flashcard files (at minimum the seed cards)
-		await expect(cardCreated).toBe(true);
+		expect(cardCreated).toBe(true);
 	});
 });

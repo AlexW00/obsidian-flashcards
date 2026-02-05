@@ -19,7 +19,7 @@ describe("Dashboard", function () {
             return plugin !== null && plugin !== undefined;
         });
 
-        await expect(isEnabled).toBe(true);
+        expect(isEnabled).toBe(true);
     });
 
     it("opens dashboard via command", async function () {
@@ -27,13 +27,13 @@ describe("Dashboard", function () {
         await browser.executeObsidianCommand("anker:open-dashboard");
 
         // Wait for the dashboard view to appear
-        const dashboardView = await browser.$(".flashcard-dashboard");
+        const dashboardView = browser.$(".flashcard-dashboard");
         await expect(dashboardView).toExist();
     });
 
     it("displays deck statistics", async function () {
         // The dashboard should show the flashcards folder as a deck
-        const deckItem = await browser.$(".flashcard-dashboard .flashcard-deck-item");
+        const deckItem = browser.$(".flashcard-dashboard .flashcard-deck-item");
         await expect(deckItem).toExist();
     });
 });

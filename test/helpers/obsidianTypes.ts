@@ -3,6 +3,7 @@ export type AnkerPluginLike = {
 		templateFolder: string;
 	};
 	saveSettings: () => Promise<void>;
+	startReview?: (deckPath: string) => void | Promise<void>;
 };
 
 export type ObsidianAppLike = {

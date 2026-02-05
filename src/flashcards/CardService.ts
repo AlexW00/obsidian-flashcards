@@ -1,5 +1,9 @@
 import { App, TFile, stringifyYaml } from "obsidian";
-import type { Flashcard, FlashcardFrontmatter, ReviewState } from "../types";
+import type {
+	Flashcard,
+	FlashcardFrontmatter,
+	ReviewState,
+} from "../types";
 import { debugLog, PROTECTION_COMMENT } from "../types";
 import { TemplateService } from "./TemplateService";
 import { createEmptyCard } from "ts-fsrs";

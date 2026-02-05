@@ -1,15 +1,16 @@
-import { describe, it, before } from "mocha";
+import { describe, it, beforeEach } from "mocha";
 import { browser, expect } from "@wdio/globals";
 import { obsidianPage } from "wdio-obsidian-service";
 import { waitForVaultReady } from "../helpers/waitForVaultReady";
+import type { ObsidianAppLike } from "../helpers/obsidianTypes";
 
 describe("Review Session", function () {
 	const waitForDeckSelectorOrReview = async () => {
 		await browser.waitUntil(
 			async () => {
-				const promptInput = await browser.$(".prompt-input");
+				const promptInput = browser.$(".prompt-input");
 				if (await promptInput.isExisting()) return true;
-				const reviewView = await browser.$(".flashcard-review");
+				const reviewView = browser.$(".flashcard-review");
 				if (await reviewView.isExisting()) return true;
 				return false;
 			},
@@ -22,10 +23,10 @@ describe("Review Session", function () {
 	};
 
 	const chooseFirstDeckIfPrompted = async () => {
-		const promptInput = await browser.$(".prompt-input");
+		const promptInput = browser.$(".prompt-input");
 		if (!(await promptInput.isExisting())) return;
 
-		const suggestion = await browser.$(
+		const suggestion = browser.$(
 			".suggestion-container .suggestion-item",
 		);
 		try {
@@ -37,7 +38,7 @@ describe("Review Session", function () {
 	};
 
 	const closeDeckSelectorIfOpen = async () => {
-		const promptInput = await browser.$(".prompt-input");
+		const promptInput = browser.$(".prompt-input");
 		if (await promptInput.isExisting()) {
 			await browser.keys(["Escape"]);
 		}
@@ -57,12 +58,12 @@ describe("Review Session", function () {
 		await waitForDeckSelectorOrReview();
 
 		// If the deck selector is open, verify it and close it
-		const promptInput = await browser.$(".prompt-input");
+		const promptInput = browser.$(".prompt-input");
 		if (await promptInput.isExisting()) {
 			await expect(promptInput).toExist();
 			await closeDeckSelectorIfOpen();
 		} else {
-			const reviewView = await browser.$(".flashcard-review");
+			const reviewView = browser.$(".flashcard-review");
 			await expect(reviewView).toExist();
 		}
 	});
@@ -72,11 +73,11 @@ describe("Review Session", function () {
 		await browser.executeObsidianCommand("anker:open-dashboard");
 
 		// Wait for dashboard
-		const dashboard = await browser.$(".flashcard-dashboard");
+		const dashboard = browser.$(".flashcard-dashboard");
 		await dashboard.waitForExist({ timeout: 5000 });
 
 		// Find a study button and click it
-		const studyButton = await browser.$(
+		const studyButton = browser.$(
 			".flashcard-dashboard .flashcard-deck-item button",
 		);
 		if (await studyButton.isExisting()) {
@@ -85,7 +86,7 @@ describe("Review Session", function () {
 			await waitForDeckSelectorOrReview();
 			await chooseFirstDeckIfPrompted();
 
-			const reviewView = await browser.$(".flashcard-review");
+			const reviewView = browser.$(".flashcard-review");
 			await reviewView.waitForExist({ timeout: 5000 });
 			await expect(reviewView).toExist();
 		}
@@ -94,17 +95,18 @@ describe("Review Session", function () {
 	it("rates card and advances to next", async function () {
 		// Start a review session directly to avoid suggest modal timing
 		await browser.executeObsidian(({ app }) => {
-			const plugin = (app as any).plugins.getPlugin("anker");
-			if (plugin) {
+			const obsidianApp = app as ObsidianAppLike;
+			const plugin = obsidianApp.plugins?.getPlugin?.("anker");
+			if (plugin?.startReview) {
 				void plugin.startReview("flashcards");
 			}
 		});
 
-		const reviewView = await browser.$(".flashcard-review");
+		const reviewView = browser.$(".flashcard-review");
 		await reviewView.waitForExist({ timeout: 5000 });
 
 		// Reveal answer if needed
-		const revealButton = await browser.$(
+		const revealButton = browser.$(
 			".flashcard-review .flashcard-btn-reveal",
 		);
 		if (await revealButton.isExisting()) {
@@ -112,7 +114,7 @@ describe("Review Session", function () {
 		}
 
 		// Rate the card if rating buttons are present
-		const ratingButton = await browser.$(
+		const ratingButton = browser.$(
 			".flashcard-review .flashcard-rating-buttons button",
 		);
 		if (await ratingButton.isExisting()) {
@@ -120,7 +122,7 @@ describe("Review Session", function () {
 		}
 
 		// Either still reviewing or completed - both are valid
-		const stillInReview = await browser.$(".flashcard-review");
-		await expect(await stillInReview.isExisting()).toBe(true);
+		const stillInReview = browser.$(".flashcard-review");
+		expect(await stillInReview.isExisting()).toBe(true);
 	});
 });

@@ -22,8 +22,9 @@ Obsidian community plugin for spaced repetition flashcards using FSRS. The plugi
 
 - Card creation writes frontmatter and regenerates body from templates.
 - Reviews update scheduling in frontmatter.
+- Review history is stored in a separate JSONL file (`review-history.jsonl`) in the plugin folder, **not** in the Markdown files. This keeps card files clean while collecting data for FSRS parameter optimization.
 - Template changes regenerate body.
-- No database - all data is stored in Markdown files (mainly frontmatter).
+- No database - all card data is stored in Markdown files (mainly frontmatter). Plugin operational data (review history, settings) lives in the plugin config folder.
 
 ## Hooks (run after changes)
 
