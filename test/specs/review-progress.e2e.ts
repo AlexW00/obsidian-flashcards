@@ -5,9 +5,72 @@ import { waitForVaultReady } from "../helpers/waitForVaultReady";
 import type { ObsidianAppLike, DueCard } from "../helpers/obsidianTypes";
 
 describe("Review Progress & Settings", function () {
+	// Debug helpers for browser logs
+	/* eslint-disable @typescript-eslint/no-explicit-any, @typescript-eslint/no-unsafe-member-access, @typescript-eslint/no-unsafe-call, @typescript-eslint/no-unsafe-return, @typescript-eslint/no-unsafe-assignment */
+	const captureBrowserLogs = async () => {
+		await browser.execute(() => {
+			(window as any).__logs = [];
+			const originalDebug = console.debug;
+			// eslint-disable-next-line no-console
+			const originalLog = console.log;
+			const originalWarn = console.warn;
+			const originalError = console.error;
+
+			const pushLog = (level: string, args: any[]) => {
+				(window as any).__logs.push({
+					level,
+					message: args
+						.map((a: any) =>
+							typeof a === "object" ? JSON.stringify(a) : String(a),
+						)
+						.join(" "),
+					time: new Date().toISOString(),
+				});
+			};
+
+			console.debug = (...args) => {
+				pushLog("DEBUG", args);
+				originalDebug.apply(console, args);
+			};
+			// eslint-disable-next-line no-console
+			console.log = (...args) => {
+				pushLog("LOG", args);
+				originalLog.apply(console, args);
+			};
+			console.warn = (...args) => {
+				pushLog("WARN", args);
+				originalWarn.apply(console, args);
+			};
+			console.error = (...args) => {
+				pushLog("ERROR", args);
+				originalError.apply(console, args);
+			};
+		});
+	};
+
+	const dumpBrowserLogs = async () => {
+		const logs = await browser.execute(
+			() => ((window as any).__logs || []) as any[],
+		);
+		logs.forEach((log: any) => {
+			if (
+				log.message.includes("[Anker") ||
+				log.level === "ERROR" ||
+				log.level === "WARN"
+			) {
+				console.debug(`[BROWSER][${log.level}] ${log.message}`);
+			}
+		});
+		await browser.execute(() => {
+			(window as any).__logs = [];
+		});
+	};
+	/* eslint-enable */
+
 	beforeEach(async function () {
 		await obsidianPage.resetVault();
 		await waitForVaultReady();
+		await captureBrowserLogs();
 
 		// Ensure deterministic scheduling for E2E (avoid short-term steps).
 		const settingsApplied = await browser.executeObsidian(async ({ app }) => {
@@ -110,6 +173,7 @@ describe("Review Progress & Settings", function () {
 
 		await revealButton.click();
 		console.debug(`[E2E] Reveal button clicked`);
+		await dumpBrowserLogs();
 
 		// Wait for rating buttons container to appear
 		const ratingButtonsEl = browser.$(".flashcard-rating-buttons");
@@ -169,6 +233,7 @@ describe("Review Progress & Settings", function () {
 		console.debug(`[E2E] Pre-click state:`, preClickState);
 
 		await ratingButton.click();
+		await dumpBrowserLogs();
 		console.debug(`[E2E] Rating button clicked via WebDriver`);
 
 		// Immediately check state after click
