@@ -193,7 +193,24 @@ npm run lint
 # Run E2E Tests (requires Linux or macOS)
 # Note: On Linux, requires xvfb (see .github/workflows/e2e.yml)
 npm run test:e2e
+npm run test:e2e
 ```
+
+### Environment Variables
+
+To run E2E tests against Obsidian Insider (beta) builds, you need to provide your Catalyst license credentials.
+
+**Local Development:**
+Create a `.env` file (copy from `.env.example`) and add:
+
+```sh
+OBSIDIAN_EMAIL=your-email@example.com
+OBSIDIAN_PASSWORD=your-password
+```
+
+**CI/CD (GitHub Actions):**
+Add `OBSIDIAN_EMAIL` and `OBSIDIAN_PASSWORD` as **Repository Secrets** in your GitHub repository settings.
+
 
 ## License
 

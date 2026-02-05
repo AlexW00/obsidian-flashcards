@@ -8,6 +8,7 @@ on:
 
 jobs:
   e2e:
+    if: github.event.pull_request.head.repo.full_name == github.repository || github.event_name == 'push'
     runs-on: ubuntu-latest
     steps:
       - name: Checkout
@@ -28,6 +29,9 @@ jobs:
           npx tsx wdio.conf.mts | grep 'obsidian-cache-key:' > obsidian-versions-lock.txt
           # Delete the cache created by wdio.conf.mts so it doesn't conflict with restore
           rm -rf .obsidian-cache
+        env:
+          OBSIDIAN_EMAIL: ${{ secrets.OBSIDIAN_EMAIL }}
+          OBSIDIAN_PASSWORD: ${{ secrets.OBSIDIAN_PASSWORD }}
 
       - name: Cache Obsidian
         uses: actions/cache@v4
@@ -48,3 +52,5 @@ jobs:
         env:
           # Use headless mode if supported or implied by xvfb-action
           CI: true
+          OBSIDIAN_EMAIL: ${{ secrets.OBSIDIAN_EMAIL }}
+          OBSIDIAN_PASSWORD: ${{ secrets.OBSIDIAN_PASSWORD }}
