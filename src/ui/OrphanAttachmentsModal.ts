@@ -38,15 +38,11 @@ export class OrphanAttachmentsModal extends Modal {
 			displayName: file.path,
 		}));
 
-		new FileListComponent(
-			this.app,
-			contentEl,
-			{
-				items,
-				containerClass: "flashcard-orphan-list",
-				closeModalOnClick: false, // Don't close when clicking to preview
-			},
-		);
+		new FileListComponent(this.app, contentEl, {
+			items,
+			containerClass: "flashcard-orphan-list",
+			closeModalOnClick: false, // Don't close when clicking to preview
+		});
 
 		this.buttonRow = new ButtonRowComponent(contentEl, {
 			cancelText: "Cancel",

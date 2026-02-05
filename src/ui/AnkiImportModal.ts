@@ -111,7 +111,8 @@ export class AnkiImportModal extends Modal {
 	private deckListContainer: HTMLElement | null = null;
 	private progressBar: ProgressBarComponent | null = null;
 	private buttonRow: ButtonRowComponent | null = null;
-	private selectableList: SelectableListComponent<AnkiDeckSelection> | null = null;
+	private selectableList: SelectableListComponent<AnkiDeckSelection> | null =
+		null;
 
 	constructor(
 		app: App,

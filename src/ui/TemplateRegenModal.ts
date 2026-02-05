@@ -149,7 +149,8 @@ export class TemplateRegenModal extends Modal {
 	 * Get the regenerate button text based on selection count.
 	 */
 	private getRegenerateButtonText(): string {
-		const selectedCount = this.selectableList?.getSelectedCount() ?? this.cards.length;
+		const selectedCount =
+			this.selectableList?.getSelectedCount() ?? this.cards.length;
 		return selectedCount === 1
 			? "Regenerate 1 card"
 			: `Regenerate ${selectedCount} cards`;
