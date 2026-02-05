@@ -53,8 +53,11 @@ function createMockModel(overrides: MockModelOverrides = {}): AnkiModel {
 		),
 	];
 
-	const { flds: overrideFields, tmpls: overrideTemplates, ...modelOverrides } =
-		overrides;
+	const {
+		flds: overrideFields,
+		tmpls: overrideTemplates,
+		...modelOverrides
+	} = overrides;
 
 	const model: AnkiModel = {
 		id: "123456",

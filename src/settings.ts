@@ -518,12 +518,19 @@ export class AnkerSettingTab extends PluginSettingTab {
 					.setDesc("How to format the furigana output")
 					.addDropdown((dropdown) => {
 						dropdown.addOption("curly", "{漢字|かんじ}");
-						dropdown.addOption("ruby", "<ruby>漢字<rt>かんじ</rt></ruby>");
+						dropdown.addOption(
+							"ruby",
+							"<ruby>漢字<rt>かんじ</rt></ruby>",
+						);
 						dropdown.addOption("parentheses", "漢字(かんじ)");
 						dropdown.addOption("brackets", "漢字[かんじ]");
 						dropdown.setValue(this.plugin.settings.furiganaFormat);
 						dropdown.onChange(async (value) => {
-							const format = value as "curly" | "ruby" | "parentheses" | "brackets";
+							const format = value as
+								| "curly"
+								| "ruby"
+								| "parentheses"
+								| "brackets";
 							this.plugin.settings.furiganaFormat = format;
 							await this.plugin.saveSettings();
 							// Update template service with new format
@@ -549,11 +556,13 @@ export class AnkerSettingTab extends PluginSettingTab {
 
 				// Check if dictionary is ready to set initial value
 				if (pluginWithFurigana.isDictionaryReady) {
-					void pluginWithFurigana.isDictionaryReady().then((ready) => {
-						toggle.setValue(
-							ready && this.plugin.settings.furiganaEnabled,
-						);
-					});
+					void pluginWithFurigana
+						.isDictionaryReady()
+						.then((ready) => {
+							toggle.setValue(
+								ready && this.plugin.settings.furiganaEnabled,
+							);
+						});
 				} else {
 					toggle.setValue(this.plugin.settings.furiganaEnabled);
 				}
@@ -632,13 +641,13 @@ export class AnkerSettingTab extends PluginSettingTab {
 								.onClick(async () => {
 									const id = `imgsearch_${Date.now()}`;
 									this.plugin.settings.imageSearchProviders =
-									{
-										...this.plugin.settings
-											.imageSearchProviders,
-										[id]: {
-											type: "pexels",
-										},
-									};
+										{
+											...this.plugin.settings
+												.imageSearchProviders,
+											[id]: {
+												type: "pexels",
+											},
+										};
 									await this.plugin.saveSettings();
 									this.renderAiProviderSettings(
 										container,
