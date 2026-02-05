@@ -73,7 +73,10 @@ describe("TemplateRenderingLogic Integration Tests", () => {
 		// Load all fixtures
 		basicTemplate = loadFixture("templates", "basic.md");
 		vocabTemplate = loadFixture("templates", "vocab.md");
-		withFrontmatterTemplate = loadFixture("templates", "with-frontmatter.md");
+		withFrontmatterTemplate = loadFixture(
+			"templates",
+			"with-frontmatter.md",
+		);
 		conditionalTemplate = loadFixture("templates", "conditional.md");
 		basicCard = loadFixture("flashcards", "basic-card.md");
 		vocabCard = loadFixture("flashcards", "vocab-card.md");
@@ -91,7 +94,9 @@ describe("TemplateRenderingLogic Integration Tests", () => {
 			expect(result.body).toContain("{{ back }}");
 
 			// Parse the YAML to verify structure
-			const frontmatter = parseYaml(result.rawYaml!) as TemplateFrontmatter;
+			const frontmatter = parseYaml(
+				result.rawYaml!,
+			) as TemplateFrontmatter;
 			expect(frontmatter).toHaveProperty("tags");
 		});
 
@@ -99,7 +104,9 @@ describe("TemplateRenderingLogic Integration Tests", () => {
 			const result = parseTemplateContent(withFrontmatterTemplate);
 
 			expect(result.rawYaml).not.toBeNull();
-			const frontmatter = parseYaml(result.rawYaml!) as TemplateFrontmatter;
+			const frontmatter = parseYaml(
+				result.rawYaml!,
+			) as TemplateFrontmatter;
 			expect(frontmatter).toHaveProperty("difficulty", "normal");
 			expect(frontmatter).toHaveProperty("audio_enabled", true);
 		});
@@ -108,7 +115,9 @@ describe("TemplateRenderingLogic Integration Tests", () => {
 			const result = parseTemplateContent(vocabTemplate);
 
 			expect(result.rawYaml).not.toBeNull();
-			const frontmatter = parseYaml(result.rawYaml!) as TemplateFrontmatter;
+			const frontmatter = parseYaml(
+				result.rawYaml!,
+			) as TemplateFrontmatter;
 			expect(frontmatter.tags).toContain("flashcard-template");
 			expect(frontmatter.tags).toContain("vocabulary");
 		});
@@ -178,7 +187,8 @@ describe("TemplateRenderingLogic Integration Tests", () => {
 		});
 
 		it("handles variables with filters", () => {
-			const templateWithFilters = "{{ name | upper }} and {{ title | trim }}";
+			const templateWithFilters =
+				"{{ name | upper }} and {{ title | trim }}";
 			const variables = extractVariables(templateWithFilters);
 
 			expect(variables).toHaveLength(2);
@@ -187,14 +197,16 @@ describe("TemplateRenderingLogic Integration Tests", () => {
 		});
 
 		it("skips built-in Nunjucks variables", () => {
-			const templateWithBuiltins = "{{ loop.index }} {{ self }} {{ true }}";
+			const templateWithBuiltins =
+				"{{ loop.index }} {{ self }} {{ true }}";
 			const variables = extractVariables(templateWithBuiltins);
 
 			expect(variables).toHaveLength(0);
 		});
 
 		it("deduplicates repeated variables", () => {
-			const templateWithDupes = "{{ name }} {{ name }} {{ name | upper }}";
+			const templateWithDupes =
+				"{{ name }} {{ name }} {{ name | upper }}";
 			const variables = extractVariables(templateWithDupes);
 
 			expect(variables).toHaveLength(1);
@@ -220,14 +232,16 @@ describe("TemplateRenderingLogic Integration Tests", () => {
 		});
 
 		it("ignores valid underscored variables", () => {
-			const templateWithUnderscores = "{{ my_variable }} {{ another_one }}";
+			const templateWithUnderscores =
+				"{{ my_variable }} {{ another_one }}";
 			const invalid = findInvalidVariables(templateWithUnderscores);
 
 			expect(invalid).toHaveLength(0);
 		});
 
 		it("ignores commented hyphenated variables", () => {
-			const templateWithCommentedHyphen = "{{ valid }}\n<!-- {{ my-hidden }} -->";
+			const templateWithCommentedHyphen =
+				"{{ valid }}\n<!-- {{ my-hidden }} -->";
 			const invalid = findInvalidVariables(templateWithCommentedHyphen);
 
 			expect(invalid).toHaveLength(0);
@@ -271,7 +285,8 @@ describe("TemplateRenderingLogic Integration Tests", () => {
 		});
 
 		it("ignores dynamic pipes in comments", () => {
-			const templateWithComment = "{{ normal }}\n<!-- {{ prompt | askAi }} -->";
+			const templateWithComment =
+				"{{ normal }}\n<!-- {{ prompt | askAi }} -->";
 			expect(usesDynamicPipes(templateWithComment)).toBe(false);
 		});
 	});

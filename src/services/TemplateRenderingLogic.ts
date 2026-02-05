@@ -50,8 +50,7 @@ export function extractVariables(templateBody: string): TemplateVariable[] {
 	// Strip HTML comments before parsing to ignore commented-out examples
 	const contentWithoutComments = templateBody.replace(/<!--[\s\S]*?-->/g, "");
 
-	const variableRegex =
-		/\{\{\s*([a-zA-Z_][a-zA-Z0-9_]*)\s*(?:\|[^}]*)?\}\}/g;
+	const variableRegex = /\{\{\s*([a-zA-Z_][a-zA-Z0-9_]*)\s*(?:\|[^}]*)?\}\}/g;
 	const variables = new Map<string, TemplateVariable>();
 
 	let match;
@@ -90,7 +89,9 @@ export function findInvalidVariables(templateBody: string): string[] {
 	const invalid = new Set<string>();
 
 	let match;
-	while ((match = allVariablePatterns.exec(contentWithoutComments)) !== null) {
+	while (
+		(match = allVariablePatterns.exec(contentWithoutComments)) !== null
+	) {
 		const rawName = match[1]?.trim();
 		if (!rawName) {
 			continue;

@@ -1,6 +1,6 @@
 ---
 tags:
-  - flashcard-template
+    - flashcard-template
 difficulty: normal
 audio_enabled: true
 ---

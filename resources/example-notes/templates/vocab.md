@@ -1,7 +1,7 @@
 ---
 tags:
-  - flashcard-template
-  - vocabulary
+    - flashcard-template
+    - vocabulary
 ---
 
 ## {{ word }}

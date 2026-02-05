@@ -1,6 +1,6 @@
 ---
 tags:
-  - flashcard-template
+    - flashcard-template
 ---
 
 {{ front }}

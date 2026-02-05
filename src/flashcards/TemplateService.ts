@@ -1,6 +1,10 @@
 import { App, TFile, TFolder, parseYaml } from "obsidian";
 import nunjucks from "nunjucks";
-import type { FlashcardTemplate, TemplateVariable, FuriganaFormat } from "../types";
+import type {
+	FlashcardTemplate,
+	TemplateVariable,
+	FuriganaFormat,
+} from "../types";
 import { DEFAULT_BASIC_TEMPLATE } from "../types";
 import type { AiService, DynamicPipeContext } from "../services/AiService";
 import type { FuriganaService } from "../services/FuriganaService";
@@ -69,7 +73,10 @@ export class TemplateService {
 	 * Set the Furigana service for Japanese text conversion.
 	 * Must be called after construction if Furigana is enabled.
 	 */
-	setFuriganaService(furiganaService: FuriganaService, format: FuriganaFormat = "curly"): void {
+	setFuriganaService(
+		furiganaService: FuriganaService,
+		format: FuriganaFormat = "curly",
+	): void {
 		this.furiganaService = furiganaService;
 		this.furiganaFormat = format;
 	}

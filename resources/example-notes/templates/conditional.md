@@ -1,6 +1,6 @@
 ---
 tags:
-  - flashcard-template
+    - flashcard-template
 ---
 
 {{ question }}
@@ -10,9 +10,10 @@ tags:
 {{ answer }}
 
 {% if notes %}
+
 > **Notes:** {{ notes }}
-{% endif %}
+> {% endif %}
 
 {% if source %}
-*Source: {{ source }}*
+_Source: {{ source }}_
 {% endif %}
