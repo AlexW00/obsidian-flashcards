@@ -681,9 +681,6 @@ export class AnkiImportService {
 			return deckId !== undefined && selectedDeckIds.has(deckId);
 		});
 
-		const totalSteps = notesToImport.length + data.models.size;
-		let currentStep = 0;
-
 		// Step 1: Create templates from models
 		const templatePathMap = new Map<string, string>(); // modelId -> template path
 		const fieldNameMaps = new Map<string, Map<string, string>>();
@@ -693,6 +690,29 @@ export class AnkiImportService {
 		for (const note of notesToImport) {
 			usedModels.add(String(note.mid));
 		}
+
+		// Collect all media files referenced in notes
+		const referencedMedia = new Set<string>();
+		for (const note of notesToImport) {
+			const model = data.models.get(String(note.mid));
+			if (!model) continue;
+
+			const fields = note.flds.split("\x1f");
+			for (const fieldContent of fields) {
+				const { mediaFiles } = this.contentConverter.convertField(
+					fieldContent,
+					data.media,
+				);
+				for (const mediaFile of mediaFiles) {
+					referencedMedia.add(mediaFile);
+				}
+			}
+		}
+
+		const mediaList = Array.from(referencedMedia);
+		const totalSteps =
+			notesToImport.length + usedModels.size + mediaList.length;
+		let currentStep = 0;
 
 		for (const modelId of usedModels) {
 			const model = data.models.get(modelId);
@@ -734,26 +754,15 @@ export class AnkiImportService {
 		const apkgBuffer = await apkgFile.arrayBuffer();
 		const zip = unzipSync(new Uint8Array(apkgBuffer));
 
-		// Collect all media files referenced in notes
-		const referencedMedia = new Set<string>();
-		for (const note of notesToImport) {
-			const model = data.models.get(String(note.mid));
-			if (!model) continue;
-
-			const fields = note.flds.split("\x1f");
-			for (const fieldContent of fields) {
-				const { mediaFiles } = this.contentConverter.convertField(
-					fieldContent,
-					data.media,
-				);
-				for (const mediaFile of mediaFiles) {
-					referencedMedia.add(mediaFile);
-				}
-			}
-		}
-
 		// Import referenced media
-		for (const originalName of referencedMedia) {
+		for (const [index, originalName] of mediaList.entries()) {
+			currentStep++;
+			onProgress?.(
+				currentStep,
+				totalSteps,
+				`Importing media ${index + 1} of ${mediaList.length}`,
+			);
+
 			// Find the numeric key for this file in media map
 			let numericKey: string | undefined;
 			for (const [key, value] of data.media) {
