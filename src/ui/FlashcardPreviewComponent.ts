@@ -345,7 +345,7 @@ export class FlashcardPreviewComponent extends Component {
 		// Get all direct children of the sizer (excluding metadata and title)
 		const sectionEls = Array.from(
 			sizerEl.querySelectorAll(":scope > .markdown-preview-section"),
-		) as HTMLElement[];
+		);
 		const children = sectionEls.length
 			? sectionEls.flatMap(
 					(section) => Array.from(section.children) as HTMLElement[],

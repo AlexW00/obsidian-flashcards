@@ -3,6 +3,28 @@ export type DueCard = {
 	id?: string;
 };
 
+/**
+ * Simplified session state for test assertions.
+ */
+export type ReviewSessionState = {
+	deckPath: string;
+	currentCardPath: string;
+	currentSide: number;
+	totalSides: number;
+	initialTotal: number;
+	reviewedCount: number;
+	reviewsPerformed: number;
+};
+
+/**
+ * Review session manager interface for tests.
+ */
+export type ReviewSessionManagerLike = {
+	isSessionActive: () => boolean;
+	getSession: () => ReviewSessionState | null;
+	endSession: () => void;
+};
+
 export type AnkerPluginLike = {
 	settings: {
 		templateFolder: string;
@@ -21,6 +43,12 @@ export type AnkerPluginLike = {
 	reviewLogStore?: {
 		reset: () => Promise<number>;
 	};
+	reviewSessionManager?: ReviewSessionManagerLike;
+};
+
+export type WorkspaceLeafLike = {
+	view: unknown;
+	detach: () => void;
 };
 
 export type ObsidianAppLike = {
@@ -35,7 +63,12 @@ export type ObsidianAppLike = {
 		};
 	};
 	workspace: {
-		getLeavesOfType: (type: string) => Array<{ view: unknown }>;
+		getLeavesOfType: (type: string) => WorkspaceLeafLike[];
+		getActiveViewOfType: (type: unknown) => unknown;
+		setActiveLeaf: (
+			leaf: WorkspaceLeafLike,
+			options?: { focus?: boolean },
+		) => void;
 	};
 	metadataCache: {
 		getFileCache: (

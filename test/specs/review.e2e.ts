@@ -2,50 +2,58 @@ import { describe, it, beforeEach } from "mocha";
 import { browser, expect } from "@wdio/globals";
 import { obsidianPage } from "wdio-obsidian-service";
 import { waitForVaultReady } from "../helpers/waitForVaultReady";
-import type { ObsidianAppLike } from "../helpers/obsidianTypes";
+import {
+	REVIEW_SELECTORS,
+	waitForReviewActive,
+	waitForDeckSelectorOrReview,
+	closeDeckSelector,
+	selectFirstDeck,
+	startReviewSession,
+	revealAnswer,
+	rateCard,
+	isReviewUIDisplayed,
+	endSession,
+	closeModal,
+} from "../helpers/reviewHelpers";
+
+import type {
+	ObsidianAppLike,
+	WorkspaceLeafLike,
+} from "../helpers/obsidianTypes";
 
 describe("Review Session", function () {
-	const waitForDeckSelectorOrReview = async () => {
-		await browser.waitUntil(
-			async () => {
-				const promptInput = browser.$(".prompt-input");
-				if (await promptInput.isExisting()) return true;
-				const reviewView = browser.$(".flashcard-review");
-				if (await reviewView.isExisting()) return true;
-				return false;
-			},
-			{
-				timeout: 10000,
-				interval: 250,
-				timeoutMsg: "Deck selector or review view did not appear",
-			},
-		);
-	};
-
-	const chooseFirstDeckIfPrompted = async () => {
-		const promptInput = browser.$(".prompt-input");
-		if (!(await promptInput.isExisting())) return;
-
-		const suggestion = browser.$(".suggestion-container .suggestion-item");
-		try {
-			await suggestion.waitForExist({ timeout: 5000 });
-		} catch {
-			return;
-		}
-		await suggestion.click();
-	};
-
-	const closeDeckSelectorIfOpen = async () => {
-		const promptInput = browser.$(".prompt-input");
-		if (await promptInput.isExisting()) {
-			await browser.keys(["Escape"]);
-		}
-	};
-
 	beforeEach(async function () {
+		// End any existing review session
+		await endSession();
+		// Close any open modals
+		await closeModal();
+
+		// Close dashboard and extra tabs to ensure clean slate
+		await browser.executeObsidian(({ app }) => {
+			const obsidianApp = app as ObsidianAppLike;
+
+			// Close all dashboard views
+			const dashboardLeaves = (
+				obsidianApp.workspace as unknown as {
+					getLeavesOfType: (type: string) => WorkspaceLeafLike[];
+				}
+			).getLeavesOfType("anker-dashboard");
+			for (const leaf of dashboardLeaves) {
+				leaf.detach();
+			}
+
+			// Close all but one markdown leaves
+			const mdLeaves = obsidianApp.workspace.getLeavesOfType("markdown");
+			for (let i = 1; i < mdLeaves.length; i++) {
+				mdLeaves[i]?.detach();
+			}
+		});
+
 		// Reset vault to initial state (includes sample cards with due dates)
 		await obsidianPage.resetVault();
 		await waitForVaultReady();
+		// Give a moment for UI to stabilize after reset
+		await browser.pause(200);
 	});
 
 	it("starts review session via command", async function () {
@@ -53,16 +61,16 @@ describe("Review Session", function () {
 		await browser.executeObsidianCommand("anker:start-review");
 
 		// A deck selector prompt or review view should appear
-		await waitForDeckSelectorOrReview();
+		const result = await waitForDeckSelectorOrReview();
 
 		// If the deck selector is open, verify it and close it
-		const promptInput = browser.$(".prompt-input");
-		if (await promptInput.isExisting()) {
+		if (result === "deck-selector") {
+			const promptInput = browser.$(".prompt-input");
 			await expect(promptInput).toExist();
-			await closeDeckSelectorIfOpen();
-		} else {
-			const reviewView = browser.$(".flashcard-review");
-			await expect(reviewView).toExist();
+			await closeDeckSelector();
+		} else if (result === "review") {
+			const reviewWrapper = browser.$(REVIEW_SELECTORS.activeWrapper);
+			await expect(reviewWrapper).toExist();
 		}
 	});
 
@@ -81,46 +89,37 @@ describe("Review Session", function () {
 		if (await studyButton.isExisting()) {
 			await studyButton.click();
 
-			await waitForDeckSelectorOrReview();
-			await chooseFirstDeckIfPrompted();
+			const result = await waitForDeckSelectorOrReview();
+			if (result === "deck-selector") {
+				await selectFirstDeck();
+			}
 
-			const reviewView = browser.$(".flashcard-review");
-			await reviewView.waitForExist({ timeout: 5000 });
-			await expect(reviewView).toExist();
+			await waitForReviewActive();
+			const reviewWrapper = browser.$(REVIEW_SELECTORS.activeWrapper);
+			await expect(reviewWrapper).toExist();
 		}
 	});
 
 	it("rates card and advances to next", async function () {
-		// Start a review session directly to avoid suggest modal timing
-		await browser.executeObsidian(({ app }) => {
-			const obsidianApp = app as ObsidianAppLike;
-			const plugin = obsidianApp.plugins?.getPlugin?.("anker");
-			if (plugin?.startReview) {
-				void plugin.startReview("flashcards");
-			}
-		});
+		// Start a review session
+		await startReviewSession("flashcards");
 
-		const reviewView = browser.$(".flashcard-review");
-		await reviewView.waitForExist({ timeout: 5000 });
+		// Verify review UI is displayed
+		await waitForReviewActive();
+		const footer = browser.$(REVIEW_SELECTORS.footer);
+		await expect(footer).toExist();
 
 		// Reveal answer if needed
-		const revealButton = browser.$(
-			".flashcard-review .flashcard-btn-reveal",
-		);
-		if (await revealButton.isExisting()) {
-			await revealButton.click();
-		}
+		await revealAnswer();
 
-		// Rate the card if rating buttons are present
-		const ratingButton = browser.$(
-			".flashcard-review .flashcard-rating-buttons button",
-		);
-		if (await ratingButton.isExisting()) {
-			await ratingButton.click();
-		}
+		// Rate the card with Good
+		await rateCard("good");
+
+		// Wait a bit for UI to update
+		await browser.pause(500);
 
 		// Either still reviewing or completed - both are valid
-		const stillInReview = browser.$(".flashcard-review");
-		expect(await stillInReview.isExisting()).toBe(true);
+		const stillInReview = await isReviewUIDisplayed();
+		expect(stillInReview).toBe(true);
 	});
 });
