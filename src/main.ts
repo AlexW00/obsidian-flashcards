@@ -580,9 +580,8 @@ export default class AnkerPlugin extends Plugin {
 		const shouldHandleReviewHotkey = (): boolean => {
 			const sessionLeaf = this.reviewSessionManager.getSessionLeaf();
 			if (!sessionLeaf) return false;
-			const activeView = this.app.workspace.getActiveViewOfType(
-				MarkdownView,
-			);
+			const activeView =
+				this.app.workspace.getActiveViewOfType(MarkdownView);
 			if (!activeView || activeView.leaf !== sessionLeaf) {
 				return false;
 			}
