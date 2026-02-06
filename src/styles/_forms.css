@@ -6,6 +6,7 @@
    display: flex;
    flex-direction: column;
    max-height: 55vh;
+   background: var(--modal-background);
    padding: 0 !important;
    overflow: hidden;
 }
@@ -20,7 +21,7 @@
    padding: var(--size-4-4);
    padding-right: 50px;
    border-bottom: 1px solid var(--background-modifier-border);
-   background: var(--background-primary);
+   background: var(--modal-background);
 }
 
 .flashcard-modal-sticky-header .flashcard-modal-header-row {
@@ -39,13 +40,21 @@
    flex: 1 1 auto;
    overflow-y: auto;
    padding: var(--size-4-4);
+   background: var(--modal-background);
 }
 
 .flashcard-modal-sticky-footer {
    flex: 0 0 auto;
    padding: var(--size-4-4);
    border-top: 1px solid var(--background-modifier-border);
-   background: var(--background-primary);
+   background: var(--modal-background);
+}
+
+.is-mobile .flashcard-card-modal {
+   max-height: calc(
+      100vh - var(--header-height) - max(var(--size-4-2), env(safe-area-inset-top)) -
+         max(var(--size-4-2), env(safe-area-inset-bottom))
+   );
 }
 
 .flashcard-card-progress {

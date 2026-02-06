@@ -27,7 +27,7 @@ export class DeckBaseViewService {
 
 	/**
 	 * Opens a Base view for the deck showing flashcards.
-	 * Recreates the .base file to keep config up to date.
+	 * Updates the .base file to keep config up to date.
 	 * @param deckPath - Path to the deck folder
 	 * @param deckName - Display name of the deck
 	 * @param stateFilter - Optional filter for card state (default: "all")
@@ -40,35 +40,32 @@ export class DeckBaseViewService {
 		const suffix = stateFilter === "all" ? "" : `-${stateFilter}`;
 		const baseFilePath = `${deckPath}/flashcards${suffix}.base`;
 
-		// Recreate the base file each time to ensure the config is up to date
-		const baseFile = this.app.vault.getAbstractFileByPath(baseFilePath);
-		if (baseFile instanceof TFile) {
-			try {
-				await this.app.fileManager.trashFile(baseFile);
-			} catch (error) {
-				new Notice(
-					`Failed to refresh deck view: ${(error as Error).message}`,
-				);
-				return;
-			}
-		}
-
 		const baseConfig = this.buildBaseConfig(
 			deckPath,
 			this.settings,
 			stateFilter,
 		);
+		const baseContent = stringifyYaml(baseConfig);
 
-		try {
-			await this.app.vault.create(
-				baseFilePath,
-				stringifyYaml(baseConfig),
-			);
-		} catch (error) {
-			new Notice(
-				`Failed to create deck view: ${(error as Error).message}`,
-			);
-			return;
+		const baseFile = this.app.vault.getAbstractFileByPath(baseFilePath);
+		if (baseFile instanceof TFile) {
+			try {
+				await this.app.vault.modify(baseFile, baseContent);
+			} catch (error) {
+				new Notice(
+					`Failed to update deck view: ${(error as Error).message}`,
+				);
+				return;
+			}
+		} else {
+			try {
+				await this.app.vault.create(baseFilePath, baseContent);
+			} catch (error) {
+				new Notice(
+					`Failed to create deck view: ${(error as Error).message}`,
+				);
+				return;
+			}
 		}
 
 		await this.app.workspace.openLinkText(baseFilePath, "", false);

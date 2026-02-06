@@ -40,6 +40,16 @@ border-bottom: 1px solid var(--background-modifier-border);
 padding: var(--size-4-2) var(--size-4-3);
 }
 
+.flashcard-modal .flashcard-sticky-list,
+.flashcard-card-modal .flashcard-sticky-list {
+background: var(--modal-background);
+}
+
+.flashcard-modal .flashcard-sticky-list-header,
+.flashcard-card-modal .flashcard-sticky-list-header {
+background: var(--modal-background);
+}
+
 .flashcard-sticky-list-content {
 display: flex;
 flex-direction: column;

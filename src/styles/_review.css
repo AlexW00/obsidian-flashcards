@@ -121,6 +121,26 @@ margin-bottom: 0;
 }
 
 /* --------------------------------------------------------------------------
+   Mobile Safe Area Adjustments
+   -------------------------------------------------------------------------- */
+.is-mobile .anker-review-header {
+padding-top: calc(var(--size-4-4) + max(0px, env(safe-area-inset-top)));
+padding-left: calc(var(--size-4-4) + max(0px, env(safe-area-inset-left)));
+padding-right: calc(var(--size-4-4) + max(0px, env(safe-area-inset-right)));
+}
+
+.is-mobile .anker-review-footer {
+padding-bottom: calc(var(--size-4-4) + max(0px, env(safe-area-inset-bottom)));
+padding-left: calc(var(--size-4-4) + max(0px, env(safe-area-inset-left)));
+padding-right: calc(var(--size-4-4) + max(0px, env(safe-area-inset-right)));
+}
+
+.is-mobile .anker-card-content {
+padding-left: calc(var(--size-4-6) + max(0px, env(safe-area-inset-left)));
+padding-right: calc(var(--size-4-6) + max(0px, env(safe-area-inset-right)));
+}
+
+/* --------------------------------------------------------------------------
    Legacy Review View (kept for compatibility during transition)
    -------------------------------------------------------------------------- */
 .flashcard-review {
