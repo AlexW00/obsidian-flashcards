@@ -18,6 +18,14 @@ export default tseslint.config(
 			},
 		},
 	},
+	{
+		files: ["test/specs/**/*.e2e.ts"],
+		languageOptions: {
+			globals: {
+				...globals.mocha,
+			},
+		},
+	},
 	...obsidianmd.configs.recommended,
 	globalIgnores([
 		"node_modules",
