@@ -52,7 +52,7 @@ export class OrphanAttachmentsModal extends Modal {
 		this.buttonRow = new ButtonRowComponent(contentEl, {
 			cancelText: "Cancel",
 			onCancel: () => this.close(),
-			submitText: this.getDeleteButtonText(),
+			submitText: "Delete selected",
 			onSubmit: () => {
 				void this.handleDelete();
 			},
@@ -73,21 +73,12 @@ export class OrphanAttachmentsModal extends Modal {
 
 	private openAttachment(file: TFile): void {
 		void this.app.workspace.getLeaf().openFile(file);
-	}
-
-	private getDeleteButtonText(): string {
-		const selectedCount =
-			this.selectableList?.getSelectedCount() ?? this.files.length;
-		if (selectedCount === 0) return "Delete attachments";
-		return selectedCount === 1
-			? "Delete 1 attachment"
-			: `Delete ${selectedCount} attachments`;
+		this.close();
 	}
 
 	private updateDeleteButton(): void {
 		const selectedCount = this.selectableList?.getSelectedCount() ?? 0;
 		this.buttonRow?.setSubmitDisabled(selectedCount === 0);
-		this.buttonRow?.setSubmitText(this.getDeleteButtonText());
 	}
 
 	private async handleDelete(): Promise<void> {

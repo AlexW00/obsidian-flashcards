@@ -40,9 +40,7 @@ describe("Review Bugs", function () {
 		);
 	};
 
-	const parseReviewHistoryLine = (
-		line: string,
-	): ReviewHistoryLine | null => {
+	const parseReviewHistoryLine = (line: string): ReviewHistoryLine | null => {
 		try {
 			const parsed = JSON.parse(line) as unknown;
 			if (!parsed || typeof parsed !== "object") return null;
@@ -64,7 +62,9 @@ describe("Review Bugs", function () {
 			const pluginId = plugin?.manifest?.id ?? "anker";
 			const path = `${obsidianApp.vault.configDir}/plugins/${pluginId}/review-history.jsonl`;
 			const exists = await obsidianApp.vault.adapter.exists(path);
-			const raw = exists ? await obsidianApp.vault.adapter.read(path) : "";
+			const raw = exists
+				? await obsidianApp.vault.adapter.read(path)
+				: "";
 			const entries = raw
 				.split("\n")
 				.map((line) => line.trim())
@@ -87,21 +87,28 @@ describe("Review Bugs", function () {
 		return await readReviewHistory();
 	};
 
-	const getCurrentSessionCard = async (): Promise<
-		| {
-				id: string;
-				path: string;
-				elapsed_days: number;
-		  }
-		| null
-	> => {
+	const getCurrentSessionCard = async (): Promise<{
+		id: string;
+		path: string;
+		elapsed_days: number;
+	} | null> => {
 		return await browser.executeObsidian(({ app }) => {
 			const obsidianApp = app as ObsidianAppLike;
-			const leaf = obsidianApp.workspace.getLeavesOfType(
-				"anker-review",
-			)[0];
+			const leaf =
+				obsidianApp.workspace.getLeavesOfType("anker-review")[0];
 			const view = leaf?.view as
-				| { session?: { cards: Array<{ id: string; path: string; frontmatter?: { _review?: { elapsed_days?: number } } }>; currentIndex: number } }
+				| {
+						session?: {
+							cards: Array<{
+								id: string;
+								path: string;
+								frontmatter?: {
+									_review?: { elapsed_days?: number };
+								};
+							}>;
+							currentIndex: number;
+						};
+				  }
 				| undefined;
 
 			const session = view?.session;

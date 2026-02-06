@@ -102,7 +102,10 @@ const prepareVaults = async () => {
 		await writeFile(
 			vaultReadyFile,
 			JSON.stringify(
-				{ versions: desktopVersions, timestamp: new Date().toISOString() },
+				{
+					versions: desktopVersions,
+					timestamp: new Date().toISOString(),
+				},
 				null,
 				2,
 			),
