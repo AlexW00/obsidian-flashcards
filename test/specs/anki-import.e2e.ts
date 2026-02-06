@@ -130,7 +130,10 @@ describe("Anki Import", function () {
 		const remotePath = await browser.uploadFile(EXAMPLE_APKG_PATH);
 
 		// Set file on the hidden input
-		await setFileOnHiddenInput(".anki-import-file-input-hidden", remotePath);
+		await setFileOnHiddenInput(
+			".anki-import-file-input-hidden",
+			remotePath,
+		);
 
 		// Wait for deck items to appear (parsing is async)
 		await browser.waitUntil(
@@ -165,7 +168,10 @@ describe("Anki Import", function () {
 		const remotePath = await browser.uploadFile(EXAMPLE_APKG_PATH);
 
 		// Set file on the hidden input
-		await setFileOnHiddenInput(".anki-import-file-input-hidden", remotePath);
+		await setFileOnHiddenInput(
+			".anki-import-file-input-hidden",
+			remotePath,
+		);
 
 		// Wait for deck items to appear (parsing is async)
 		await browser.waitUntil(
@@ -262,7 +268,10 @@ describe("Anki Import", function () {
 				for (const child of children) {
 					if (!child || typeof child !== "object") continue;
 
-					const childObj = child as unknown as Record<string, unknown>;
+					const childObj = child as unknown as Record<
+						string,
+						unknown
+					>;
 					if ("extension" in childObj) {
 						const ext = childObj.extension as string;
 						const childPath = childObj.path as string;
@@ -298,7 +307,10 @@ describe("Anki Import", function () {
 
 		// Upload and parse file
 		const remotePath = await browser.uploadFile(EXAMPLE_APKG_PATH);
-		await setFileOnHiddenInput(".anki-import-file-input-hidden", remotePath);
+		await setFileOnHiddenInput(
+			".anki-import-file-input-hidden",
+			remotePath,
+		);
 
 		// Wait for deck items to appear (parsing is async)
 		await browser.waitUntil(
@@ -350,7 +362,10 @@ describe("Anki Import", function () {
 				for (const child of children) {
 					if (!child || typeof child !== "object") continue;
 
-					const childObj = child as unknown as Record<string, unknown>;
+					const childObj = child as unknown as Record<
+						string,
+						unknown
+					>;
 					if ("extension" in childObj) {
 						const ext = childObj.extension as string;
 						const childPath = childObj.path as string;
@@ -403,7 +418,10 @@ describe("Anki Import", function () {
 
 		// Upload file
 		const remotePath = await browser.uploadFile(EXAMPLE_APKG_PATH);
-		await setFileOnHiddenInput(".anki-import-file-input-hidden", remotePath);
+		await setFileOnHiddenInput(
+			".anki-import-file-input-hidden",
+			remotePath,
+		);
 
 		// Should now show the filename
 		await browser.waitUntil(
