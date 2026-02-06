@@ -786,8 +786,8 @@ export default class AnkerPlugin extends Plugin {
 			this.app,
 			orphans,
 			attachmentFolder,
-			async () => {
-				for (const file of orphans) {
+			async (selectedFiles) => {
+				for (const file of selectedFiles) {
 					await this.app.fileManager.trashFile(file);
 				}
 			},

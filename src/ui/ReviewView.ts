@@ -228,6 +228,12 @@ export class ReviewView extends ItemView {
 			cardContainer = scrollWrapper.createDiv({
 				cls: "flashcard-card-container",
 			});
+			cardContainer.addEventListener("click", () => {
+				if (!this.session) return;
+				if (this.session.currentSide < this.session.totalSides - 1) {
+					this.revealNext();
+				}
+			});
 			scrollWrapper.createDiv({ cls: "flashcard-fade-bottom" });
 
 			controlsContainer = container.createDiv({
@@ -418,7 +424,7 @@ export class ReviewView extends ItemView {
 				});
 			actionsContainer.createDiv({
 				cls: "flashcard-hint",
-				text: "Space to show answer • E to edit • O to open",
+				text: "Tap or Space to show answer • E to edit • O to open",
 			});
 		} else {
 			// Show rating buttons

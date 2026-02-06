@@ -46,12 +46,32 @@ const delay = (ms: number) =>
 const prepareVaults = async () => {
 	await mkdir(vaultRootDir, { recursive: true });
 
-	try {
-		await stat(vaultReadyFile);
-		return;
-	} catch {
-		// Not prepared yet.
-	}
+	const expectedVaults = desktopVersions.map(
+		([appVersion, installerVersion]) =>
+			buildVaultPath(appVersion, installerVersion),
+	);
+
+	const readyMatches = async () => {
+		try {
+			const raw = await readFile(vaultReadyFile, "utf8");
+			const parsed = JSON.parse(raw) as {
+				versions?: Array<[string, string]>;
+			};
+			const versionsMatch =
+				JSON.stringify(parsed.versions ?? []) ===
+				JSON.stringify(desktopVersions);
+			if (!versionsMatch) return false;
+
+			for (const vaultPath of expectedVaults) {
+				await stat(vaultPath);
+			}
+			return true;
+		} catch {
+			return false;
+		}
+	};
+
+	if (await readyMatches()) return;
 
 	let lockHandle = await open(vaultLockFile, "wx").catch(() => null);
 	if (!lockHandle) {
@@ -79,7 +99,14 @@ const prepareVaults = async () => {
 				await cp(vaultBaseDir, vaultPath, { recursive: true });
 			}),
 		);
-		await writeFile(vaultReadyFile, new Date().toISOString());
+		await writeFile(
+			vaultReadyFile,
+			JSON.stringify(
+				{ versions: desktopVersions, timestamp: new Date().toISOString() },
+				null,
+				2,
+			),
+		);
 	} finally {
 		await lockHandle.close();
 		await rm(vaultLockFile, { force: true });
