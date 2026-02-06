@@ -28,6 +28,7 @@ export type ReviewSessionManagerLike = {
 export type AnkerPluginLike = {
 	settings: {
 		templateFolder: string;
+		defaultImportFolder?: string;
 		fsrsEnableShortTerm?: boolean;
 		fsrsLearningSteps?: Array<string | number>;
 		fsrsRelearningSteps?: Array<string | number>;
@@ -56,6 +57,7 @@ export type ObsidianAppLike = {
 		configDir: string;
 		getAbstractFileByPath: (path: string) => unknown;
 		createFolder: (path: string) => Promise<unknown>;
+		delete: (file: unknown, force?: boolean) => Promise<void>;
 		getMarkdownFiles: () => unknown[];
 		adapter: {
 			exists: (path: string) => Promise<boolean>;

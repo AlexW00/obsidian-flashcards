@@ -82,7 +82,22 @@ const modal = await $(".modal");
 await modal.waitForDisplayed({ timeout: 5000 });
 ```
 
-### 5. Managing Vault State
+### 5. Hidden File Inputs
+
+Some Obsidian modals use hidden file inputs (`display: none`). WebDriverIO cannot interact with them directly.
+Use `browser.execute` to temporarily make the input visible before `setValue`.
+
+```typescript
+await browser.execute((sel: string) => {
+	const input = document.querySelector(sel) as HTMLInputElement | null;
+	if (input) input.style.display = "block";
+}, ".my-hidden-file-input");
+
+const fileInput = $(".my-hidden-file-input");
+await fileInput.setValue(remotePath);
+```
+
+### 6. Managing Vault State
 
 Tests share the same vault folder (`test/vaults`). Ensure you clean up or reset state in `beforeEach`.
 
@@ -96,10 +111,28 @@ beforeEach(async () => {
 });
 ```
 
+### 7. Modal Cleanup Between Tests
+
+If a test opens a modal, ensure it is closed in `afterEach` to avoid stacked modals and timeouts.
+
+```typescript
+afterEach(async () => {
+	await browser.execute(() => {
+		const buttons = document.querySelectorAll(
+			".modal-container .modal-close-button",
+		);
+		buttons.forEach((btn) => (btn as HTMLElement).click());
+	});
+	await browser.pause(200);
+});
+```
+
 ## ⚠️ Common Pitfalls
 
 - **Command IDs**: Using the visible name (e.g., "Show card errors") instead of the ID (`anker:open-failed-cards`).
 - **Metadata Cache**: Creating a file via `app.vault.create` doesn't mean the cache is ready instantly. If your test depends on frontmatter readings immediately after creation, you might hit a race condition.
+- **Template Conflicts**: Anki import can show a conflict confirmation modal if templates already exist. Clear the `templates/` folder in `beforeEach` to avoid blocking tests.
+- **Modal Stacking**: A test that only opens a modal but never closes it can leave extra modals open and block later tests.
 - **Linting**: e2e test files are linted.
     - Don't use `any`.
     - Don't leave unused variables.

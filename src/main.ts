@@ -8,6 +8,7 @@ import {
 	type FlashcardTemplate,
 	type Flashcard,
 	debugLog,
+	configureDebugLogger,
 } from "./types";
 import { TemplateService } from "./flashcards/TemplateService";
 import { CardService } from "./flashcards/CardService";
@@ -77,6 +78,11 @@ export default class AnkerPlugin extends Plugin {
 	async onload() {
 		await this.loadSettings();
 
+		const pluginDir =
+			this.manifest.dir ??
+			`${this.app.vault.configDir}/plugins/${this.manifest.id}`;
+		configureDebugLogger(this.app, this.manifest.id, pluginDir);
+
 		// Add status bar item
 		this.statusBarItem = this.addStatusBarItem();
 
@@ -118,9 +124,6 @@ export default class AnkerPlugin extends Plugin {
 		this.templateService.setAiService(this.aiService);
 
 		// Initialize Furigana services
-		const pluginDir =
-			this.manifest.dir ??
-			`${this.app.vault.configDir}/plugins/${this.manifest.id}`;
 		this.dictManager = new DictionaryManager(this.app, pluginDir);
 		this.furiganaService = new FuriganaService(this.app, this.dictManager);
 

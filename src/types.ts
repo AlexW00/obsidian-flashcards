@@ -8,6 +8,7 @@ import {
 	default_request_retention,
 	default_w,
 } from "ts-fsrs";
+import type { App, DataAdapter } from "obsidian";
 
 /**
  * Enable debug logging throughout the plugin.
@@ -15,17 +16,77 @@ import {
  */
 export const DEBUG = true;
 
+let debugAdapter: DataAdapter | null = null;
+let debugLogPath: string | null = null;
+let debugLogDir: string | null = null;
+let debugWriteQueue: Promise<void> = Promise.resolve();
+
+function formatDebugMessage(message: string, args: unknown[]): string {
+	if (args.length === 0) return message;
+	const formattedArgs = args.map((arg) => {
+		if (typeof arg === "string") return arg;
+		try {
+			return JSON.stringify(arg);
+		} catch {
+			return String(arg);
+		}
+	});
+	return [message, ...formattedArgs].join(" ");
+}
+
+/**
+ * Configure the debug logger to write to a file in the plugin folder.
+ */
+export function configureDebugLogger(
+	app: App,
+	pluginId: string,
+	pluginDir?: string,
+): void {
+	const resolvedPluginDir =
+		pluginDir ?? `${app.vault.configDir}/plugins/${pluginId}`;
+	debugAdapter = app.vault.adapter;
+	debugLogDir = resolvedPluginDir;
+	debugLogPath = `${resolvedPluginDir}/debug.log`;
+}
+
+async function ensureDebugLogDir(): Promise<void> {
+	if (!debugAdapter || !debugLogDir) return;
+	const exists = await debugAdapter.exists(debugLogDir);
+	if (!exists) {
+		await debugAdapter.mkdir(debugLogDir);
+	}
+}
+
+async function appendDebugLogLine(line: string): Promise<void> {
+	if (!debugAdapter || !debugLogPath) return;
+	await ensureDebugLogDir();
+	const exists = await debugAdapter.exists(debugLogPath);
+	if (!exists) {
+		await debugAdapter.write(debugLogPath, line);
+		return;
+	}
+	await debugAdapter.append(debugLogPath, line);
+}
+
+function enqueueDebugLogWrite(line: string): void {
+	if (!debugAdapter || !debugLogPath) return;
+	debugWriteQueue = debugWriteQueue
+		.then(() => appendDebugLogLine(line))
+		.catch(() => undefined);
+}
+
 /**
  * Log a debug message if DEBUG is enabled.
  * Use this instead of console.debug for togglable logging.
  */
 export function debugLog(message: string, ...args: unknown[]): void {
 	if (DEBUG) {
+		const formatted = formatDebugMessage(message, args);
 		// eslint-disable-next-line no-console
-		console.log(`[Anker] ${message}`, ...args);
+		console.log(`[Anker] ${formatted}`);
+		const line = `${new Date().toISOString()} [Anker] ${formatted}\n`;
+		enqueueDebugLogWrite(line);
 	}
-	// eslint-disable-next-line no-console
-	console.log(`[Anker] ${message}`, ...args);
 }
 
 /**

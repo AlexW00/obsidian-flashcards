@@ -28,3 +28,4 @@ coverage/
 .obsidian-cache/
 .wdio-vaults/
 .env
+debug.log
