@@ -138,6 +138,18 @@ export class ReviewLogStore {
 		return `${this.app.vault.configDir}/plugins/${this.pluginId}/${REVIEW_LOG_FILENAME}`;
 	}
 
+	private logDirPath(): string {
+		return `${this.app.vault.configDir}/plugins/${this.pluginId}`;
+	}
+
+	private async ensureLogDir(): Promise<void> {
+		const path = this.logDirPath();
+		const exists = await this.app.vault.adapter.exists(path);
+		if (!exists) {
+			await this.app.vault.adapter.mkdir(path);
+		}
+	}
+
 	private async loadJsonl(path: string): Promise<void> {
 		const raw = await this.app.vault.adapter.read(path);
 		this.data = {};
@@ -162,6 +174,7 @@ export class ReviewLogStore {
 	}
 
 	private async writeFullJsonl(path: string): Promise<void> {
+		await this.ensureLogDir();
 		const lines: string[] = [];
 		for (const [cardId, entries] of Object.entries(this.data)) {
 			for (const entry of entries) {
@@ -176,6 +189,7 @@ export class ReviewLogStore {
 		cardId: string,
 		entry: ReviewLogEntry,
 	): Promise<void> {
+		await this.ensureLogDir();
 		const path = this.filePath();
 		const line = `${JSON.stringify({ cardId, entry })}\n`;
 		const exists = await this.app.vault.adapter.exists(path);
