@@ -1,6 +1,6 @@
 {
 	"name": "anker",
-	"version": "1.0.3",
+	"version": "1.0.4",
 	"description": "Anker — spaced repetition flashcards plugin for Obsidian with advanced scheduling algorithms",
 	"main": "main.js",
 	"type": "module",

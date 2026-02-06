@@ -1,7 +1,7 @@
 {
 	"id": "anker",
 	"name": "Anker",
-	"version": "1.0.3",
+	"version": "1.0.4",
 	"minAppVersion": "1.11.5",
 	"description": "Anker — spaced repetition flashcards plugin for Obsidian with advanced scheduling algorithms.",
 	"author": "Alex Weichart",
