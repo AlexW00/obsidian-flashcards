@@ -807,7 +807,10 @@ export class AnkiImportService {
 						);
 					}
 				} else {
-					await this.app.vault.createBinary(mediaPath, mediaBytes.buffer as ArrayBuffer);
+					await this.app.vault.createBinary(
+						mediaPath,
+						mediaBytes.buffer as ArrayBuffer,
+					);
 				}
 
 				result.mediaImported++;
