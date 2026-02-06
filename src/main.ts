@@ -36,6 +36,7 @@ import { CardErrorsScopeModal } from "./ui/CardErrorsScopeModal";
 import { DictionaryManager } from "./services/DictionaryManager";
 import { FuriganaService } from "./services/FuriganaService";
 import { FuriganaDictModal } from "./ui/FuriganaDictModal";
+import { ConfirmEndSessionModal } from "./ui/ConfirmEndSessionModal";
 
 /** Key prefix for storing API keys in SecretStorage */
 const API_KEY_PREFIX = "anker-ai-api-key-";
@@ -167,6 +168,13 @@ export default class AnkerPlugin extends Plugin {
 
 		// Register review keyboard shortcuts
 		this.registerReviewKeyboardShortcuts();
+
+		// End session if the review tab is manually closed
+		this.registerEvent(
+			this.app.workspace.on("layout-change", () => {
+				this.ensureActiveSessionLeaf();
+			}),
+		);
 
 		// Register auto-regenerate listener for frontmatter changes
 		this.registerEvent(
@@ -653,6 +661,69 @@ export default class AnkerPlugin extends Plugin {
 	 * Opens the first due card in preview mode with review controls.
 	 */
 	async startReview(deckPath: string) {
+		this.ensureActiveSessionLeaf();
+
+		if (this.reviewSessionManager.isSessionActive()) {
+			const session = this.reviewSessionManager.getSession();
+			const sessionLeaf = this.reviewSessionManager.getSessionLeaf();
+			const sessionView = sessionLeaf?.view;
+			const sessionFilePath =
+				sessionView instanceof MarkdownView
+					? sessionView.file?.path
+					: null;
+
+			if (!session || !sessionFilePath) {
+				this.reviewSessionManager.endSession();
+			} else if (sessionFilePath !== session.currentCardPath) {
+				this.reviewSessionManager.endSession();
+			}
+		}
+
+		// Check if a session is already active
+		if (this.reviewSessionManager.isSessionActive()) {
+			const deckName =
+				this.reviewSessionManager.getSessionDeckName() || "unknown";
+			const oldLeaf = this.reviewSessionManager.getSessionLeaf();
+			const navigateToSession = () => {
+				if (!oldLeaf) return;
+				const leafStillExists = this.app.workspace
+					.getLeavesOfType("markdown")
+					.some((l) => l === oldLeaf);
+				if (leafStillExists) {
+					this.app.workspace.setActiveLeaf(oldLeaf, { focus: true });
+				}
+			};
+
+			const modal = new ConfirmEndSessionModal(
+				this.app,
+				deckName,
+				oldLeaf ? navigateToSession : undefined,
+			);
+			const confirmed = await modal.confirm();
+
+			if (!confirmed) {
+				return;
+			}
+
+			// Close the old session's tab if it still exists
+			this.reviewSessionManager.endSession();
+
+			if (oldLeaf) {
+				// Check if leaf is still valid before detaching
+				const leafStillExists = this.app.workspace
+					.getLeavesOfType("markdown")
+					.some((l) => l === oldLeaf);
+				if (leafStillExists) {
+					oldLeaf.detach();
+				}
+			}
+
+			// Pop and re-push scope for clean state
+			if (this.reviewScope) {
+				this.app.keymap.popScope(this.reviewScope);
+			}
+		}
+
 		// Push review scope for keyboard shortcuts
 		if (!this.reviewScope) {
 			this.reviewScope = new Scope(this.app.scope);
@@ -662,6 +733,26 @@ export default class AnkerPlugin extends Plugin {
 
 		// Start the session - this will open the first card
 		await this.reviewSessionManager.startSession(deckPath);
+	}
+
+	/**
+	 * End a session if its tracked leaf no longer exists.
+	 */
+	private ensureActiveSessionLeaf(): void {
+		if (!this.reviewSessionManager.isSessionActive()) return;
+
+		const sessionLeaf = this.reviewSessionManager.getSessionLeaf();
+		if (!sessionLeaf) {
+			this.reviewSessionManager.endSession();
+			return;
+		}
+
+		const leafStillExists = this.app.workspace
+			.getLeavesOfType("markdown")
+			.some((leaf) => leaf === sessionLeaf);
+		if (!leafStillExists) {
+			this.reviewSessionManager.endSession();
+		}
 	}
 
 	/**

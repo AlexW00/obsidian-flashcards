@@ -1,9 +1,10 @@
-import { App, TFile, MarkdownView, Events } from "obsidian";
+import { App, TFile, MarkdownView, Events, WorkspaceLeaf } from "obsidian";
 import type { Flashcard, ReviewState } from "../types";
 import type { DeckService } from "../flashcards/DeckService";
 import type { CardService } from "../flashcards/CardService";
 import { Rating, Scheduler } from "../srs/Scheduler";
 import type { ReviewLogStore } from "../srs/ReviewLogStore";
+import { debugLog } from "../types";
 
 /**
  * Session state for tracking review progress.
@@ -42,6 +43,7 @@ export class ReviewSessionManager extends Events {
 	private scheduler: Scheduler;
 	private reviewLogStore: ReviewLogStore;
 	private session: ReviewSession | null = null;
+	private sessionLeaf: WorkspaceLeaf | null = null;
 
 	constructor(
 		app: App,
@@ -70,6 +72,23 @@ export class ReviewSessionManager extends Events {
 	 */
 	getSession(): ReviewSession | null {
 		return this.session;
+	}
+
+	/**
+	 * Get the leaf (tab) associated with the current review session.
+	 */
+	getSessionLeaf(): WorkspaceLeaf | null {
+		return this.sessionLeaf;
+	}
+
+	/**
+	 * Get the deck name for the current session.
+	 */
+	getSessionDeckName(): string | null {
+		if (!this.session) return null;
+		// Extract folder name from deck path
+		const parts = this.session.deckPath.split("/");
+		return parts[parts.length - 1] || this.session.deckPath;
 	}
 
 	/**
@@ -119,6 +138,10 @@ export class ReviewSessionManager extends Events {
 			reviewsPerformed: 0,
 		};
 
+		// Add body class for CSS-based content hiding (prevents flicker)
+		document.body.classList.add("anker-review-session-active");
+		debugLog("review: session started", deckPath, firstCard.path);
+
 		this.trigger("session-started", this.session);
 
 		// Open the first card in preview mode
@@ -130,6 +153,11 @@ export class ReviewSessionManager extends Events {
 	 */
 	endSession(): void {
 		this.session = null;
+		this.sessionLeaf = null;
+		// Remove body class for CSS-based content hiding
+		document.body.classList.remove("anker-review-session-active");
+		document.body.classList.remove("anker-review-card-loading");
+		debugLog("review: session ended");
 		this.trigger("session-ended");
 	}
 
@@ -219,6 +247,9 @@ export class ReviewSessionManager extends Events {
 
 		if (nextDueCards.length === 0) {
 			this.session = null;
+			document.body.classList.remove("anker-review-session-active");
+			document.body.classList.remove("anker-review-card-loading");
+			debugLog("review: session complete");
 			this.trigger("session-complete");
 			return;
 		}
@@ -245,6 +276,7 @@ export class ReviewSessionManager extends Events {
 		}
 
 		this.trigger("card-changed", this.session);
+		debugLog("review: card changed", nextCard.path);
 
 		// Open the next card
 		await this.openCardInPreview(nextCard.path);
@@ -287,6 +319,11 @@ export class ReviewSessionManager extends Events {
 			leaf = this.app.workspace.getLeaf("tab");
 		}
 
+		// Track the session leaf for cleanup
+		this.sessionLeaf = leaf;
+
+		document.body.classList.add("anker-review-card-loading");
+		debugLog("review: open card", cardPath);
 		await leaf.openFile(file, { state: { mode: "preview" } });
 	}
 

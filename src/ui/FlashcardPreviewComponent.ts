@@ -11,6 +11,7 @@ import type { ReviewSession } from "../services/ReviewSessionManager";
 import { ReviewSessionManager } from "../services/ReviewSessionManager";
 import { Rating } from "../srs/Scheduler";
 import type AnkerPlugin from "../main";
+import { debugLog } from "../types";
 
 /**
  * Component that decorates flashcard notes in preview mode.
@@ -134,8 +135,15 @@ export class FlashcardPreviewComponent extends Component {
 		if (!contentEl) return;
 
 		const session = this.sessionManager.getSession();
+		const sessionLeaf = this.sessionManager.getSessionLeaf();
+		// Only show review mode if this is the tracked session leaf AND the file matches
 		const isReviewing =
-			session !== null && session.currentCardPath === file.path;
+			session !== null &&
+			session.currentCardPath === file.path &&
+			sessionLeaf !== null &&
+			view.leaf === sessionLeaf;
+
+		this.updateReviewTabIndicator(view, isReviewing);
 
 		// Create or get the flashcard wrapper
 		let wrapper = container.querySelector(
@@ -169,6 +177,8 @@ export class FlashcardPreviewComponent extends Component {
 	 * Remove decorations from a view.
 	 */
 	private removeDecorations(view: MarkdownView): void {
+		this.updateReviewTabIndicator(view, false);
+
 		const container = view.containerEl;
 		const wrapper = container.querySelector(
 			".anker-flashcard-wrapper",
@@ -185,6 +195,17 @@ export class FlashcardPreviewComponent extends Component {
 
 		// Remove wrapper and UI elements
 		wrapper.remove();
+	}
+
+	private updateReviewTabIndicator(
+		view: MarkdownView,
+		isReviewing: boolean,
+	): void {
+		const leaf = view.leaf;
+		const tabHeaderEl = (leaf as { tabHeaderEl?: HTMLElement })?.tabHeaderEl;
+		if (!tabHeaderEl) return;
+
+		tabHeaderEl.classList.toggle("anker-review-tab", isReviewing);
 	}
 
 	/**
@@ -287,6 +308,10 @@ export class FlashcardPreviewComponent extends Component {
 		) as HTMLElement;
 		if (!sizerEl) return;
 
+		// Ensure content is hidden until this pass completes
+		sizerEl.classList.remove("anker-decorated");
+		debugLog("review: decorate start", session.currentCardPath);
+
 		// Hide frontmatter/metadata and inline title during review
 		const metadataContainer = sizerEl.querySelector(
 			".metadata-container",
@@ -315,10 +340,18 @@ export class FlashcardPreviewComponent extends Component {
 		}
 
 		// Get all direct children of the sizer (excluding metadata and title)
-		const children = Array.from(sizerEl.children) as HTMLElement[];
+		const sectionEls = Array.from(
+			sizerEl.querySelectorAll(":scope > .markdown-preview-section"),
+		) as HTMLElement[];
+		const children = sectionEls.length
+			? sectionEls.flatMap(
+					(section) => Array.from(section.children) as HTMLElement[],
+			  )
+			: (Array.from(sizerEl.children) as HTMLElement[]);
 
 		// Group children into sides based on <hr> positions
 		let currentSideIndex = 0;
+		let hasSeenContent = false;
 
 		for (const child of children) {
 			// Skip metadata and title (already hidden above)
@@ -330,15 +363,20 @@ export class FlashcardPreviewComponent extends Component {
 			}
 
 			// Check if this is an HR (side separator)
-			const isHr =
-				child.tagName === "HR" ||
-				(child.querySelector(":scope > hr") !== null &&
-					child.childElementCount === 1);
+			const directHr = child.tagName === "HR"
+				? (child as HTMLElement)
+				: (child.querySelector(":scope > hr") as HTMLElement | null);
+			const isHr = directHr !== null;
 
 			if (isHr) {
+				if (!hasSeenContent) {
+					// Ignore leading separators to avoid an empty first side
+					child.classList.add("anker-hidden-side");
+					continue;
+				}
 				currentSideIndex++;
 				// Style the HR as a side separator
-				child.classList.add("flashcard-side-separator");
+				directHr?.classList.add("flashcard-side-separator");
 			}
 
 			// Determine visibility based on showOnlyCurrentSide setting
@@ -350,6 +388,10 @@ export class FlashcardPreviewComponent extends Component {
 				child.classList.remove("anker-hidden-side");
 			} else {
 				child.classList.add("anker-hidden-side");
+			}
+
+			if (!isHr) {
+				hasSeenContent = true;
 			}
 		}
 
@@ -369,6 +411,11 @@ export class FlashcardPreviewComponent extends Component {
 				this.sessionManager.revealNext();
 			}
 		};
+
+		// Mark sizer as decorated to reveal content (prevents flicker)
+		sizerEl.classList.add("anker-decorated");
+		document.body.classList.remove("anker-review-card-loading");
+		debugLog("review: decorate end", session.currentCardPath);
 	}
 
 	/**
@@ -391,6 +438,9 @@ export class FlashcardPreviewComponent extends Component {
 			".markdown-preview-sizer",
 		) as HTMLElement;
 		if (sizerEl) {
+			// Remove decoration marker
+			sizerEl.classList.remove("anker-decorated");
+
 			// Remove hidden class from all elements
 			const hiddenElements =
 				sizerEl.querySelectorAll(".anker-hidden-side");
@@ -526,37 +576,65 @@ export class FlashcardPreviewComponent extends Component {
 		if (!activeLeaf) return;
 
 		const container = activeLeaf.containerEl;
-		const wrapper = container.querySelector(
+		let wrapper = container.querySelector(
 			".anker-flashcard-wrapper",
 		) as HTMLElement;
-		if (!wrapper) return;
 
-		// Clear content and show complete message
-		const cardContent = wrapper.querySelector(".anker-card-content");
-		if (cardContent) {
-			cardContent.empty();
+		// If no wrapper exists, create one around the reading view
+		if (!wrapper) {
+			const contentEl = container.querySelector(
+				".markdown-reading-view",
+			) as HTMLElement;
+			if (!contentEl) return;
 
-			const completeState = cardContent.createDiv({
-				cls: "flashcard-complete-state",
-			});
-			setIcon(
-				completeState.createDiv({ cls: "flashcard-complete-icon" }),
-				"check-circle",
-			);
-			completeState.createEl("h3", { text: "Review complete!" });
-			completeState.createEl("p", {
-				text: "You've reviewed all due cards in this deck.",
-			});
-
-			new ButtonComponent(completeState)
-				.setButtonText("Back to dashboard")
-				.setCta()
-				.onClick(() => {
-					void this.plugin.openDashboard();
-				});
+			wrapper = document.createElement("div");
+			wrapper.className = "anker-flashcard-wrapper";
+			contentEl.parentElement?.insertBefore(wrapper, contentEl);
+			wrapper.appendChild(contentEl);
 		}
 
-		// Remove controls
+		// Remove any existing completion overlay
+		wrapper.querySelector(".anker-review-complete-overlay")?.remove();
+
+		// Hide the native preview content
+		const readingView = wrapper.querySelector(
+			".markdown-reading-view",
+		) as HTMLElement;
+		if (readingView) {
+			readingView.classList.add("anker-hidden");
+		}
+
+		// Create completion overlay
+		const overlay = wrapper.createDiv({
+			cls: "anker-review-complete-overlay",
+		});
+
+		const completeState = overlay.createDiv({
+			cls: "flashcard-complete-state",
+		});
+
+		setIcon(
+			completeState.createDiv({ cls: "flashcard-complete-icon" }),
+			"check-circle",
+		);
+		completeState.createEl("h3", { text: "Review complete!" });
+		completeState.createEl("p", {
+			text: "You've reviewed all due cards in this deck.",
+		});
+
+		new ButtonComponent(completeState)
+			.setButtonText("Back to dashboard")
+			.setCta()
+			.onClick(() => {
+				// Clean up overlay before navigating
+				overlay.remove();
+				if (readingView) {
+					readingView.classList.remove("anker-hidden");
+				}
+				void this.plugin.openDashboard();
+			});
+
+		// Remove controls and progress bar
 		this.removeControls(wrapper);
 		this.removeProgressBar(wrapper);
 	}
